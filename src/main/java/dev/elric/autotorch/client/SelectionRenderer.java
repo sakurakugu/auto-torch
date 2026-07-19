@@ -1,13 +1,15 @@
-package dev.elric.autotorch.client;
+package dev.sakurakugu.autotorch.client;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import dev.elric.autotorch.AutoTorchMod;
-import dev.elric.autotorch.network.AreaShape;
-import dev.elric.autotorch.network.AreaZone;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+
+import dev.elric.autotorch.AutoTorchMod;
+import dev.elric.autotorch.network.AreaShape;
+import dev.elric.autotorch.network.AreaZone;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;

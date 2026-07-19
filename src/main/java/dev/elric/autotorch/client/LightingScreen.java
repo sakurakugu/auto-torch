@@ -1,10 +1,11 @@
-package dev.elric.autotorch.client;
+package dev.sakurakugu.autotorch.client;
+
+import java.util.function.Predicate;
 
 import dev.elric.autotorch.network.AreaShape;
 import dev.elric.autotorch.network.AreaZone;
 import dev.elric.autotorch.network.CancelLightingPayload;
 import dev.elric.autotorch.network.StartLightingPayload;
-import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;

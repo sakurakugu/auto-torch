@@ -1,10 +1,10 @@
-package dev.elric.autotorch.network;
+package dev.sakurakugu.autotorch.network;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import dev.elric.autotorch.AutoTorchMod;
 import io.netty.handler.codec.DecoderException;
-import java.util.ArrayList;
-import java.util.List;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;

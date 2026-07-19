@@ -1,12 +1,13 @@
-package dev.elric.autotorch.server;
+package dev.sakurakugu.autotorch.server;
 
-import dev.elric.autotorch.network.StartLightingPayload;
-import dev.elric.autotorch.network.AreaShape;
-import dev.elric.autotorch.network.AreaZone;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
+
+import dev.elric.autotorch.network.AreaShape;
+import dev.elric.autotorch.network.AreaZone;
+import dev.elric.autotorch.network.StartLightingPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;

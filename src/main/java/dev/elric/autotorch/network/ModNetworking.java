@@ -1,4 +1,4 @@
-package dev.elric.autotorch.network;
+package dev.sakurakugu.autotorch.network;
 
 import dev.elric.autotorch.server.LightingTaskManager;
 import net.minecraft.server.level.ServerPlayer;

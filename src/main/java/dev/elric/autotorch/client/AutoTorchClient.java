@@ -1,6 +1,9 @@
-package dev.elric.autotorch.client;
+package dev.sakurakugu.autotorch.client;
+
+import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.platform.InputConstants;
+
 import dev.elric.autotorch.AutoTorchMod;
 import dev.elric.autotorch.network.AreaShape;
 import net.minecraft.client.KeyMapping;
@@ -20,7 +23,6 @@ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import org.lwjgl.glfw.GLFW;
 
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 @Mod(value = AutoTorchMod.MOD_ID, dist = Dist.CLIENT)

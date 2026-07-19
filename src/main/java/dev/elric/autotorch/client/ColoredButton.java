@@ -1,4 +1,4 @@
-package dev.elric.autotorch.client;
+package dev.sakurakugu.autotorch.client;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

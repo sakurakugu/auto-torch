@@ -1,4 +1,4 @@
-package dev.elric.autotorch.server;
+package dev.sakurakugu.autotorch.server;
 
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;

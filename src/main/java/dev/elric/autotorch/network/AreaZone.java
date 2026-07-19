@@ -1,4 +1,4 @@
-package dev.elric.autotorch.network;
+package dev.sakurakugu.autotorch.network;
 
 import net.minecraft.core.BlockPos;
 

@@ -1,4 +1,4 @@
-package dev.elric.autotorch;
+package dev.sakurakugu.autotorch;
 
 import dev.elric.autotorch.network.ModNetworking;
 import dev.elric.autotorch.server.LightingTaskManager;

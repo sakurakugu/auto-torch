@@ -1,12 +1,13 @@
-package dev.elric.autotorch.server;
+package dev.sakurakugu.autotorch.server;
 
-import dev.elric.autotorch.network.AreaZone;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+
+import dev.elric.autotorch.network.AreaZone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
