@@ -52,8 +52,12 @@
   "screen.autotorch.cancel_task": "Cancel task",
   "screen.autotorch.selection_overlay_on": "Areas: on",
   "screen.autotorch.selection_overlay_off": "Areas: off",
-  "screen.autotorch.light_overlay_on": "Light-risk overlay: on (F7)",
-  "screen.autotorch.light_overlay_off": "Light-risk overlay: off (F7)",
+  "screen.autotorch.light_overlay_on": "Overlay: on",
+  "screen.autotorch.light_overlay_off": "Overlay: off",
+  "screen.autotorch.light_overlay_mode_crosses": "Style: X",
+  "screen.autotorch.light_overlay_mode_numbers": "Style: numbers",
+  "screen.autotorch.light_overlay_title": "Light Overlay",
+  "screen.autotorch.light_overlay_range_value": "Range: %s",
   "screen.autotorch.invalid_value": "A coordinate or setting is invalid",
   "message.autotorch.selected_a": "Set point A to %s",
   "message.autotorch.selected_b": "Set point B to %s",
@@ -70,6 +74,6 @@
   "message.autotorch.max_reached": "Placed %s torches and reached the configured limit.",
   "message.autotorch.out_of_torches": "Out of torches; stopped after placing %s.",
   "message.autotorch.completed": "Scan complete: placed %s torches and skipped %s unloaded positions.",
-  "message.autotorch.light_overlay_on": "Light-risk overlay enabled: red means an all-time risk and yellow means a night-time risk.",
+  "message.autotorch.light_overlay_on": "Light overlay enabled: red means an all-time risk and yellow means a night-time risk; green means safe in number mode.",
   "message.autotorch.light_overlay_off": "Light-risk overlay disabled."
 }

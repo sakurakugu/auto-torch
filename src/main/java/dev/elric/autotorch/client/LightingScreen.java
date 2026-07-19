@@ -8,8 +8,11 @@ import dev.sakurakugu.autotorch.network.CancelLightingPayload;
 import dev.sakurakugu.autotorch.network.StartLightingPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -17,6 +20,11 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /** 自动照明的参数界面，负责选区管理、客户端校验和任务提交。 */
 public final class LightingScreen extends Screen {
+    private static final int CONTENT_HEIGHT = 258;
+    private static final int VIEWPORT_MARGIN = 4;
+    private static final int SCROLLBAR_WIDTH = 6;
+    private static final int MIN_SCROLLBAR_HEIGHT = 20;
+    private static final int SCROLL_RATE = 20;
     private static final int MAX_SELECTION_BOUND_AXIS = AreaZone.MAX_SPHERE_RADIUS * 2 + 1;
     private static final long MAX_SELECTION_BOUND_VOLUME =
             (long) MAX_SELECTION_BOUND_AXIS * MAX_SELECTION_BOUND_AXIS * MAX_SELECTION_BOUND_AXIS;
@@ -42,9 +50,12 @@ public final class LightingScreen extends Screen {
     private Button undergroundButton;
     private Button selectionOverlayButton;
     private Button lightOverlayButton;
+    private Button lightOverlayModeButton;
     private boolean consumeTorches;
     private boolean undergroundOnly = true;
     private boolean syncingInputs;
+    private int scrollOffset;
+    private boolean draggingScrollbar;
     private Component error = Component.empty();
 
     public LightingScreen() {
@@ -80,19 +91,19 @@ public final class LightingScreen extends Screen {
         createCoordinateRow(first, left, 44, SelectionState.first(playerPos));
         useCurrentFirstButton = addRenderableWidget(Button.builder(firstPointMessage(), button -> {
             setCoordinatePosition(first, currentPosition());
-        }).bounds(left + 176, 44, 134, 20).build());
+        }).bounds(left + 190, 44, 120, 20).build());
 
         createCoordinateRow(second, left, 66, SelectionState.second(playerPos));
         useCurrentSecondButton = addRenderableWidget(Button.builder(secondPointMessage(), button -> {
             setCoordinatePosition(second, currentPosition());
-        }).bounds(left + 176, 66, 134, 20).build());
+        }).bounds(left + 190, 66, 120, 20).build());
 
         for (int i = 0; i < dimensions.length; i++) {
-            dimensions[i] = sizeBox(left + 18 + i * 52, 88, 48);
+            dimensions[i] = sizeBox(left + 14 + i * 70, 88, 52);
             dimensions[i].setResponder(value -> onDimensionChanged());
         }
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.swap_points"), button -> swapPoints())
-                .bounds(left + 176, 88, 134, 20).build());
+                .bounds(left + 210, 88, 100, 20).build());
 
         for (EditBox box : first) {
             box.setResponder(value -> onCoordinatesChanged());
@@ -118,33 +129,41 @@ public final class LightingScreen extends Screen {
         consumeButton = addRenderableWidget(Button.builder(consumeMessage(), button -> {
             consumeTorches = !consumeTorches;
             consumeButton.setMessage(consumeMessage());
-        }).bounds(left, 160, 150, 20).build());
+        }).bounds(left, 160, 114, 20).build());
         undergroundButton = addRenderableWidget(Button.builder(undergroundMessage(), button -> {
             undergroundOnly = !undergroundOnly;
             undergroundButton.setMessage(undergroundMessage());
-        }).bounds(left + 160, 160, 150, 20).build());
-
-        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.start"), button -> startTask())
-                .bounds(left, 184, 96, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.cancel_task"), button -> {
-            ClientPacketDistributor.sendToServer(new CancelLightingPayload());
-            onClose();
-        }).bounds(left + 100, 184, 100, 20).build());
+        }).bounds(left + 118, 160, 114, 20).build());
         selectionOverlayButton = addRenderableWidget(Button.builder(selectionOverlayMessage(), button -> {
             SelectionState.toggleOverlay();
             selectionOverlayButton.setMessage(selectionOverlayMessage());
-        }).bounds(left + 204, 184, 106, 20).build());
+        }).bounds(left + 236, 160, 74, 20).build());
+
+        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.start"), button -> startTask())
+                .bounds(left, 184, 153, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.cancel_task"), button -> {
+            ClientPacketDistributor.sendToServer(new CancelLightingPayload());
+            onClose();
+        }).bounds(left + 157, 184, 153, 20).build());
 
         lightOverlayButton = addRenderableWidget(Button.builder(lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
             lightOverlayButton.setMessage(lightOverlayMessage());
-        }).bounds(left, 220, 310, 20).build());
+        }).bounds(left, 234, 106, 20).build());
+        lightOverlayModeButton = addRenderableWidget(Button.builder(lightOverlayModeMessage(), button -> {
+            LightOverlayState.cycleDisplayMode();
+            lightOverlayModeButton.setMessage(lightOverlayModeMessage());
+        }).bounds(left + 110, 234, 88, 20).build());
+        addRenderableWidget(new LightRangeSlider(left + 202, 234, 108, 20));
+
+        scrollOffset = Math.min(scrollOffset, maxScrollOffset());
+        moveWidgets(-scrollOffset);
     }
 
     private void createCoordinateRow(EditBox[] boxes, int left, int y, BlockPos initial) {
         int[] values = {initial.getX(), initial.getY(), initial.getZ()};
         for (int i = 0; i < boxes.length; i++) {
-            boxes[i] = integerBox(left + 18 + i * 52, y, 48, Integer.toString(values[i]));
+            boxes[i] = integerBox(left + 18 + i * 57, y, 53, Integer.toString(values[i]));
         }
     }
 
@@ -232,6 +251,7 @@ public final class LightingScreen extends Screen {
         syncingInputs = true;
         try {
             boolean sphere = SelectionState.shape() == AreaShape.SPHERE;
+            dimensions[0].setX(panelLeft() + (sphere ? 18 : 14));
             dimensions[0].setValue(Integer.toString(sphere
                     ? new AreaZone(AreaShape.SPHERE, firstPos, secondPos).radius()
                     : Math.abs(secondPos.getX() - firstPos.getX()) + 1));
@@ -474,6 +494,11 @@ public final class LightingScreen extends Screen {
                 ? "screen.autotorch.light_overlay_on" : "screen.autotorch.light_overlay_off");
     }
 
+    private Component lightOverlayModeMessage() {
+        return Component.translatable(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
+                ? "screen.autotorch.light_overlay_mode_crosses" : "screen.autotorch.light_overlay_mode_numbers");
+    }
+
     private Component selectionOverlayMessage() {
         return Component.translatable(SelectionState.isOverlayEnabled()
                 ? "screen.autotorch.selection_overlay_on" : "screen.autotorch.selection_overlay_off");
@@ -481,6 +506,97 @@ public final class LightingScreen extends Screen {
 
     private int panelLeft() {
         return width / 2 - 155;
+    }
+
+    private int maxScrollOffset() {
+        return Math.max(0, CONTENT_HEIGHT - (height - VIEWPORT_MARGIN * 2));
+    }
+
+    private int scrollbarX() {
+        return Math.min(width - SCROLLBAR_WIDTH - 2, panelLeft() + 314);
+    }
+
+    private int scrollbarHeight() {
+        int viewportHeight = height - VIEWPORT_MARGIN * 2;
+        return Math.min(viewportHeight, Math.max(MIN_SCROLLBAR_HEIGHT,
+                viewportHeight * viewportHeight / CONTENT_HEIGHT));
+    }
+
+    private int scrollbarY() {
+        int maxScroll = maxScrollOffset();
+        int travel = height - VIEWPORT_MARGIN * 2 - scrollbarHeight();
+        return maxScroll == 0 ? VIEWPORT_MARGIN
+                : VIEWPORT_MARGIN + scrollOffset * travel / maxScroll;
+    }
+
+    private void setScrollOffset(int offset) {
+        int updated = Math.max(0, Math.min(offset, maxScrollOffset()));
+        int delta = updated - scrollOffset;
+        if (delta == 0) {
+            return;
+        }
+        scrollOffset = updated;
+        moveWidgets(-delta);
+    }
+
+    private void moveWidgets(int deltaY) {
+        for (var child : children()) {
+            if (child instanceof AbstractWidget widget) {
+                widget.setY(widget.getY() + deltaY);
+            }
+        }
+    }
+
+    private void scrollToMouse(double mouseY) {
+        int trackHeight = height - VIEWPORT_MARGIN * 2;
+        int travel = trackHeight - scrollbarHeight();
+        if (travel <= 0) {
+            return;
+        }
+        double thumbTop = mouseY - VIEWPORT_MARGIN - scrollbarHeight() / 2.0;
+        setScrollOffset((int) Math.round(thumbTop * maxScrollOffset() / travel));
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
+            return true;
+        }
+        if (maxScrollOffset() == 0 || scrollY == 0.0) {
+            return false;
+        }
+        setScrollOffset(scrollOffset - (int) Math.round(scrollY * SCROLL_RATE));
+        return true;
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (maxScrollOffset() > 0 && event.button() == 0
+                && event.x() >= scrollbarX() && event.x() < scrollbarX() + SCROLLBAR_WIDTH
+                && event.y() >= VIEWPORT_MARGIN && event.y() < height - VIEWPORT_MARGIN) {
+            draggingScrollbar = true;
+            scrollToMouse(event.y());
+            return true;
+        }
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        if (draggingScrollbar) {
+            scrollToMouse(event.y());
+            return true;
+        }
+        return super.mouseDragged(event, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (draggingScrollbar) {
+            draggingScrollbar = false;
+            return true;
+        }
+        return super.mouseReleased(event);
     }
 
     @Override
@@ -491,22 +607,24 @@ public final class LightingScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.enableScissor(0, VIEWPORT_MARGIN, width, height - VIEWPORT_MARGIN);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int left = panelLeft();
-        graphics.centeredText(font, title, width / 2, 6, 0xFFFFFFFF);
+        int offset = scrollOffset;
+        graphics.centeredText(font, title, width / 2, 6 - offset, 0xFFFFFFFF);
         boolean sphere = SelectionState.shape() == AreaShape.SPHERE;
-        graphics.text(font, sphere ? "C" : "A", left + 5, 50, 0xFF70A0FF);
-        graphics.text(font, sphere ? "R" : "B", left + 5, 72, 0xFF70A0FF);
+        graphics.text(font, sphere ? "C" : "A", left + 5, 50 - offset, 0xFF70A0FF);
+        graphics.text(font, sphere ? "R" : "B", left + 5, 72 - offset, 0xFF70A0FF);
         if (sphere) {
-            graphics.text(font, Component.translatable("screen.autotorch.radius_label"), left + 5, 94, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.radius_label"), left + 2, 94 - offset, 0xFF70A0FF);
         } else {
-            graphics.text(font, Component.translatable("screen.autotorch.length_label"), left + 5, 94, 0xFF70A0FF);
-            graphics.text(font, Component.translatable("screen.autotorch.width_label"), left + 57, 94, 0xFF70A0FF);
-            graphics.text(font, Component.translatable("screen.autotorch.height_label"), left + 109, 94, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.length_label"), left + 2, 94 - offset, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.width_label"), left + 72, 94 - offset, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.height_label"), left + 142, 94 - offset, 0xFF70A0FF);
         }
-        graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 142, 0xFFFFFFFF);
-        graphics.text(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 142, 0xFFFFFFFF);
-        int informationY = 208;
+        graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 142 - offset, 0xFFFFFFFF);
+        graphics.text(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 142 - offset, 0xFFFFFFFF);
+        int informationY = 208 - offset;
         if (!error.getString().isEmpty()) {
             graphics.centeredText(font, error, width / 2, informationY, 0xFFFF6060);
         } else {
@@ -514,11 +632,51 @@ public final class LightingScreen extends Screen {
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()),
                     left, informationY, 0xFFA0A0A0);
         }
-        graphics.fill(left, 218, left + 310, 219, 0xFF606060);
+        graphics.fill(left, 218 - offset, left + 310, 219 - offset, 0xFF606060);
+        graphics.centeredText(font, Component.translatable("screen.autotorch.light_overlay_title"),
+                width / 2, 222 - offset, 0xFFFFFFFF);
+        graphics.disableScissor();
+
+        if (maxScrollOffset() > 0) {
+            int x = scrollbarX();
+            int y = scrollbarY();
+            int thumbColor = mouseX >= x && mouseX < x + SCROLLBAR_WIDTH
+                    && mouseY >= VIEWPORT_MARGIN && mouseY < height - VIEWPORT_MARGIN
+                    ? 0xFFE0E0E0 : 0xFFB0B0B0;
+            graphics.fill(x, VIEWPORT_MARGIN, x + SCROLLBAR_WIDTH, height - VIEWPORT_MARGIN, 0x80000000);
+            graphics.fill(x, y, x + SCROLLBAR_WIDTH, y + scrollbarHeight(), thumbColor);
+        }
     }
 
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private static final class LightRangeSlider extends AbstractSliderButton {
+        private LightRangeSlider(int x, int y, int width, int height) {
+            super(x, y, width, height, Component.empty(), toSliderValue(LightOverlayState.horizontalRange()));
+            updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(Component.translatable("screen.autotorch.light_overlay_range_value", range()));
+        }
+
+        @Override
+        protected void applyValue() {
+            LightOverlayState.setHorizontalRange(range());
+        }
+
+        private int range() {
+            int steps = LightOverlayState.MAX_HORIZONTAL_RANGE - LightOverlayState.MIN_HORIZONTAL_RANGE;
+            return LightOverlayState.MIN_HORIZONTAL_RANGE + (int) Math.round(value * steps);
+        }
+
+        private static double toSliderValue(int range) {
+            return (double) (range - LightOverlayState.MIN_HORIZONTAL_RANGE)
+                    / (LightOverlayState.MAX_HORIZONTAL_RANGE - LightOverlayState.MIN_HORIZONTAL_RANGE);
+        }
     }
 }

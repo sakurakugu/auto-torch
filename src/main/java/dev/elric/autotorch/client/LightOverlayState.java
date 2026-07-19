@@ -16,16 +16,19 @@ import org.jspecify.annotations.Nullable;
 
 /** Maintains the client-only light-risk scan and an immutable snapshot for rendering. */
 public final class LightOverlayState {
-    private static final int HORIZONTAL_RANGE = 16;
+    public static final int MIN_HORIZONTAL_RANGE = 1;
+    public static final int MAX_HORIZONTAL_RANGE = 64;
+    private static final int DEFAULT_HORIZONTAL_RANGE = 16;
     private static final int DOWN_RANGE = 16;
     private static final int UP_RANGE = 4;
-    private static final int SCAN_BUDGET_PER_TICK = 4_096;
-    private static final int REFRESH_INTERVAL_TICKS = 20;
-    private static final int DIAMETER = HORIZONTAL_RANGE * 2 + 1;
+    private static final int SCAN_BUDGET_PER_TICK = 12_000;
+    private static final int REFRESH_INTERVAL_TICKS = 4;
     private static final int HEIGHT = DOWN_RANGE + UP_RANGE + 1;
-    private static final int SCAN_VOLUME = DIAMETER * DIAMETER * HEIGHT;
 
     private static boolean enabled;
+    private static DisplayMode displayMode = DisplayMode.CROSSES;
+    private static int horizontalRange = DEFAULT_HORIZONTAL_RANGE;
+    private static int scanRange = DEFAULT_HORIZONTAL_RANGE;
     private static @Nullable ClientLevel level;
     private static @Nullable BlockPos scanCenter;
     private static int scanIndex;
@@ -55,6 +58,30 @@ public final class LightOverlayState {
         }
     }
 
+    public static DisplayMode displayMode() {
+        return displayMode;
+    }
+
+    public static DisplayMode cycleDisplayMode() {
+        displayMode = displayMode == DisplayMode.CROSSES ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
+        return displayMode;
+    }
+
+    public static int horizontalRange() {
+        return horizontalRange;
+    }
+
+    public static void setHorizontalRange(int value) {
+        if (value < MIN_HORIZONTAL_RANGE || value > MAX_HORIZONTAL_RANGE) {
+            throw new IllegalArgumentException("Light overlay range must be between "
+                    + MIN_HORIZONTAL_RANGE + " and " + MAX_HORIZONTAL_RANGE);
+        }
+        if (horizontalRange != value) {
+            horizontalRange = value;
+            clearScan();
+        }
+    }
+
     public static List<Marker> markers() {
         return markers;
     }
@@ -72,16 +99,19 @@ public final class LightOverlayState {
         BlockPos playerPos = minecraft.player.blockPosition();
         if (scanCenter == null) {
             beginScan(playerPos);
-        } else if (scanIndex >= SCAN_VOLUME) {
+        }
+        int scanVolume = scanVolume();
+        if (scanIndex >= scanVolume) {
             ticksSinceCompleted++;
             if (ticksSinceCompleted >= REFRESH_INTERVAL_TICKS || movedOutsideRefreshArea(playerPos, scanCenter)) {
                 beginScan(playerPos);
+                scanVolume = scanVolume();
             } else {
                 return;
             }
         }
 
-        int end = Math.min(SCAN_VOLUME, scanIndex + SCAN_BUDGET_PER_TICK);
+        int end = Math.min(scanVolume, scanIndex + SCAN_BUDGET_PER_TICK);
         BlockPos.MutableBlockPos feet = new BlockPos.MutableBlockPos();
         while (scanIndex < end) {
             setPositionForIndex(feet, scanCenter, scanIndex++);
@@ -90,7 +120,7 @@ public final class LightOverlayState {
                 workingMarkers.add(marker);
             }
         }
-        if (scanIndex >= SCAN_VOLUME) {
+        if (scanIndex >= scanVolume) {
             markers = List.copyOf(workingMarkers);
             ticksSinceCompleted = 0;
         }
@@ -98,6 +128,7 @@ public final class LightOverlayState {
 
     private static void beginScan(BlockPos center) {
         scanCenter = center.immutable();
+        scanRange = horizontalRange;
         scanIndex = 0;
         ticksSinceCompleted = 0;
         workingMarkers = new ArrayList<>();
@@ -105,6 +136,7 @@ public final class LightOverlayState {
 
     private static void clearScan() {
         scanCenter = null;
+        scanRange = horizontalRange;
         scanIndex = 0;
         ticksSinceCompleted = 0;
         workingMarkers = new ArrayList<>();
@@ -118,11 +150,17 @@ public final class LightOverlayState {
     }
 
     private static void setPositionForIndex(BlockPos.MutableBlockPos pos, BlockPos center, int index) {
-        int xOffset = index % DIAMETER - HORIZONTAL_RANGE;
-        index /= DIAMETER;
-        int zOffset = index % DIAMETER - HORIZONTAL_RANGE;
-        int yOffset = index / DIAMETER - DOWN_RANGE;
+        int diameter = scanRange * 2 + 1;
+        int xOffset = index % diameter - scanRange;
+        index /= diameter;
+        int zOffset = index % diameter - scanRange;
+        int yOffset = index / diameter - DOWN_RANGE;
         pos.set(center.getX() + xOffset, center.getY() + yOffset, center.getZ() + zOffset);
+    }
+
+    private static int scanVolume() {
+        int diameter = scanRange * 2 + 1;
+        return diameter * diameter * HEIGHT;
     }
 
     private static @Nullable Marker markerAt(ClientLevel level, BlockPos feet) {
@@ -130,8 +168,7 @@ public final class LightOverlayState {
                 SectionPos.blockToSectionCoord(feet.getZ()))) {
             return null;
         }
-        if (level.getBrightness(LightLayer.BLOCK, feet) > 0
-                || !level.getFluidState(feet).isEmpty()
+        if (!level.getFluidState(feet).isEmpty()
                 || !level.getFluidState(feet.above()).isEmpty()) {
             return null;
         }
@@ -151,9 +188,21 @@ public final class LightOverlayState {
         if (!SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityType.ZOMBIE)) {
             return null;
         }
-        return new Marker(feet.immutable(), level.getBrightness(LightLayer.SKY, feet) > 0);
+        return new Marker(
+                feet.immutable(),
+                level.getBrightness(LightLayer.BLOCK, feet),
+                level.getBrightness(LightLayer.SKY, feet)
+        );
     }
 
-    public record Marker(BlockPos pos, boolean nightOnly) {
+    public enum DisplayMode {
+        CROSSES,
+        NUMBERS
+    }
+
+    public record Marker(BlockPos pos, int blockLight, int skyLight) {
+        public boolean nightOnly() {
+            return blockLight == 0 && skyLight > 0;
+        }
     }
 }
