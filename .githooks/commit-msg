@@ -1,0 +1,109 @@
+#!/bin/sh
+
+msg_file="$1"
+
+# 取第一行
+title=$(head -n1 "$msg_file")
+
+# 标准化中文符号
+title=$(echo "$title" | sed -E '
+    s/（/(/g;
+    s/）/)/g;
+    s/：/:/g;
+')
+
+# 统一冒号后空格
+title=$(echo "$title" | sed -E '
+    s/^([^( :]+(\([^)]+\))?):[ ]*/\1: /
+')
+
+# 解析 prefix
+prefix=$(echo "$title" | sed -E 's/^([^( :]+).*/\1/')
+
+# 解析 scope
+scope=$(echo "$title" | sed -nE 's/^[^(]+\(([^)]+)\).*/\1/p')
+
+# 去掉前缀后的正文
+body=$(echo "$title" | sed -E 's/^[^( :]+(\([^)]+\))?:[ ]*//')
+
+# 英文 -> 中文映射
+case "$prefix" in
+    feat) type="新增" ;;
+    fix) type="修复" ;;
+    docs) type="文档" ;;
+    refactor) type="重构" ;;
+    chore) type="杂项" ;;
+    style) type="样式" ;;
+    perf) type="性能" ;;
+    test) type="测试" ;;
+    ci) type="集成" ;;
+    build) type="构建" ;;
+    revert) type="回退" ;;
+    merge) type="合并" ;;
+    update) type="更新" ;;
+    optimize) type="优化" ;;
+    delete) type="删除" ;;
+    移除) type="删除" ;;
+
+    新增|修复|文档|重构|杂项|样式|性能|测试|集成|构建|回退|合并|更新|优化|删除)
+        type="$prefix"
+        ;;
+    *)
+        echo "❌ 提交类型不合法"
+        echo ""
+        echo "允许类型："
+        echo "  feat / 新增"
+        echo "  fix / 修复"
+        echo "  docs / 文档"
+        echo "  refactor / 重构"
+        echo "  chore / 杂项"
+        echo "  style / 样式"
+        echo "  perf / 性能"
+        echo "  test / 测试"
+        echo "  ci / 集成"
+        echo "  build / 构建"
+        echo "  revert / 回退"
+        echo "  merge / 合并"
+        echo "  update / 更新"
+        echo "  optimize / 优化"
+        echo "  delete / 删除"
+        echo ""
+        echo "示例："
+        echo "  feat(api): add login"
+        echo "  新增(api): 添加登录"
+        echo "  新增: 添加登录"
+        echo ""
+        echo "如有其他没填入的，直接在这里添加即可"
+        exit 1
+        ;;
+esac
+
+# 检查主体是否包含非英文内容
+if [ -z "$(printf '%s' "$body" | sed -n '/[^ -~]/p')" ]; then
+    echo "❌ 提交信息主体部分必须是中文"
+    exit 1
+fi
+
+# 构造新标题（去掉 scope 括号）
+new_title="$type: $body"
+
+# # 构造新标题
+# if [ -n "$scope" ]; then
+#     new_title="$type($scope): $body"
+# else
+#     new_title="$type: $body"
+# fi
+
+# 标题长度检查
+# len=$(printf "%s" "$new_title" | wc -c)
+
+# if [ "$len" -gt 50 ]; then
+#     echo "❌ 提交标题不能超过50字符"
+#     echo "当前长度: $len"
+#     exit 1
+# fi
+
+# 写回 commit message
+echo "$new_title" > "$msg_file"
+
+exit 0
