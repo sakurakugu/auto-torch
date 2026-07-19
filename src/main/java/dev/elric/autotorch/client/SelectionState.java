@@ -96,6 +96,26 @@ public final class SelectionState {
         editingExclusion = -1;
     }
 
+    public static boolean beginEditingLightingZone() {
+        if (lightingZone == null) {
+            return false;
+        }
+        first = lightingZone.first();
+        second = lightingZone.second();
+        shape = lightingZone.shape();
+        editingExclusion = -1;
+        drafting = true;
+        return true;
+    }
+
+    public static boolean removeLightingZone() {
+        if (lightingZone == null) {
+            return false;
+        }
+        lightingZone = null;
+        return true;
+    }
+
     public static List<AreaZone> exclusions() {
         // 返回副本，防止界面或渲染代码绕过数量限制直接修改内部列表。
         return List.copyOf(EXCLUSIONS);
