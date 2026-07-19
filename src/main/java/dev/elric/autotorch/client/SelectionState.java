@@ -17,9 +17,10 @@ public final class SelectionState {
     private static @Nullable BlockPos second;
     private static @Nullable AreaZone lightingZone;
     private static AreaShape shape = AreaShape.BOX;
-    private static DisplayMode displayMode = DisplayMode.FACES;
-    private static SphereDisplayMode sphereDisplayMode = SphereDisplayMode.BLOCKY;
-    private static boolean overlayEnabled = true;
+    private static DisplayMode displayMode = ClientConfig.usesSelectionLines() ? DisplayMode.LINES : DisplayMode.FACES;
+    private static SphereDisplayMode sphereDisplayMode = ClientConfig.usesSmoothSpheres()
+            ? SphereDisplayMode.SMOOTH : SphereDisplayMode.BLOCKY;
+    private static boolean overlayEnabled = ClientConfig.isSelectionOverlayEnabled();
     private static boolean drafting = true;
     private static int editingExclusion = -1;
     private static final List<AreaZone> EXCLUSIONS = new ArrayList<>();
@@ -34,9 +35,10 @@ public final class SelectionState {
             second = currentPosition.immutable();
             lightingZone = null;
             shape = AreaShape.BOX;
-            displayMode = DisplayMode.FACES;
-            sphereDisplayMode = SphereDisplayMode.BLOCKY;
-            overlayEnabled = true;
+            displayMode = ClientConfig.usesSelectionLines() ? DisplayMode.LINES : DisplayMode.FACES;
+            sphereDisplayMode = ClientConfig.usesSmoothSpheres()
+                    ? SphereDisplayMode.SMOOTH : SphereDisplayMode.BLOCKY;
+            overlayEnabled = ClientConfig.isSelectionOverlayEnabled();
             drafting = true;
             editingExclusion = -1;
             EXCLUSIONS.clear();
@@ -82,6 +84,7 @@ public final class SelectionState {
 
     public static void setDisplayMode(DisplayMode value) {
         displayMode = value;
+        ClientConfig.setUsesSelectionLines(value == DisplayMode.LINES);
     }
 
     public static SphereDisplayMode sphereDisplayMode() {
@@ -90,6 +93,7 @@ public final class SelectionState {
 
     public static void setSphereDisplayMode(SphereDisplayMode value) {
         sphereDisplayMode = value;
+        ClientConfig.setUsesSmoothSpheres(value == SphereDisplayMode.SMOOTH);
     }
 
     public static boolean isOverlayEnabled() {
@@ -98,6 +102,7 @@ public final class SelectionState {
 
     public static boolean toggleOverlay() {
         overlayEnabled = !overlayEnabled;
+        ClientConfig.setSelectionOverlayEnabled(overlayEnabled);
         return overlayEnabled;
     }
 

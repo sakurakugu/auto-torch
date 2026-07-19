@@ -23,9 +23,6 @@ import net.minecraft.world.level.block.state.BlockState;
 
 /** 单个玩家的增量照明任务，通过每刻预算避免大选区阻塞服务端线程。 */
 final class LightingTask {
-    private static final int SCAN_BUDGET_PER_TICK = 12_000;
-    private static final int PLACE_BUDGET_PER_TICK = 8;
-    private static final int RANDOM_PLACEMENT_ATTEMPTS = 32;
 
     private final ServerLevel level;
     private final AreaZone selection;
@@ -95,7 +92,8 @@ final class LightingTask {
         int scannedThisTick = 0;
         int placedThisTick = 0;
         // 扫描量和放置量分别限流，兼顾无效位置扫描与方块更新的两类开销。
-        while (scannedThisTick < SCAN_BUDGET_PER_TICK && placedThisTick < PLACE_BUDGET_PER_TICK) {
+        while (scannedThisTick < ServerConfig.scanBudgetPerTaskTick()
+                && placedThisTick < ServerConfig.placeBudgetPerTaskTick()) {
             if (scanIndex >= volume) {
                 if (pass == 0) {
                     // 第一轮按配置间距铺设，第二轮以更小间距填补仍然无光的位置。
@@ -171,7 +169,7 @@ final class LightingTask {
 
     private BlockPos findTorchPosition(ServerPlayer player, BlockPos darkPosition) {
         // 优先尝试暗点脚下；失败后在附近随机寻找可放置且玩家有权限的位置。
-        for (int attempt = 0; attempt < RANDOM_PLACEMENT_ATTEMPTS; attempt++) {
+        for (int attempt = 0; attempt < ServerConfig.randomPlacementAttempts(); attempt++) {
             int radius = attempt == 0 ? 0 : 4;
             int dx = radius == 0 ? 0 : random.nextInt(radius * 2 + 1) - radius;
             int dz = radius == 0 ? 0 : random.nextInt(radius * 2 + 1) - radius;

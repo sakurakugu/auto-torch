@@ -28,12 +28,13 @@ public final class LightOverlayState {
     private static final int REFRESH_INTERVAL_TICKS = 4;
     private static final int HEIGHT = DOWN_RANGE + UP_RANGE + 1;
 
-    private static boolean enabled;
-    private static boolean swampSlimeDetectionEnabled;
-    private static boolean drownedDetectionEnabled;
-    private static DisplayMode displayMode = DisplayMode.CROSSES;
-    private static int horizontalRange = DEFAULT_HORIZONTAL_RANGE;
-    private static int scanRange = DEFAULT_HORIZONTAL_RANGE;
+    private static boolean enabled = ClientConfig.isLightOverlayEnabled();
+    private static boolean swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
+    private static boolean drownedDetectionEnabled = ClientConfig.detectsDrowned();
+    private static DisplayMode displayMode = ClientConfig.showsLightOverlayNumbers()
+            ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
+    private static int horizontalRange = ClientConfig.lightOverlayRange();
+    private static int scanRange = horizontalRange;
     private static @Nullable ClientLevel level;
     private static @Nullable BlockPos scanCenter;
     private static int scanIndex;
@@ -58,6 +59,7 @@ public final class LightOverlayState {
             return;
         }
         enabled = value;
+        ClientConfig.setLightOverlayEnabled(value);
         if (!enabled) {
             clearScan();
         }
@@ -69,6 +71,7 @@ public final class LightOverlayState {
 
     public static DisplayMode cycleDisplayMode() {
         displayMode = displayMode == DisplayMode.CROSSES ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
+        ClientConfig.setShowsLightOverlayNumbers(displayMode == DisplayMode.NUMBERS);
         return displayMode;
     }
 
@@ -78,6 +81,7 @@ public final class LightOverlayState {
 
     public static boolean toggleSwampSlimeDetection() {
         swampSlimeDetectionEnabled = !swampSlimeDetectionEnabled;
+        ClientConfig.setDetectsSwampSlimes(swampSlimeDetectionEnabled);
         clearScan();
         return swampSlimeDetectionEnabled;
     }
@@ -88,6 +92,7 @@ public final class LightOverlayState {
 
     public static boolean toggleDrownedDetection() {
         drownedDetectionEnabled = !drownedDetectionEnabled;
+        ClientConfig.setDetectsDrowned(drownedDetectionEnabled);
         clearScan();
         return drownedDetectionEnabled;
     }
@@ -103,6 +108,7 @@ public final class LightOverlayState {
         }
         if (horizontalRange != value) {
             horizontalRange = value;
+            ClientConfig.setLightOverlayRange(value);
             clearScan();
         }
     }

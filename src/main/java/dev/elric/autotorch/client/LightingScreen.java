@@ -57,7 +57,7 @@ public final class LightingScreen extends Screen {
     private Button nearbyAutoTorchButton;
     private Button nearbyAutoTorchSkyLightButton;
     private boolean consumeTorches;
-    private boolean undergroundOnly = true;
+    private boolean undergroundOnly;
     private boolean syncingInputs;
     private int scrollOffset;
     private boolean draggingScrollbar;
@@ -65,7 +65,8 @@ public final class LightingScreen extends Screen {
 
     public LightingScreen() {
         super(Component.translatable("screen.autotorch.title"));
-        consumeTorches = Minecraft.getInstance().player == null || !Minecraft.getInstance().player.isCreative();
+        consumeTorches = isCreativePlayer() && ClientConfig.creativeConsumesTorches();
+        undergroundOnly = ClientConfig.isDefaultUndergroundOnly();
     }
 
     @Override
@@ -128,18 +129,26 @@ public final class LightingScreen extends Screen {
                 exclusionMessage(), button -> addExclusion(), 0xDDA52B2B, 0xEEC83C3C));
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.manage_exclusions"), button -> {
             saveSelection();
+            saveTaskDefaults();
             minecraft.setScreen(new ExclusionListScreen());
         }).bounds(left + 248, 136, 62, 20).build());
 
-        maxTorches = limitBox(left + 80, 160, 60, "∞");
-        minSpacing = integerBox(left + 250, 160, 60, "8");
+        int configuredMaxTorches = ClientConfig.defaultMaxTorches();
+        maxTorches = limitBox(left + 80, 160, 60,
+                configuredMaxTorches == 0 ? "∞" : Integer.toString(configuredMaxTorches));
+        minSpacing = integerBox(left + 250, 160, 60, Integer.toString(ClientConfig.defaultMinSpacing()));
 
         consumeButton = addRenderableWidget(Button.builder(consumeMessage(), button -> {
             consumeTorches = !consumeTorches;
+            ClientConfig.setCreativeConsumesTorches(consumeTorches);
             consumeButton.setMessage(consumeMessage());
-        }).bounds(left, 184, 153, 20).build());
+        }).bounds(left, 184, 153, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.consume.creative_only")))
+                .build());
+        consumeButton.active = isCreativePlayer();
         undergroundButton = addRenderableWidget(Button.builder(undergroundMessage(), button -> {
             undergroundOnly = !undergroundOnly;
+            ClientConfig.setDefaultUndergroundOnly(undergroundOnly);
             undergroundButton.setMessage(undergroundMessage());
         }).bounds(left + 157, 184, 153, 20).build());
 
@@ -485,8 +494,11 @@ public final class LightingScreen extends Screen {
             }
             int max = readLimit(maxTorches);
             int spacing = readPositive(minSpacing, 3, 12);
+            ClientConfig.setDefaultMaxTorches(max);
+            ClientConfig.setDefaultMinSpacing(spacing);
             ClientPacketDistributor.sendToServer(new StartLightingPayload(
-                    selection, max, spacing, consumeTorches, undergroundOnly, SelectionState.exclusions()
+                    selection, max, spacing, isCreativePlayer() && consumeTorches,
+                    undergroundOnly, SelectionState.exclusions()
             ));
             onClose();
         } catch (IllegalArgumentException exception) {
@@ -516,6 +528,19 @@ public final class LightingScreen extends Screen {
             return 0;
         }
         return readPositive(box, 1, 4096);
+    }
+
+    private void saveTaskDefaults() {
+        try {
+            ClientConfig.setDefaultMaxTorches(readLimit(maxTorches));
+            ClientConfig.setDefaultMinSpacing(readPositive(minSpacing, 3, 12));
+        } catch (IllegalArgumentException ignored) {
+            // Keep the last valid defaults when closing a screen with incomplete input.
+        }
+    }
+
+    private static boolean isCreativePlayer() {
+        return Minecraft.getInstance().player != null && Minecraft.getInstance().player.isCreative();
     }
 
     private void saveSelection() {
@@ -738,6 +763,7 @@ public final class LightingScreen extends Screen {
     @Override
     public void onClose() {
         saveSelection();
+        saveTaskDefaults();
         super.onClose();
     }
 

@@ -15,10 +15,6 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /** 按玩家管理照明任务，并在每个服务端刻推进任务。 */
 public final class LightingTaskManager {
-    private static final int MAX_BOX_AXIS_LENGTH = 256;
-    private static final int MAX_SELECTION_BOUND_AXIS = AreaZone.MAX_SPHERE_RADIUS * 2 + 1;
-    private static final long MAX_SELECTION_BOUND_VOLUME =
-            (long) MAX_SELECTION_BOUND_AXIS * MAX_SELECTION_BOUND_AXIS * MAX_SELECTION_BOUND_AXIS;
     private static final Map<UUID, LightingTask> TASKS = new HashMap<>();
 
     private LightingTaskManager() {
@@ -39,11 +35,15 @@ public final class LightingTaskManager {
         long sizeY = (long) max.getY() - min.getY() + 1L;
         long sizeZ = (long) max.getZ() - min.getZ() + 1L;
         long volume = sizeX * sizeY * sizeZ;
+        int maxSelectionBoundAxis = Math.max(
+                ServerConfig.maxBoxAxisLength(), ServerConfig.maxSphereRadius() * 2 + 1);
+        long maxSelectionBoundVolume = (long) maxSelectionBoundAxis
+                * maxSelectionBoundAxis * maxSelectionBoundAxis;
 
-        if (!isValidZone(selection) || sizeX > MAX_SELECTION_BOUND_AXIS || sizeY > MAX_SELECTION_BOUND_AXIS
-                || sizeZ > MAX_SELECTION_BOUND_AXIS || volume > MAX_SELECTION_BOUND_VOLUME) {
+        if (!isValidZone(selection) || sizeX > maxSelectionBoundAxis || sizeY > maxSelectionBoundAxis
+                || sizeZ > maxSelectionBoundAxis || volume > maxSelectionBoundVolume) {
             player.sendSystemMessage(Component.translatable("message.autotorch.area_too_large",
-                    MAX_BOX_AXIS_LENGTH, AreaZone.MAX_SPHERE_RADIUS));
+                    ServerConfig.maxBoxAxisLength(), ServerConfig.maxSphereRadius()));
             return;
         }
         if (!player.level().isInWorldBounds(min) || !player.level().isInWorldBounds(max)) {
@@ -51,22 +51,34 @@ public final class LightingTaskManager {
             return;
         }
 
-        if (payload.maxTorches() < 0 || payload.maxTorches() > 4096) {
+        if (payload.maxTorches() < 0
+                || payload.maxTorches() > ServerConfig.maxTorchesPerTask()
+                || (payload.maxTorches() == 0 && !ServerConfig.allowsUnlimitedTorches())) {
             player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
             return;
         }
-        if (payload.exclusions().size() > StartLightingPayload.MAX_EXCLUSIONS
+        if (payload.minSpacing() < ServerConfig.minSpacing()
+                || payload.minSpacing() > ServerConfig.maxSpacing()) {
+            player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
+            return;
+        }
+        if (payload.exclusions().size() > ServerConfig.maxExclusions()
                 || payload.exclusions().stream().anyMatch(zone -> !isValidZone(zone))) {
             player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
             return;
         }
+        if (!TASKS.containsKey(player.getUUID()) && TASKS.size() >= ServerConfig.maxConcurrentTasks()) {
+            player.sendSystemMessage(Component.translatable("message.autotorch.server_busy"));
+            return;
+        }
 
         int maxTorches = payload.maxTorches();
-        int minSpacing = Math.clamp(payload.minSpacing(), 3, 12);
+        int minSpacing = payload.minSpacing();
+        boolean consumeTorches = player.isCreative() && payload.consumeTorches();
 
         LightingTask task = new LightingTask(
                 player.level(), selection, maxTorches, minSpacing,
-                payload.consumeTorches(), payload.undergroundOnly(),
+                consumeTorches, payload.undergroundOnly(),
                 payload.exclusions(), player.getUUID()
         );
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
@@ -76,14 +88,15 @@ public final class LightingTaskManager {
 
     private static boolean isValidZone(AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
-            long maxRadiusSquared = (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
+            long maxRadiusSquared = (long) ServerConfig.maxSphereRadius() * ServerConfig.maxSphereRadius();
             return zone.radiusSquared() > 0L && zone.radiusSquared() <= maxRadiusSquared;
         }
         BlockPos min = zone.min();
         BlockPos max = zone.max();
-        return (long) max.getX() - min.getX() + 1L <= MAX_BOX_AXIS_LENGTH
-                && (long) max.getY() - min.getY() + 1L <= MAX_BOX_AXIS_LENGTH
-                && (long) max.getZ() - min.getZ() + 1L <= MAX_BOX_AXIS_LENGTH;
+        int maxAxisLength = ServerConfig.maxBoxAxisLength();
+        return (long) max.getX() - min.getX() + 1L <= maxAxisLength
+                && (long) max.getY() - min.getY() + 1L <= maxAxisLength
+                && (long) max.getZ() - min.getZ() + 1L <= maxAxisLength;
     }
 
     public static void cancel(ServerPlayer player) {
