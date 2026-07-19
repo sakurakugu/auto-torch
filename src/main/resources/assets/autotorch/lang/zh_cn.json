@@ -64,6 +64,12 @@
   "screen.autotorch.light_overlay_mode_numbers": "样式：数字",
   "screen.autotorch.light_overlay_title": "光照显示",
   "screen.autotorch.light_overlay_range_value": "范围：%s",
+  "screen.autotorch.swamp_slime_detection_on": "沼泽史莱姆：开",
+  "screen.autotorch.swamp_slime_detection_off": "沼泽史莱姆：关",
+  "screen.autotorch.swamp_slime_detection.tooltip": "生成条件：沼泽或红树林沼泽，Y=51～69，方块光不高于 7。显示为紫色。",
+  "screen.autotorch.drowned_detection_on": "溺尸：开",
+  "screen.autotorch.drowned_detection_off": "溺尸：关",
+  "screen.autotorch.drowned_detection.tooltip": "生成条件：连续至少两格水、方块光为 0，且当前生物群系的生成表包含溺尸。河流不限制高度；其他生物群系要求低于海平面 6 格。连续有效水柱只显示最上方位置。显示为青色。",
   "screen.autotorch.invalid_value": "坐标或参数无效",
   "message.autotorch.selected_a": "已将 A 点设为 %s",
   "message.autotorch.selected_b": "已将 B 点设为 %s",
@@ -80,6 +86,6 @@
   "message.autotorch.max_reached": "已放置 %s 个火把并达到设置上限。",
   "message.autotorch.out_of_torches": "背包火把不足，任务停止；本次共放置 %s 个。",
   "message.autotorch.completed": "扫描完成，共放置 %s 个火把；跳过了 %s 个未加载位置。",
-  "message.autotorch.light_overlay_on": "光照显示已开启：红色表示昼夜风险，黄色表示夜间风险；数字模式下绿色表示安全。",
-  "message.autotorch.light_overlay_off": "光照显示已关闭。"
+  "message.autotorch.light_overlay_on": "光照显示已开启",
+  "message.autotorch.light_overlay_off": "光照显示已关闭"
 }

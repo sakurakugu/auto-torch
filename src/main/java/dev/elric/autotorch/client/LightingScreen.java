@@ -12,6 +12,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -20,7 +21,7 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /** 自动照明的参数界面，负责选区管理、客户端校验和任务提交。 */
 public final class LightingScreen extends Screen {
-    private static final int CONTENT_HEIGHT = 282;
+    private static final int CONTENT_HEIGHT = 306;
     private static final int VIEWPORT_MARGIN = 4;
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int MIN_SCROLLBAR_HEIGHT = 20;
@@ -51,6 +52,8 @@ public final class LightingScreen extends Screen {
     private Button undergroundButton;
     private Button lightOverlayButton;
     private Button lightOverlayModeButton;
+    private Button swampSlimeDetectionButton;
+    private Button drownedDetectionButton;
     private boolean consumeTorches;
     private boolean undergroundOnly = true;
     private boolean syncingInputs;
@@ -154,6 +157,19 @@ public final class LightingScreen extends Screen {
             lightOverlayModeButton.setMessage(lightOverlayModeMessage());
         }).bounds(left + 110, 258, 88, 20).build());
         addRenderableWidget(new LightRangeSlider(left + 202, 258, 108, 20));
+
+        swampSlimeDetectionButton = addRenderableWidget(Button.builder(swampSlimeDetectionMessage(), button -> {
+            LightOverlayState.toggleSwampSlimeDetection();
+            swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
+        }).bounds(left, 282, 153, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.swamp_slime_detection.tooltip")))
+                .build());
+        drownedDetectionButton = addRenderableWidget(Button.builder(drownedDetectionMessage(), button -> {
+            LightOverlayState.toggleDrownedDetection();
+            drownedDetectionButton.setMessage(drownedDetectionMessage());
+        }).bounds(left + 157, 282, 153, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.drowned_detection.tooltip")))
+                .build());
 
         scrollOffset = Math.min(scrollOffset, maxScrollOffset());
         moveWidgets(-scrollOffset);
@@ -584,6 +600,18 @@ public final class LightingScreen extends Screen {
     private Component lightOverlayModeMessage() {
         return Component.translatable(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
                 ? "screen.autotorch.light_overlay_mode_crosses" : "screen.autotorch.light_overlay_mode_numbers");
+    }
+
+    private Component swampSlimeDetectionMessage() {
+        return Component.translatable(LightOverlayState.isSwampSlimeDetectionEnabled()
+                ? "screen.autotorch.swamp_slime_detection_on"
+                : "screen.autotorch.swamp_slime_detection_off");
+    }
+
+    private Component drownedDetectionMessage() {
+        return Component.translatable(LightOverlayState.isDrownedDetectionEnabled()
+                ? "screen.autotorch.drowned_detection_on"
+                : "screen.autotorch.drowned_detection_off");
     }
 
     private int panelLeft() {

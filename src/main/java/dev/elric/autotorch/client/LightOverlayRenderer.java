@@ -17,6 +17,8 @@ public final class LightOverlayRenderer {
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
     private static final int SAFE_COLOR = 0xE050E060;
+    private static final int SWAMP_SLIME_RISK_COLOR = 0xE0E050E0;
+    private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
     private static final float CROSS_LINE_WIDTH = 2.5F;
     private static final float DIGIT_LINE_WIDTH = 4.0F;
     private static final double SURFACE_OFFSET = 0.0125D;
@@ -68,7 +70,7 @@ public final class LightOverlayRenderer {
                 submitNumber(pose, buffer, marker);
                 continue;
             }
-            if (marker.blockLight() != 0) {
+            if (!marker.isRisk()) {
                 continue;
             }
             double x0 = marker.pos().getX() + CROSS_MARGIN;
@@ -76,7 +78,7 @@ public final class LightOverlayRenderer {
             double y = marker.pos().getY() + SURFACE_OFFSET;
             double z0 = marker.pos().getZ() + CROSS_MARGIN;
             double z1 = marker.pos().getZ() + 1.0D - CROSS_MARGIN;
-            int color = marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
+            int color = markerColor(marker);
             line(pose, buffer, x0, y, z0, x1, y, z1, color, CROSS_LINE_WIDTH);
             line(pose, buffer, x1, y, z0, x0, y, z1, color, CROSS_LINE_WIDTH);
         }
@@ -88,14 +90,22 @@ public final class LightOverlayRenderer {
         double startX = marker.pos().getX() + (1.0D - totalWidth) / 2.0D;
         double startZ = marker.pos().getZ() + (1.0D - DIGIT_HEIGHT) / 2.0D;
         double y = marker.pos().getY() + SURFACE_OFFSET;
-        int color = marker.blockLight() > 0 ? SAFE_COLOR
-                : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
+        int color = markerColor(marker);
 
         for (int index = 0; index < value.length(); index++) {
             int segments = DIGIT_SEGMENTS[value.charAt(index) - '0'];
             double x = startX + index * (DIGIT_WIDTH + DIGIT_GAP);
             submitDigit(pose, buffer, x, y, startZ, segments, color);
         }
+    }
+
+    private static int markerColor(LightOverlayState.Marker marker) {
+        return switch (marker.riskType()) {
+            case SWAMP_SLIME -> SWAMP_SLIME_RISK_COLOR;
+            case DROWNED -> DROWNED_RISK_COLOR;
+            case NORMAL -> marker.blockLight() > 0 ? SAFE_COLOR
+                    : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
+        };
     }
 
     private static void submitDigit(

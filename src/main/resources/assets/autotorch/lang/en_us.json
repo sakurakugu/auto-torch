@@ -64,6 +64,12 @@
   "screen.autotorch.light_overlay_mode_numbers": "Style: numbers",
   "screen.autotorch.light_overlay_title": "Light Overlay",
   "screen.autotorch.light_overlay_range_value": "Range: %s",
+  "screen.autotorch.swamp_slime_detection_on": "Swamp slimes: on",
+  "screen.autotorch.swamp_slime_detection_off": "Swamp slimes: off",
+  "screen.autotorch.swamp_slime_detection.tooltip": "Spawn conditions: swamp or mangrove swamp, Y 51-69, block light 7 or lower. Shown in purple.",
+  "screen.autotorch.drowned_detection_on": "Drowned: on",
+  "screen.autotorch.drowned_detection_off": "Drowned: off",
+  "screen.autotorch.drowned_detection.tooltip": "Spawn conditions: at least two consecutive water blocks, block light 0, and a biome spawn list containing drowned. Rivers have no height restriction; other biomes require positions at least 6 blocks below sea level. Only the highest valid position in a continuous water column is shown. Shown in cyan.",
   "screen.autotorch.invalid_value": "A coordinate or setting is invalid",
   "message.autotorch.selected_a": "Set point A to %s",
   "message.autotorch.selected_b": "Set point B to %s",
@@ -80,6 +86,6 @@
   "message.autotorch.max_reached": "Placed %s torches and reached the configured limit.",
   "message.autotorch.out_of_torches": "Out of torches; stopped after placing %s.",
   "message.autotorch.completed": "Scan complete: placed %s torches and skipped %s unloaded positions.",
-  "message.autotorch.light_overlay_on": "Light overlay enabled: red means an all-time risk and yellow means a night-time risk; green means safe in number mode.",
-  "message.autotorch.light_overlay_off": "Light-risk overlay disabled."
+  "message.autotorch.light_overlay_on": "Light overlay enabled",
+  "message.autotorch.light_overlay_off": "Light-risk overlay disabled"
 }

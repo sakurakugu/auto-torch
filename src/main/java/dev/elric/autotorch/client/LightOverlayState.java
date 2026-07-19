@@ -7,7 +7,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
+import net.minecraft.tags.BiomeTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.SpawnPlacementTypes;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
@@ -26,6 +29,8 @@ public final class LightOverlayState {
     private static final int HEIGHT = DOWN_RANGE + UP_RANGE + 1;
 
     private static boolean enabled;
+    private static boolean swampSlimeDetectionEnabled;
+    private static boolean drownedDetectionEnabled;
     private static DisplayMode displayMode = DisplayMode.CROSSES;
     private static int horizontalRange = DEFAULT_HORIZONTAL_RANGE;
     private static int scanRange = DEFAULT_HORIZONTAL_RANGE;
@@ -65,6 +70,26 @@ public final class LightOverlayState {
     public static DisplayMode cycleDisplayMode() {
         displayMode = displayMode == DisplayMode.CROSSES ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
         return displayMode;
+    }
+
+    public static boolean isSwampSlimeDetectionEnabled() {
+        return swampSlimeDetectionEnabled;
+    }
+
+    public static boolean toggleSwampSlimeDetection() {
+        swampSlimeDetectionEnabled = !swampSlimeDetectionEnabled;
+        clearScan();
+        return swampSlimeDetectionEnabled;
+    }
+
+    public static boolean isDrownedDetectionEnabled() {
+        return drownedDetectionEnabled;
+    }
+
+    public static boolean toggleDrownedDetection() {
+        drownedDetectionEnabled = !drownedDetectionEnabled;
+        clearScan();
+        return drownedDetectionEnabled;
     }
 
     public static int horizontalRange() {
@@ -168,6 +193,9 @@ public final class LightOverlayState {
                 SectionPos.blockToSectionCoord(feet.getZ()))) {
             return null;
         }
+        if (drownedDetectionEnabled && isDrownedRisk(level, feet)) {
+            return marker(level, feet, RiskType.DROWNED);
+        }
         if (!level.getFluidState(feet).isEmpty()
                 || !level.getFluidState(feet.above()).isEmpty()) {
             return null;
@@ -188,10 +216,53 @@ public final class LightOverlayState {
         if (!SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityType.ZOMBIE)) {
             return null;
         }
+        int blockLight = level.getBrightness(LightLayer.BLOCK, feet);
+        RiskType riskType = blockLight > 0 && isSwampSlimeRisk(level, feet, blockLight)
+                ? RiskType.SWAMP_SLIME : RiskType.NORMAL;
         return new Marker(
                 feet.immutable(),
-                level.getBrightness(LightLayer.BLOCK, feet),
-                level.getBrightness(LightLayer.SKY, feet)
+                blockLight,
+                level.getBrightness(LightLayer.SKY, feet),
+                riskType
+        );
+    }
+
+    private static boolean isSwampSlimeRisk(ClientLevel level, BlockPos feet, int blockLight) {
+        return swampSlimeDetectionEnabled
+                && blockLight <= 7
+                && feet.getY() > 50
+                && feet.getY() < 70
+                && level.getBiome(feet).is(BiomeTags.ALLOWS_SURFACE_SLIME_SPAWNS)
+                && SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityType.SLIME);
+    }
+
+    private static boolean isDrownedRisk(ClientLevel level, BlockPos pos) {
+        // Keep only the highest fully valid position in each continuous spawnable water column.
+        return isDrownedSpawnPosition(level, pos) && !isDrownedSpawnPosition(level, pos.above());
+    }
+
+    private static boolean isDrownedSpawnPosition(ClientLevel level, BlockPos pos) {
+        if (level.getBrightness(LightLayer.BLOCK, pos) != 0
+                || !level.getFluidState(pos).is(FluidTags.WATER)
+                || !level.getFluidState(pos.below()).is(FluidTags.WATER)
+                || !SpawnPlacementTypes.IN_WATER.isSpawnPositionOk(level, pos, EntityType.DROWNED)) {
+            return false;
+        }
+
+        boolean drownedInSpawnList = level.getBiome(pos).value().getMobSettings()
+                .getMobs(MobCategory.MONSTER).unwrap().stream()
+                .anyMatch(entry -> entry.value().type() == EntityType.DROWNED);
+        return drownedInSpawnList
+                && (level.getBiome(pos).is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
+                || pos.getY() < level.getSeaLevel() - 5);
+    }
+
+    private static Marker marker(ClientLevel level, BlockPos pos, RiskType riskType) {
+        return new Marker(
+                pos.immutable(),
+                level.getBrightness(LightLayer.BLOCK, pos),
+                level.getBrightness(LightLayer.SKY, pos),
+                riskType
         );
     }
 
@@ -200,9 +271,19 @@ public final class LightOverlayState {
         NUMBERS
     }
 
-    public record Marker(BlockPos pos, int blockLight, int skyLight) {
+    public enum RiskType {
+        NORMAL,
+        SWAMP_SLIME,
+        DROWNED
+    }
+
+    public record Marker(BlockPos pos, int blockLight, int skyLight, RiskType riskType) {
         public boolean nightOnly() {
             return blockLight == 0 && skyLight > 0;
+        }
+
+        public boolean isRisk() {
+            return blockLight == 0 || riskType != RiskType.NORMAL;
         }
     }
 }
