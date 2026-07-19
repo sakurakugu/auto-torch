@@ -43,9 +43,10 @@ case "$prefix" in
     update) type="更新" ;;
     optimize) type="优化" ;;
     delete) type="删除" ;;
+    release) type="发布" ;;
     移除) type="删除" ;;
 
-    新增|修复|文档|重构|杂项|样式|性能|测试|集成|构建|回退|合并|更新|优化|删除)
+    新增|修复|文档|重构|杂项|样式|性能|测试|集成|构建|回退|合并|更新|优化|删除|发布)
         type="$prefix"
         ;;
     *)
@@ -67,6 +68,7 @@ case "$prefix" in
         echo "  update / 更新"
         echo "  optimize / 优化"
         echo "  delete / 删除"
+        echo "  release / 发布"
         echo ""
         echo "示例："
         echo "  feat(api): add login"

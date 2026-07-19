@@ -43,7 +43,7 @@ $env:JAVA_HOME='你的 Java 25 安装目录'
 .\gradlew.bat build
 ```
 
-生成的 JAR 位于 `build/libs/autotorch-1.1.0.jar`。
+生成的 JAR 位于 `build/libs/autotorch-x.x.x.jar`。
 
 在 Windows 上启动开发客户端时，也可以运行 `tools\1.一键启动mc脚本.ps1`。
 
