@@ -44,3 +44,6 @@ repo/
 
 ### Other ###
 other/
+
+### Python ###
+*.pyc
