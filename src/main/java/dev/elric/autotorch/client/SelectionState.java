@@ -16,6 +16,7 @@ public final class SelectionState {
     private static @Nullable AreaZone lightingZone;
     private static AreaShape shape = AreaShape.BOX;
     private static DisplayMode displayMode = DisplayMode.FACES;
+    private static SphereDisplayMode sphereDisplayMode = SphereDisplayMode.BLOCKY;
     private static boolean drafting = true;
     private static int editingExclusion = -1;
     private static final List<AreaZone> EXCLUSIONS = new ArrayList<>();
@@ -31,6 +32,7 @@ public final class SelectionState {
             lightingZone = null;
             shape = AreaShape.BOX;
             displayMode = DisplayMode.FACES;
+            sphereDisplayMode = SphereDisplayMode.BLOCKY;
             drafting = true;
             editingExclusion = -1;
             EXCLUSIONS.clear();
@@ -76,6 +78,14 @@ public final class SelectionState {
 
     public static void setDisplayMode(DisplayMode value) {
         displayMode = value;
+    }
+
+    public static SphereDisplayMode sphereDisplayMode() {
+        return sphereDisplayMode;
+    }
+
+    public static void setSphereDisplayMode(SphereDisplayMode value) {
+        sphereDisplayMode = value;
     }
 
     public static boolean drafting() {
@@ -169,5 +179,10 @@ public final class SelectionState {
     public enum DisplayMode {
         FACES,
         LINES
+    }
+
+    public enum SphereDisplayMode {
+        BLOCKY,
+        SMOOTH
     }
 }

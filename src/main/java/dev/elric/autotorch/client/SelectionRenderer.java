@@ -5,7 +5,9 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import dev.elric.autotorch.AutoTorchMod;
 import dev.elric.autotorch.network.AreaShape;
 import dev.elric.autotorch.network.AreaZone;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -25,6 +27,17 @@ public final class SelectionRenderer {
     private static final int EXCLUSION_FACE_COLOR = 0x30FF5050;
     private static final int SPHERE_LONGITUDE_SEGMENTS = 24;
     private static final int SPHERE_LATITUDE_SEGMENTS = 12;
+    private static final int BLOCK_OFFSET_BITS = 9;
+    private static final int BLOCK_OFFSET_MASK = (1 << BLOCK_OFFSET_BITS) - 1;
+    private static final int BLOCK_OFFSET_BIAS = AreaZone.MAX_SPHERE_RADIUS;
+    private static final int BLOCK_FACE_DIRECTION_SHIFT = BLOCK_OFFSET_BITS * 3;
+    private static final int MAX_CACHED_BLOCKY_SPHERES = 4;
+    private static final Map<Long, BlockySphereMesh> BLOCKY_SPHERE_CACHE = new LinkedHashMap<>(8, 0.75F, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Long, BlockySphereMesh> eldest) {
+            return size() > MAX_CACHED_BLOCKY_SPHERES;
+        }
+    };
     private static final ContextKey<RenderData> RENDER_DATA = new ContextKey<>(
             Identifier.fromNamespaceAndPath(AutoTorchMod.MOD_ID, "selection_overlay")
     );
@@ -38,7 +51,8 @@ public final class SelectionRenderer {
                 SelectionState.drafting() ? SelectionState.draft(fallback) : null,
                 SelectionState.lightingZone(),
                 SelectionState.exclusions(),
-                SelectionState.displayMode()
+                SelectionState.displayMode(),
+                SelectionState.sphereDisplayMode()
         ));
     }
 
@@ -53,14 +67,15 @@ public final class SelectionRenderer {
         poseStack.translate(-camera.x(), -camera.y(), -camera.z());
 
         if (data.draft() != null) {
-            submitZone(event, poseStack, data.draft(), data.displayMode(), DRAFT_LINE_COLOR, DRAFT_FACE_COLOR, 3.0F);
+            submitZone(event, poseStack, data.draft(), data.displayMode(), data.sphereDisplayMode(),
+                    DRAFT_LINE_COLOR, DRAFT_FACE_COLOR, 3.0F);
         }
         if (data.lightingZone() != null) {
-            submitZone(event, poseStack, data.lightingZone(), data.displayMode(),
+            submitZone(event, poseStack, data.lightingZone(), data.displayMode(), data.sphereDisplayMode(),
                     SELECTION_LINE_COLOR, SELECTION_FACE_COLOR, 3.0F);
         }
         for (AreaZone exclusion : data.exclusions()) {
-            submitZone(event, poseStack, exclusion, data.displayMode(),
+            submitZone(event, poseStack, exclusion, data.displayMode(), data.sphereDisplayMode(),
                     EXCLUSION_LINE_COLOR, EXCLUSION_FACE_COLOR, 2.0F);
         }
         poseStack.popPose();
@@ -71,18 +86,27 @@ public final class SelectionRenderer {
             PoseStack poseStack,
             AreaZone zone,
             SelectionState.DisplayMode displayMode,
+            SelectionState.SphereDisplayMode sphereDisplayMode,
             int lineColor,
             int faceColor,
             float width
     ) {
         if (displayMode == SelectionState.DisplayMode.LINES) {
             if (zone.shape() == AreaShape.SPHERE) {
-                submitSphereLines(event, poseStack, zone, lineColor, width);
+                if (sphereDisplayMode == SelectionState.SphereDisplayMode.BLOCKY) {
+                    submitBlockySphereLines(event, poseStack, zone, lineColor, width);
+                } else {
+                    submitSphereLines(event, poseStack, zone, lineColor, width);
+                }
             } else {
                 submitBoxLines(event, poseStack, AABB.encapsulatingFullBlocks(zone.min(), zone.max()), lineColor, width);
             }
         } else if (zone.shape() == AreaShape.SPHERE) {
-            submitSphereFaces(event, poseStack, zone, faceColor);
+            if (sphereDisplayMode == SelectionState.SphereDisplayMode.BLOCKY) {
+                submitBlockySphereFaces(event, poseStack, zone, faceColor);
+            } else {
+                submitSphereFaces(event, poseStack, zone, faceColor);
+            }
         } else {
             submitBoxFaces(event, poseStack, AABB.encapsulatingFullBlocks(zone.min(), zone.max()), faceColor);
         }
@@ -175,6 +199,155 @@ public final class SelectionRenderer {
         });
     }
 
+    private static void submitBlockySphereFaces(
+            SubmitCustomGeometryEvent event, PoseStack poseStack, AreaZone zone, int color
+    ) {
+        BlockySphereMesh mesh = blockySphereMesh(zone.radiusSquared());
+        BlockPos center = zone.first();
+        event.getSubmitNodeCollector().submitCustomGeometry(poseStack, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+            for (int index = 0; index < mesh.faceStrips().length; index += 2) {
+                blockFaceStrip(pose, buffer, center, mesh.faceStrips()[index], mesh.faceStrips()[index + 1], color);
+            }
+        });
+    }
+
+    private static void submitBlockySphereLines(
+            SubmitCustomGeometryEvent event, PoseStack poseStack, AreaZone zone, int color, float width
+    ) {
+        BlockySphereMesh mesh = blockySphereMesh(zone.radiusSquared());
+        BlockPos center = zone.first();
+        event.getSubmitNodeCollector().submitCustomGeometry(poseStack, RenderTypes.linesTranslucent(), (pose, buffer) -> {
+            for (int face : mesh.faces()) {
+                blockFace(pose, buffer, center, face, color, true, width);
+            }
+        });
+    }
+
+    private static BlockySphereMesh blockySphereMesh(long radiusSquared) {
+        synchronized (BLOCKY_SPHERE_CACHE) {
+            return BLOCKY_SPHERE_CACHE.computeIfAbsent(radiusSquared, SelectionRenderer::buildBlockySphereMesh);
+        }
+    }
+
+    private static BlockySphereMesh buildBlockySphereMesh(long radiusSquared) {
+        int radius = (int) Math.sqrt(radiusSquared);
+        IntArrayBuilder faces = new IntArrayBuilder(Math.max(16, radius * radius * 16));
+        IntArrayBuilder faceStrips = new IntArrayBuilder(Math.max(16, radius * radius * 12));
+        for (int first = -radius; first <= radius; first++) {
+            long firstSquared = (long) first * first;
+            int runStart = 0;
+            int previousEdge = -1;
+            for (int second = -radius; second <= radius + 1; second++) {
+                long remaining = radiusSquared - firstSquared - (long) second * second;
+                int edge = remaining >= 0 && second <= radius ? (int) Math.sqrt(remaining) : -1;
+                if (previousEdge >= 0 && edge != previousEdge) {
+                    addBlockFaceStrips(faceStrips, first, runStart, previousEdge, second - runStart);
+                }
+                if (edge < 0) {
+                    previousEdge = -1;
+                    continue;
+                }
+                if (edge != previousEdge) {
+                    runStart = second;
+                    previousEdge = edge;
+                }
+                faces.add(encodeBlockFace(edge, first, second, 0));
+                faces.add(encodeBlockFace(-edge, first, second, 1));
+                faces.add(encodeBlockFace(first, edge, second, 2));
+                faces.add(encodeBlockFace(first, -edge, second, 3));
+                faces.add(encodeBlockFace(first, second, edge, 4));
+                faces.add(encodeBlockFace(first, second, -edge, 5));
+            }
+        }
+        return new BlockySphereMesh(faces.toArray(), faceStrips.toArray());
+    }
+
+    private static void addBlockFaceStrips(
+            IntArrayBuilder strips, int first, int secondStart, int edge, int length
+    ) {
+        strips.add(encodeBlockFace(edge, first, secondStart, 0));
+        strips.add(length);
+        strips.add(encodeBlockFace(-edge, first, secondStart, 1));
+        strips.add(length);
+        strips.add(encodeBlockFace(first, edge, secondStart, 2));
+        strips.add(length);
+        strips.add(encodeBlockFace(first, -edge, secondStart, 3));
+        strips.add(length);
+        strips.add(encodeBlockFace(first, secondStart, edge, 4));
+        strips.add(length);
+        strips.add(encodeBlockFace(first, secondStart, -edge, 5));
+        strips.add(length);
+    }
+
+    private static int encodeBlockFace(int x, int y, int z, int direction) {
+        return x + BLOCK_OFFSET_BIAS
+                | (y + BLOCK_OFFSET_BIAS) << BLOCK_OFFSET_BITS
+                | (z + BLOCK_OFFSET_BIAS) << (BLOCK_OFFSET_BITS * 2)
+                | direction << BLOCK_FACE_DIRECTION_SHIFT;
+    }
+
+    private static void blockFace(
+            PoseStack.Pose pose, VertexConsumer buffer, BlockPos center, int encodedFace,
+            int color, boolean outline, float width
+    ) {
+        int x = center.getX() + (encodedFace & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
+        int y = center.getY() + ((encodedFace >> BLOCK_OFFSET_BITS) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
+        int z = center.getZ() + ((encodedFace >> (BLOCK_OFFSET_BITS * 2)) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
+        int direction = encodedFace >>> BLOCK_FACE_DIRECTION_SHIFT;
+        switch (direction) {
+            case 0 -> blockFaceVertices(pose, buffer, color, outline, width,
+                    x + 1, y, z, x + 1, y + 1, z, x + 1, y + 1, z + 1, x + 1, y, z + 1);
+            case 1 -> blockFaceVertices(pose, buffer, color, outline, width,
+                    x, y, z + 1, x, y + 1, z + 1, x, y + 1, z, x, y, z);
+            case 2 -> blockFaceVertices(pose, buffer, color, outline, width,
+                    x, y + 1, z + 1, x + 1, y + 1, z + 1, x + 1, y + 1, z, x, y + 1, z);
+            case 3 -> blockFaceVertices(pose, buffer, color, outline, width,
+                    x, y, z, x + 1, y, z, x + 1, y, z + 1, x, y, z + 1);
+            case 4 -> blockFaceVertices(pose, buffer, color, outline, width,
+                    x + 1, y, z + 1, x + 1, y + 1, z + 1, x, y + 1, z + 1, x, y, z + 1);
+            default -> blockFaceVertices(pose, buffer, color, outline, width,
+                    x, y, z, x, y + 1, z, x + 1, y + 1, z, x + 1, y, z);
+        }
+    }
+
+    private static void blockFaceStrip(
+            PoseStack.Pose pose, VertexConsumer buffer, BlockPos center, int encodedFace, int length, int color
+    ) {
+        int x = center.getX() + (encodedFace & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
+        int y = center.getY() + ((encodedFace >> BLOCK_OFFSET_BITS) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
+        int z = center.getZ() + ((encodedFace >> (BLOCK_OFFSET_BITS * 2)) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
+        int direction = encodedFace >>> BLOCK_FACE_DIRECTION_SHIFT;
+        switch (direction) {
+            case 0 -> blockFaceVertices(pose, buffer, color, false, 0.0F,
+                    x + 1, y, z, x + 1, y + 1, z, x + 1, y + 1, z + length, x + 1, y, z + length);
+            case 1 -> blockFaceVertices(pose, buffer, color, false, 0.0F,
+                    x, y, z + length, x, y + 1, z + length, x, y + 1, z, x, y, z);
+            case 2 -> blockFaceVertices(pose, buffer, color, false, 0.0F,
+                    x, y + 1, z + length, x + 1, y + 1, z + length, x + 1, y + 1, z, x, y + 1, z);
+            case 3 -> blockFaceVertices(pose, buffer, color, false, 0.0F,
+                    x, y, z, x + 1, y, z, x + 1, y, z + length, x, y, z + length);
+            case 4 -> blockFaceVertices(pose, buffer, color, false, 0.0F,
+                    x + 1, y, z + 1, x + 1, y + length, z + 1, x, y + length, z + 1, x, y, z + 1);
+            default -> blockFaceVertices(pose, buffer, color, false, 0.0F,
+                    x, y, z, x, y + length, z, x + 1, y + length, z, x + 1, y, z);
+        }
+    }
+
+    private static void blockFaceVertices(
+            PoseStack.Pose pose, VertexConsumer buffer, int color, boolean outline, float width,
+            double x1, double y1, double z1, double x2, double y2, double z2,
+            double x3, double y3, double z3, double x4, double y4, double z4
+    ) {
+        if (outline) {
+            line(pose, buffer, x1, y1, z1, x2, y2, z2, color, width);
+            line(pose, buffer, x2, y2, z2, x3, y3, z3, color, width);
+            line(pose, buffer, x3, y3, z3, x4, y4, z4, color, width);
+            line(pose, buffer, x4, y4, z4, x1, y1, z1, color, width);
+        } else {
+            quad(pose, buffer, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4, color);
+        }
+    }
+
     private static double[] spherePoint(double cx, double cy, double cz, double radius, double latitude, double longitude) {
         double horizontal = Math.cos(latitude) * radius;
         return new double[]{
@@ -217,7 +390,35 @@ public final class SelectionRenderer {
             AreaZone draft,
             AreaZone lightingZone,
             List<AreaZone> exclusions,
-            SelectionState.DisplayMode displayMode
+            SelectionState.DisplayMode displayMode,
+            SelectionState.SphereDisplayMode sphereDisplayMode
     ) {
+    }
+
+    private record BlockySphereMesh(int[] faces, int[] faceStrips) {
+    }
+
+    private static final class IntArrayBuilder {
+        private int[] values;
+        private int size;
+
+        private IntArrayBuilder(int initialCapacity) {
+            values = new int[initialCapacity];
+        }
+
+        private void add(int value) {
+            if (size == values.length) {
+                int[] expanded = new int[values.length * 2];
+                System.arraycopy(values, 0, expanded, 0, values.length);
+                values = expanded;
+            }
+            values[size++] = value;
+        }
+
+        private int[] toArray() {
+            int[] result = new int[size];
+            System.arraycopy(values, 0, result, 0, size);
+            return result;
+        }
     }
 }

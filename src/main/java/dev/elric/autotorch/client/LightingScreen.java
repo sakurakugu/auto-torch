@@ -32,6 +32,7 @@ public final class LightingScreen extends Screen {
     private EditBox maxTorches;
     private EditBox minSpacing;
     private Button shapeButton;
+    private Button sphereDisplayButton;
     private Button displayButton;
     private Button useCurrentFirstButton;
     private Button useCurrentSecondButton;
@@ -58,13 +59,20 @@ public final class LightingScreen extends Screen {
             shapeButton.setMessage(shapeMessage());
             updatePointButtonMessages();
             refreshDimensionInputs();
-        }).bounds(left, 20, 150, 20).build());
+        }).bounds(left, 20, 126, 20).build());
+        sphereDisplayButton = addRenderableWidget(Button.builder(sphereDisplayMessage(), button -> {
+            SelectionState.SphereDisplayMode next =
+                    SelectionState.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY
+                            ? SelectionState.SphereDisplayMode.SMOOTH : SelectionState.SphereDisplayMode.BLOCKY;
+            SelectionState.setSphereDisplayMode(next);
+            sphereDisplayButton.setMessage(sphereDisplayMessage());
+        }).bounds(left + 130, 20, 90, 20).build());
         displayButton = addRenderableWidget(Button.builder(displayMessage(), button -> {
             SelectionState.DisplayMode next = SelectionState.displayMode() == SelectionState.DisplayMode.FACES
                     ? SelectionState.DisplayMode.LINES : SelectionState.DisplayMode.FACES;
             SelectionState.setDisplayMode(next);
             displayButton.setMessage(displayMessage());
-        }).bounds(left + 160, 20, 150, 20).build());
+        }).bounds(left + 224, 20, 86, 20).build());
 
         createCoordinateRow(first, left, 44, SelectionState.first(playerPos));
         useCurrentFirstButton = addRenderableWidget(Button.builder(firstPointMessage(), button -> {
@@ -434,6 +442,11 @@ public final class LightingScreen extends Screen {
     private Component displayMessage() {
         return Component.translatable(SelectionState.displayMode() == SelectionState.DisplayMode.FACES
                 ? "screen.autotorch.display_faces" : "screen.autotorch.display_lines");
+    }
+
+    private Component sphereDisplayMessage() {
+        return Component.translatable(SelectionState.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY
+                ? "screen.autotorch.sphere_display_blocky" : "screen.autotorch.sphere_display_smooth");
     }
 
     private Component consumeMessage() {
