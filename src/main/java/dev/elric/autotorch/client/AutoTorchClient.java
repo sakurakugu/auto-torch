@@ -4,8 +4,8 @@ import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
-import dev.elric.autotorch.AutoTorchMod;
-import dev.elric.autotorch.network.AreaShape;
+import dev.sakurakugu.autotorch.AutoTorchMod;
+import dev.sakurakugu.autotorch.network.AreaShape;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -36,6 +36,12 @@ public final class AutoTorchClient {
             GLFW.GLFW_KEY_G,
             CATEGORY
     );
+    private static final KeyMapping TOGGLE_LIGHT_OVERLAY = new KeyMapping(
+            "key.autotorch.toggle_light_overlay",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_F7,
+            CATEGORY
+    );
 
     public AutoTorchClient(IEventBus modBus) {
         modBus.addListener(this::registerKeyMappings);
@@ -49,6 +55,7 @@ public final class AutoTorchClient {
     private void registerKeyMappings(RegisterKeyMappingsEvent event) {
         event.registerCategory(CATEGORY);
         event.register(OPEN_SCREEN);
+        event.register(TOGGLE_LIGHT_OVERLAY);
     }
 
     private void onClientTick(ClientTickEvent.Post event) {
@@ -56,9 +63,17 @@ public final class AutoTorchClient {
         BlockPos currentPosition = minecraft.player == null ? BlockPos.ZERO : minecraft.player.blockPosition();
         // 切换世界或退出存档时重置选区，避免把旧维度坐标带入新世界。
         SelectionState.updateLevel(minecraft.level, currentPosition);
+        LightOverlayState.tick(minecraft);
         while (OPEN_SCREEN.consumeClick()) {
             if (minecraft.player != null && minecraft.screen == null) {
                 minecraft.setScreen(new LightingScreen());
+            }
+        }
+        while (TOGGLE_LIGHT_OVERLAY.consumeClick()) {
+            if (minecraft.player != null) {
+                boolean enabled = LightOverlayState.toggle();
+                minecraft.gui.setOverlayMessage(Component.translatable(enabled
+                        ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
             }
         }
     }
@@ -98,11 +113,13 @@ public final class AutoTorchClient {
     private void onSubmitGeometry(SubmitCustomGeometryEvent event) {
         if (Minecraft.getInstance().level != null) {
             SelectionRenderer.submit(event);
+            LightOverlayRenderer.submit(event);
         }
     }
 
     private void onExtractRenderState(ExtractLevelRenderStateEvent event) {
         SelectionRenderer.extract(event);
+        LightOverlayRenderer.extract(event);
     }
 
     private static String formatPosition(BlockPos pos) {

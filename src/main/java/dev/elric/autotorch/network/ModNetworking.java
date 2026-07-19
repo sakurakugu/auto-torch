@@ -1,6 +1,6 @@
 package dev.sakurakugu.autotorch.network;
 
-import dev.elric.autotorch.server.LightingTaskManager;
+import dev.sakurakugu.autotorch.server.LightingTaskManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;

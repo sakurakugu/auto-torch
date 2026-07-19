@@ -2,10 +2,10 @@ package dev.sakurakugu.autotorch.client;
 
 import java.util.function.Predicate;
 
-import dev.elric.autotorch.network.AreaShape;
-import dev.elric.autotorch.network.AreaZone;
-import dev.elric.autotorch.network.CancelLightingPayload;
-import dev.elric.autotorch.network.StartLightingPayload;
+import dev.sakurakugu.autotorch.network.AreaShape;
+import dev.sakurakugu.autotorch.network.AreaZone;
+import dev.sakurakugu.autotorch.network.CancelLightingPayload;
+import dev.sakurakugu.autotorch.network.StartLightingPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -40,6 +40,8 @@ public final class LightingScreen extends Screen {
     private Button exclusionButton;
     private Button consumeButton;
     private Button undergroundButton;
+    private Button selectionOverlayButton;
+    private Button lightOverlayButton;
     private boolean consumeTorches;
     private boolean undergroundOnly = true;
     private boolean syncingInputs;
@@ -123,11 +125,20 @@ public final class LightingScreen extends Screen {
         }).bounds(left + 160, 160, 150, 20).build());
 
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.start"), button -> startTask())
-                .bounds(left, 184, 150, 20).build());
+                .bounds(left, 184, 96, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.cancel_task"), button -> {
             ClientPacketDistributor.sendToServer(new CancelLightingPayload());
             onClose();
-        }).bounds(left + 160, 184, 150, 20).build());
+        }).bounds(left + 100, 184, 100, 20).build());
+        selectionOverlayButton = addRenderableWidget(Button.builder(selectionOverlayMessage(), button -> {
+            SelectionState.toggleOverlay();
+            selectionOverlayButton.setMessage(selectionOverlayMessage());
+        }).bounds(left + 204, 184, 106, 20).build());
+
+        lightOverlayButton = addRenderableWidget(Button.builder(lightOverlayMessage(), button -> {
+            LightOverlayState.toggle();
+            lightOverlayButton.setMessage(lightOverlayMessage());
+        }).bounds(left, 220, 310, 20).build());
     }
 
     private void createCoordinateRow(EditBox[] boxes, int left, int y, BlockPos initial) {
@@ -458,6 +469,16 @@ public final class LightingScreen extends Screen {
         return Component.translatable(undergroundOnly ? "screen.autotorch.underground_on" : "screen.autotorch.underground_off");
     }
 
+    private Component lightOverlayMessage() {
+        return Component.translatable(LightOverlayState.isEnabled()
+                ? "screen.autotorch.light_overlay_on" : "screen.autotorch.light_overlay_off");
+    }
+
+    private Component selectionOverlayMessage() {
+        return Component.translatable(SelectionState.isOverlayEnabled()
+                ? "screen.autotorch.selection_overlay_on" : "screen.autotorch.selection_overlay_off");
+    }
+
     private int panelLeft() {
         return width / 2 - 155;
     }
@@ -485,11 +506,15 @@ public final class LightingScreen extends Screen {
         }
         graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 142, 0xFFFFFFFF);
         graphics.text(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 142, 0xFFFFFFFF);
-        graphics.text(font, Component.translatable("screen.autotorch.zone_summary",
-                SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()), left, 210, 0xFFA0A0A0);
+        int informationY = 208;
         if (!error.getString().isEmpty()) {
-            graphics.centeredText(font, error, width / 2, 224, 0xFFFF6060);
+            graphics.centeredText(font, error, width / 2, informationY, 0xFFFF6060);
+        } else {
+            graphics.text(font, Component.translatable("screen.autotorch.zone_summary",
+                    SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()),
+                    left, informationY, 0xFFA0A0A0);
         }
+        graphics.fill(left, 218, left + 310, 219, 0xFF606060);
     }
 
     @Override

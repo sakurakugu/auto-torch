@@ -5,8 +5,8 @@ import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
-import dev.elric.autotorch.network.AreaShape;
-import dev.elric.autotorch.network.AreaZone;
+import dev.sakurakugu.autotorch.network.AreaShape;
+import dev.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 
@@ -19,6 +19,7 @@ public final class SelectionState {
     private static AreaShape shape = AreaShape.BOX;
     private static DisplayMode displayMode = DisplayMode.FACES;
     private static SphereDisplayMode sphereDisplayMode = SphereDisplayMode.BLOCKY;
+    private static boolean overlayEnabled = true;
     private static boolean drafting = true;
     private static int editingExclusion = -1;
     private static final List<AreaZone> EXCLUSIONS = new ArrayList<>();
@@ -35,6 +36,7 @@ public final class SelectionState {
             shape = AreaShape.BOX;
             displayMode = DisplayMode.FACES;
             sphereDisplayMode = SphereDisplayMode.BLOCKY;
+            overlayEnabled = true;
             drafting = true;
             editingExclusion = -1;
             EXCLUSIONS.clear();
@@ -88,6 +90,15 @@ public final class SelectionState {
 
     public static void setSphereDisplayMode(SphereDisplayMode value) {
         sphereDisplayMode = value;
+    }
+
+    public static boolean isOverlayEnabled() {
+        return overlayEnabled;
+    }
+
+    public static boolean toggleOverlay() {
+        overlayEnabled = !overlayEnabled;
+        return overlayEnabled;
     }
 
     public static boolean drafting() {

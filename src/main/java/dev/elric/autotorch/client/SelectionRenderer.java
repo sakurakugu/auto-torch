@@ -7,9 +7,9 @@ import java.util.Map;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
-import dev.elric.autotorch.AutoTorchMod;
-import dev.elric.autotorch.network.AreaShape;
-import dev.elric.autotorch.network.AreaZone;
+import dev.sakurakugu.autotorch.AutoTorchMod;
+import dev.sakurakugu.autotorch.network.AreaShape;
+import dev.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -48,6 +48,12 @@ public final class SelectionRenderer {
     }
 
     public static void extract(ExtractLevelRenderStateEvent event) {
+        if (!SelectionState.isOverlayEnabled()) {
+            event.getRenderState().setRenderData(RENDER_DATA, new RenderData(
+                    null, null, List.of(), SelectionState.displayMode(), SelectionState.sphereDisplayMode()
+            ));
+            return;
+        }
         BlockPos fallback = event.getCamera().blockPosition();
         event.getRenderState().setRenderData(RENDER_DATA, new RenderData(
                 SelectionState.drafting() ? SelectionState.draft(fallback) : null,

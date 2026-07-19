@@ -1,6 +1,6 @@
 package dev.sakurakugu.autotorch.network;
 
-import dev.elric.autotorch.AutoTorchMod;
+import dev.sakurakugu.autotorch.AutoTorchMod;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;

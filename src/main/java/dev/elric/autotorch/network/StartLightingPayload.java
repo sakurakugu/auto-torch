@@ -3,7 +3,7 @@ package dev.sakurakugu.autotorch.network;
 import java.util.ArrayList;
 import java.util.List;
 
-import dev.elric.autotorch.AutoTorchMod;
+import dev.sakurakugu.autotorch.AutoTorchMod;
 import io.netty.handler.codec.DecoderException;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;

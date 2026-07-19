@@ -2,8 +2,8 @@ package dev.sakurakugu.autotorch.client;
 
 import java.util.List;
 
-import dev.elric.autotorch.network.AreaShape;
-import dev.elric.autotorch.network.AreaZone;
+import dev.sakurakugu.autotorch.network.AreaShape;
+import dev.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;

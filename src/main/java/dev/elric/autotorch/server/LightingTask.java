@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
-import dev.elric.autotorch.network.AreaZone;
+import dev.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;

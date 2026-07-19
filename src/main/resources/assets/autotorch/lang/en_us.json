@@ -1,6 +1,7 @@
 {
   "key.category.autotorch.main": "Auto Torch",
   "key.autotorch.open_screen": "Open Auto Torch screen",
+  "key.autotorch.toggle_light_overlay": "Toggle light-risk overlay",
   "screen.autotorch.title": "Auto Torch",
   "screen.autotorch.range_hint": "Wooden axe: left=A, right=B; for spheres A=center and A-B=radius",
   "screen.autotorch.shape_sphere": "Blue shape: sphere",
@@ -48,7 +49,11 @@
   "screen.autotorch.exclusion_sphere_row": "%s. Sphere  C %s  R %s",
   "screen.autotorch.exclusion_box_row": "%s. Interval  A %s  B %s",
   "screen.autotorch.start": "Start task",
-  "screen.autotorch.cancel_task": "Cancel current task",
+  "screen.autotorch.cancel_task": "Cancel task",
+  "screen.autotorch.selection_overlay_on": "Areas: on",
+  "screen.autotorch.selection_overlay_off": "Areas: off",
+  "screen.autotorch.light_overlay_on": "Light-risk overlay: on (F7)",
+  "screen.autotorch.light_overlay_off": "Light-risk overlay: off (F7)",
   "screen.autotorch.invalid_value": "A coordinate or setting is invalid",
   "message.autotorch.selected_a": "Set point A to %s",
   "message.autotorch.selected_b": "Set point B to %s",
@@ -64,5 +69,7 @@
   "message.autotorch.wrong_dimension": "Auto Torch stopped because you changed dimension.",
   "message.autotorch.max_reached": "Placed %s torches and reached the configured limit.",
   "message.autotorch.out_of_torches": "Out of torches; stopped after placing %s.",
-  "message.autotorch.completed": "Scan complete: placed %s torches and skipped %s unloaded positions."
+  "message.autotorch.completed": "Scan complete: placed %s torches and skipped %s unloaded positions.",
+  "message.autotorch.light_overlay_on": "Light-risk overlay enabled: red means an all-time risk and yellow means a night-time risk.",
+  "message.autotorch.light_overlay_off": "Light-risk overlay disabled."
 }

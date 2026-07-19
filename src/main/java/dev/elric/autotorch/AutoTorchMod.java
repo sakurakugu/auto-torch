@@ -1,8 +1,8 @@
 package dev.sakurakugu.autotorch;
 
-import dev.elric.autotorch.network.ModNetworking;
-import dev.elric.autotorch.server.LightingTaskManager;
-import dev.elric.autotorch.server.SelectionToolEvents;
+import dev.sakurakugu.autotorch.network.ModNetworking;
+import dev.sakurakugu.autotorch.server.LightingTaskManager;
+import dev.sakurakugu.autotorch.server.SelectionToolEvents;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
