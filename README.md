@@ -4,7 +4,7 @@
 
 适用于 Minecraft 26.1.2 / NeoForge 26.1.2 的自动插火把模组。
 
-![icon](.\src\main\resources\autotorch.png)
+![icon](./src/main/resources/autotorch.png)
 
 ## 开发原因
 
@@ -17,9 +17,9 @@
 
 ## 图例
 
-![区间自动插火把功能](.\docs\image\区间自动插火把功能.png)
-![显示光照强度功能](.\docs\image\显示光照强度功能.png)
-![设置面板](.\docs\image\设置面板_cn.png)
+![区间自动插火把功能](./docs/image/区间自动插火把功能.png)
+![显示光照强度功能](./docs/image/显示光照强度功能.png)
+![设置面板](./docs/image/设置面板_cn.png)
 
 ## 功能
 
