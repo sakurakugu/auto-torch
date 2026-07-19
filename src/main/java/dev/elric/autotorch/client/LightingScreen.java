@@ -20,7 +20,7 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /** 自动照明的参数界面，负责选区管理、客户端校验和任务提交。 */
 public final class LightingScreen extends Screen {
-    private static final int CONTENT_HEIGHT = 258;
+    private static final int CONTENT_HEIGHT = 282;
     private static final int VIEWPORT_MARGIN = 4;
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int MIN_SCROLLBAR_HEIGHT = 20;
@@ -41,6 +41,7 @@ public final class LightingScreen extends Screen {
     private EditBox maxTorches;
     private EditBox minSpacing;
     private Button shapeButton;
+    private Button convertShapeButton;
     private Button sphereDisplayButton;
     private Button displayButton;
     private Button useCurrentFirstButton;
@@ -48,7 +49,6 @@ public final class LightingScreen extends Screen {
     private Button exclusionButton;
     private Button consumeButton;
     private Button undergroundButton;
-    private Button selectionOverlayButton;
     private Button lightOverlayButton;
     private Button lightOverlayModeButton;
     private boolean consumeTorches;
@@ -71,6 +71,7 @@ public final class LightingScreen extends Screen {
         shapeButton = addRenderableWidget(Button.builder(shapeMessage(), button -> {
             SelectionState.setShape(SelectionState.shape() == AreaShape.BOX ? AreaShape.SPHERE : AreaShape.BOX);
             shapeButton.setMessage(shapeMessage());
+            convertShapeButton.setMessage(convertShapeMessage());
             updatePointButtonMessages();
             refreshDimensionInputs();
         }).bounds(left, 20, 126, 20).build());
@@ -82,9 +83,7 @@ public final class LightingScreen extends Screen {
             sphereDisplayButton.setMessage(sphereDisplayMessage());
         }).bounds(left + 130, 20, 90, 20).build());
         displayButton = addRenderableWidget(Button.builder(displayMessage(), button -> {
-            SelectionState.DisplayMode next = SelectionState.displayMode() == SelectionState.DisplayMode.FACES
-                    ? SelectionState.DisplayMode.LINES : SelectionState.DisplayMode.FACES;
-            SelectionState.setDisplayMode(next);
+            cycleSelectionDisplay();
             displayButton.setMessage(displayMessage());
         }).bounds(left + 224, 20, 86, 20).build());
 
@@ -98,13 +97,12 @@ public final class LightingScreen extends Screen {
             setCoordinatePosition(second, currentPosition());
         }).bounds(left + 190, 66, 120, 20).build());
 
+        int[] dimensionOffsets = {18, 120, 222};
+        int[] dimensionWidths = {82, 82, 88};
         for (int i = 0; i < dimensions.length; i++) {
-            dimensions[i] = sizeBox(left + 14 + i * 70, 88, 52);
+            dimensions[i] = sizeBox(left + dimensionOffsets[i], 88, dimensionWidths[i]);
             dimensions[i].setResponder(value -> onDimensionChanged());
         }
-        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.swap_points"), button -> swapPoints())
-                .bounds(left + 210, 88, 100, 20).build());
-
         for (EditBox box : first) {
             box.setResponder(value -> onCoordinatesChanged());
         }
@@ -113,48 +111,49 @@ public final class LightingScreen extends Screen {
         }
         refreshDimensionInputs();
 
-        addRenderableWidget(new ColoredButton(left, 112, 120, 20,
+        convertShapeButton = addRenderableWidget(Button.builder(convertShapeMessage(), button -> convertSelectionShape())
+                .bounds(left, 112, 153, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.swap_points"), button -> swapPoints())
+                .bounds(left + 157, 112, 153, 20).build());
+
+        addRenderableWidget(new ColoredButton(left, 136, 120, 20,
                 Component.translatable("screen.autotorch.set_lighting"), button -> setLightingZone(),
                 0xDD176B35, 0xEE218A47));
-        exclusionButton = addRenderableWidget(new ColoredButton(left + 124, 112, 120, 20,
+        exclusionButton = addRenderableWidget(new ColoredButton(left + 124, 136, 120, 20,
                 exclusionMessage(), button -> addExclusion(), 0xDDA52B2B, 0xEEC83C3C));
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.manage_exclusions"), button -> {
             saveSelection();
             minecraft.setScreen(new ExclusionListScreen());
-        }).bounds(left + 248, 112, 62, 20).build());
+        }).bounds(left + 248, 136, 62, 20).build());
 
-        maxTorches = limitBox(left + 80, 136, 60, "∞");
-        minSpacing = integerBox(left + 250, 136, 60, "8");
+        maxTorches = limitBox(left + 80, 160, 60, "∞");
+        minSpacing = integerBox(left + 250, 160, 60, "8");
 
         consumeButton = addRenderableWidget(Button.builder(consumeMessage(), button -> {
             consumeTorches = !consumeTorches;
             consumeButton.setMessage(consumeMessage());
-        }).bounds(left, 160, 114, 20).build());
+        }).bounds(left, 184, 153, 20).build());
         undergroundButton = addRenderableWidget(Button.builder(undergroundMessage(), button -> {
             undergroundOnly = !undergroundOnly;
             undergroundButton.setMessage(undergroundMessage());
-        }).bounds(left + 118, 160, 114, 20).build());
-        selectionOverlayButton = addRenderableWidget(Button.builder(selectionOverlayMessage(), button -> {
-            SelectionState.toggleOverlay();
-            selectionOverlayButton.setMessage(selectionOverlayMessage());
-        }).bounds(left + 236, 160, 74, 20).build());
+        }).bounds(left + 157, 184, 153, 20).build());
 
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.start"), button -> startTask())
-                .bounds(left, 184, 153, 20).build());
+                .bounds(left, 208, 153, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.cancel_task"), button -> {
             ClientPacketDistributor.sendToServer(new CancelLightingPayload());
             onClose();
-        }).bounds(left + 157, 184, 153, 20).build());
+        }).bounds(left + 157, 208, 153, 20).build());
 
         lightOverlayButton = addRenderableWidget(Button.builder(lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
             lightOverlayButton.setMessage(lightOverlayMessage());
-        }).bounds(left, 234, 106, 20).build());
+        }).bounds(left, 258, 106, 20).build());
         lightOverlayModeButton = addRenderableWidget(Button.builder(lightOverlayModeMessage(), button -> {
             LightOverlayState.cycleDisplayMode();
             lightOverlayModeButton.setMessage(lightOverlayModeMessage());
-        }).bounds(left + 110, 234, 88, 20).build());
-        addRenderableWidget(new LightRangeSlider(left + 202, 234, 108, 20));
+        }).bounds(left + 110, 258, 88, 20).build());
+        addRenderableWidget(new LightRangeSlider(left + 202, 258, 108, 20));
 
         scrollOffset = Math.min(scrollOffset, maxScrollOffset());
         moveWidgets(-scrollOffset);
@@ -251,7 +250,7 @@ public final class LightingScreen extends Screen {
         syncingInputs = true;
         try {
             boolean sphere = SelectionState.shape() == AreaShape.SPHERE;
-            dimensions[0].setX(panelLeft() + (sphere ? 18 : 14));
+            dimensions[0].setX(panelLeft() + 18);
             dimensions[0].setValue(Integer.toString(sphere
                     ? new AreaZone(AreaShape.SPHERE, firstPos, secondPos).radius()
                     : Math.abs(secondPos.getX() - firstPos.getX()) + 1));
@@ -283,6 +282,74 @@ public final class LightingScreen extends Screen {
         } catch (IllegalArgumentException ignored) {
             error = Component.translatable("screen.autotorch.invalid_value");
         }
+    }
+
+    private void convertSelectionShape() {
+        try {
+            BlockPos firstPos = readPosition(first);
+            BlockPos secondPos = readPosition(second);
+            AreaShape convertedShape;
+            BlockPos convertedFirst;
+            BlockPos convertedSecond;
+
+            if (SelectionState.shape() == AreaShape.BOX) {
+                AreaZone box = new AreaZone(AreaShape.BOX, firstPos, secondPos);
+                BlockPos min = box.min();
+                BlockPos max = box.max();
+                long shortestExtent = Math.min(
+                        Math.min((long) max.getX() - min.getX(), (long) max.getY() - min.getY()),
+                        (long) max.getZ() - min.getZ());
+                int radius = (int) (shortestExtent / 2L);
+                if (radius < 1) {
+                    error = Component.translatable("screen.autotorch.convert_box_too_small");
+                    return;
+                }
+                if (radius > AreaZone.MAX_SPHERE_RADIUS) {
+                    error = Component.translatable("screen.autotorch.convert_sphere_too_large");
+                    return;
+                }
+                convertedFirst = midpoint(min, max);
+                convertedSecond = offsetChecked(convertedFirst, radius, 0, 0);
+                convertedShape = AreaShape.SPHERE;
+            } else {
+                AreaZone sphere = new AreaZone(AreaShape.SPHERE, firstPos, secondPos);
+                validateZone(sphere);
+                int radius = sphere.radius();
+                if (radius * 2L + 1L > 256L) {
+                    error = Component.translatable("screen.autotorch.convert_box_too_large");
+                    return;
+                }
+                convertedFirst = offsetChecked(firstPos, -radius, -radius, -radius);
+                convertedSecond = offsetChecked(firstPos, radius, radius, radius);
+                convertedShape = AreaShape.BOX;
+            }
+
+            syncingInputs = true;
+            try {
+                setPosition(first, convertedFirst);
+                setPosition(second, convertedSecond);
+            } finally {
+                syncingInputs = false;
+            }
+            SelectionState.setFirst(convertedFirst);
+            SelectionState.setSecond(convertedSecond);
+            SelectionState.setShape(convertedShape);
+            shapeButton.setMessage(shapeMessage());
+            convertShapeButton.setMessage(convertShapeMessage());
+            updatePointButtonMessages();
+            refreshDimensionInputs(convertedFirst, convertedSecond);
+            error = Component.empty();
+        } catch (IllegalArgumentException exception) {
+            error = Component.translatable("screen.autotorch.invalid_value");
+        }
+    }
+
+    private static BlockPos midpoint(BlockPos min, BlockPos max) {
+        return new BlockPos(
+                min.getX() + (int) (((long) max.getX() - min.getX()) / 2L),
+                min.getY() + (int) (((long) max.getY() - min.getY()) / 2L),
+                min.getZ() + (int) (((long) max.getZ() - min.getZ()) / 2L)
+        );
     }
 
     private void setCoordinatePosition(EditBox[] boxes, BlockPos pos) {
@@ -451,6 +518,12 @@ public final class LightingScreen extends Screen {
                 ? "screen.autotorch.shape_sphere" : "screen.autotorch.shape_box");
     }
 
+    private Component convertShapeMessage() {
+        return Component.translatable(SelectionState.shape() == AreaShape.SPHERE
+                ? "screen.autotorch.convert_to_circumscribed_box"
+                : "screen.autotorch.convert_to_inscribed_sphere");
+    }
+
     private Component firstPointMessage() {
         return Component.translatable(SelectionState.shape() == AreaShape.SPHERE
                 ? "screen.autotorch.use_current_center" : "screen.autotorch.use_current_a");
@@ -471,7 +544,21 @@ public final class LightingScreen extends Screen {
         useCurrentSecondButton.setMessage(secondPointMessage());
     }
 
+    private static void cycleSelectionDisplay() {
+        if (!SelectionState.isOverlayEnabled()) {
+            SelectionState.toggleOverlay();
+            SelectionState.setDisplayMode(SelectionState.DisplayMode.FACES);
+        } else if (SelectionState.displayMode() == SelectionState.DisplayMode.FACES) {
+            SelectionState.setDisplayMode(SelectionState.DisplayMode.LINES);
+        } else {
+            SelectionState.toggleOverlay();
+        }
+    }
+
     private Component displayMessage() {
+        if (!SelectionState.isOverlayEnabled()) {
+            return Component.translatable("screen.autotorch.display_off");
+        }
         return Component.translatable(SelectionState.displayMode() == SelectionState.DisplayMode.FACES
                 ? "screen.autotorch.display_faces" : "screen.autotorch.display_lines");
     }
@@ -497,11 +584,6 @@ public final class LightingScreen extends Screen {
     private Component lightOverlayModeMessage() {
         return Component.translatable(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
                 ? "screen.autotorch.light_overlay_mode_crosses" : "screen.autotorch.light_overlay_mode_numbers");
-    }
-
-    private Component selectionOverlayMessage() {
-        return Component.translatable(SelectionState.isOverlayEnabled()
-                ? "screen.autotorch.selection_overlay_on" : "screen.autotorch.selection_overlay_off");
     }
 
     private int panelLeft() {
@@ -619,12 +701,12 @@ public final class LightingScreen extends Screen {
             graphics.text(font, Component.translatable("screen.autotorch.radius_label"), left + 2, 94 - offset, 0xFF70A0FF);
         } else {
             graphics.text(font, Component.translatable("screen.autotorch.length_label"), left + 2, 94 - offset, 0xFF70A0FF);
-            graphics.text(font, Component.translatable("screen.autotorch.width_label"), left + 72, 94 - offset, 0xFF70A0FF);
-            graphics.text(font, Component.translatable("screen.autotorch.height_label"), left + 142, 94 - offset, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.width_label"), left + 104, 94 - offset, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.height_label"), left + 206, 94 - offset, 0xFF70A0FF);
         }
-        graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 142 - offset, 0xFFFFFFFF);
-        graphics.text(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 142 - offset, 0xFFFFFFFF);
-        int informationY = 208 - offset;
+        graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 166 - offset, 0xFFFFFFFF);
+        graphics.text(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 166 - offset, 0xFFFFFFFF);
+        int informationY = 232 - offset;
         if (!error.getString().isEmpty()) {
             graphics.centeredText(font, error, width / 2, informationY, 0xFFFF6060);
         } else {
@@ -632,9 +714,9 @@ public final class LightingScreen extends Screen {
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()),
                     left, informationY, 0xFFA0A0A0);
         }
-        graphics.fill(left, 218 - offset, left + 310, 219 - offset, 0xFF606060);
+        graphics.fill(left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
         graphics.centeredText(font, Component.translatable("screen.autotorch.light_overlay_title"),
-                width / 2, 222 - offset, 0xFFFFFFFF);
+                width / 2, 246 - offset, 0xFFFFFFFF);
         graphics.disableScissor();
 
         if (maxScrollOffset() > 0) {
