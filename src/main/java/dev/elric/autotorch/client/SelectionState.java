@@ -1,6 +1,7 @@
 package dev.elric.autotorch.client;
 
-import dev.elric.autotorch.network.ExclusionZone;
+import dev.elric.autotorch.network.AreaShape;
+import dev.elric.autotorch.network.AreaZone;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -12,7 +13,12 @@ public final class SelectionState {
     private static @Nullable ClientLevel level;
     private static @Nullable BlockPos first;
     private static @Nullable BlockPos second;
-    private static final List<ExclusionZone> EXCLUSIONS = new ArrayList<>();
+    private static @Nullable AreaZone lightingZone;
+    private static AreaShape shape = AreaShape.BOX;
+    private static DisplayMode displayMode = DisplayMode.FACES;
+    private static boolean drafting = true;
+    private static int editingExclusion = -1;
+    private static final List<AreaZone> EXCLUSIONS = new ArrayList<>();
 
     private SelectionState() {
     }
@@ -22,6 +28,11 @@ public final class SelectionState {
             level = currentLevel;
             first = currentPosition.immutable();
             second = currentPosition.immutable();
+            lightingZone = null;
+            shape = AreaShape.BOX;
+            displayMode = DisplayMode.FACES;
+            drafting = true;
+            editingExclusion = -1;
             EXCLUSIONS.clear();
         }
     }
@@ -42,30 +53,101 @@ public final class SelectionState {
 
     public static void setFirst(BlockPos pos) {
         first = pos.immutable();
+        drafting = true;
     }
 
     public static void setSecond(BlockPos pos) {
         second = pos.immutable();
+        drafting = true;
     }
 
-    public static List<ExclusionZone> exclusions() {
+    public static AreaShape shape() {
+        return shape;
+    }
+
+    public static void setShape(AreaShape value) {
+        shape = value;
+        drafting = true;
+    }
+
+    public static DisplayMode displayMode() {
+        return displayMode;
+    }
+
+    public static void setDisplayMode(DisplayMode value) {
+        displayMode = value;
+    }
+
+    public static boolean drafting() {
+        return drafting;
+    }
+
+    public static AreaZone draft(BlockPos fallback) {
+        return new AreaZone(shape, first(fallback), second(fallback));
+    }
+
+    public static @Nullable AreaZone lightingZone() {
+        return lightingZone;
+    }
+
+    public static void setLightingZone(AreaZone zone) {
+        lightingZone = zone;
+        drafting = false;
+        editingExclusion = -1;
+    }
+
+    public static List<AreaZone> exclusions() {
         // 返回副本，防止界面或渲染代码绕过数量限制直接修改内部列表。
         return List.copyOf(EXCLUSIONS);
     }
 
-    public static boolean addExclusion(ExclusionZone exclusion) {
+    public static boolean addExclusion(AreaZone exclusion) {
+        if (editingExclusion >= 0 && editingExclusion < EXCLUSIONS.size()) {
+            EXCLUSIONS.set(editingExclusion, exclusion);
+            editingExclusion = -1;
+            drafting = false;
+            return true;
+        }
         if (EXCLUSIONS.size() >= 32) {
             return false;
         }
         EXCLUSIONS.add(exclusion);
+        drafting = false;
         return true;
     }
 
-    public static boolean removeLastExclusion() {
-        if (EXCLUSIONS.isEmpty()) {
+    public static boolean beginEditingExclusion(int index) {
+        if (index < 0 || index >= EXCLUSIONS.size()) {
             return false;
         }
-        EXCLUSIONS.removeLast();
+        AreaZone zone = EXCLUSIONS.get(index);
+        first = zone.first();
+        second = zone.second();
+        shape = zone.shape();
+        editingExclusion = index;
+        drafting = true;
         return true;
+    }
+
+    public static boolean removeExclusion(int index) {
+        if (index < 0 || index >= EXCLUSIONS.size()) {
+            return false;
+        }
+        EXCLUSIONS.remove(index);
+        if (editingExclusion == index) {
+            editingExclusion = -1;
+        } else if (editingExclusion > index) {
+            editingExclusion--;
+        }
+        return true;
+    }
+
+    public static boolean isEditingExclusion() {
+        return editingExclusion >= 0;
+    }
+
+    public enum DisplayMode {
+        FACES,
+        LINES
     }
 }

@@ -12,7 +12,7 @@ public final class ModNetworking {
 
     public static void register(RegisterPayloadHandlersEvent event) {
         // 协议版本变化时应同步调整此版本号，以拒绝不兼容的客户端。
-        PayloadRegistrar registrar = event.registrar("2");
+        PayloadRegistrar registrar = event.registrar("3");
         registrar.playToServer(StartLightingPayload.TYPE, StartLightingPayload.STREAM_CODEC, (payload, context) -> {
             if (context.player() instanceof ServerPlayer player) {
                 LightingTaskManager.start(player, payload);

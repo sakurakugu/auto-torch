@@ -1,6 +1,6 @@
 package dev.elric.autotorch.server;
 
-import dev.elric.autotorch.network.ExclusionZone;
+import dev.elric.autotorch.network.AreaZone;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,8 +27,8 @@ final class LightingTask {
     private static final int RANDOM_PLACEMENT_ATTEMPTS = 32;
 
     private final ServerLevel level;
+    private final AreaZone selection;
     private final BlockPos min;
-    private final BlockPos max;
     private final int sizeX;
     private final int sizeY;
     private final int sizeZ;
@@ -39,7 +39,7 @@ final class LightingTask {
     private final int configuredSpacing;
     private final boolean consumeTorches;
     private final boolean undergroundOnly;
-    private final List<ExclusionZone> exclusions;
+    private final List<AreaZone> exclusions;
     private final Random random;
     private final Map<Long, List<BlockPos>> placedByCell = new HashMap<>();
 
@@ -51,18 +51,18 @@ final class LightingTask {
 
     LightingTask(
             ServerLevel level,
-            BlockPos min,
-            BlockPos max,
+            AreaZone selection,
             int maxTorches,
             int configuredSpacing,
             boolean consumeTorches,
             boolean undergroundOnly,
-            List<ExclusionZone> exclusions,
+            List<AreaZone> exclusions,
             UUID playerId
     ) {
         this.level = level;
-        this.min = min;
-        this.max = max;
+        this.selection = selection;
+        this.min = selection.min();
+        BlockPos max = selection.max();
         this.sizeX = max.getX() - min.getX() + 1;
         this.sizeY = max.getY() - min.getY() + 1;
         this.sizeZ = max.getZ() - min.getZ() + 1;
@@ -193,9 +193,7 @@ final class LightingTask {
     }
 
     private boolean insideSelection(BlockPos pos) {
-        return pos.getX() >= min.getX() && pos.getX() <= max.getX()
-                && pos.getY() >= min.getY() && pos.getY() <= max.getY()
-                && pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
+        return selection.contains(pos);
     }
 
     private boolean isChunkLoaded(BlockPos pos) {

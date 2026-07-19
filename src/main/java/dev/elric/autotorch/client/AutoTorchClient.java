@@ -2,6 +2,7 @@ package dev.elric.autotorch.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.elric.autotorch.AutoTorchMod;
+import dev.elric.autotorch.network.AreaShape;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -69,7 +70,9 @@ public final class AutoTorchClient {
         if (event.getAction() == PlayerInteractEvent.LeftClickBlock.Action.START) {
             SelectionState.setFirst(event.getPos());
             Minecraft.getInstance().gui.setOverlayMessage(
-                    Component.translatable("message.autotorch.selected_a", formatPosition(event.getPos())), false
+                    Component.translatable(SelectionState.shape() == AreaShape.SPHERE
+                                    ? "message.autotorch.selected_center" : "message.autotorch.selected_a",
+                            formatPosition(event.getPos())), false
             );
         }
     }
@@ -84,7 +87,9 @@ public final class AutoTorchClient {
         event.setCancellationResult(InteractionResult.SUCCESS);
         event.setCanceled(true);
         Minecraft.getInstance().gui.setOverlayMessage(
-                Component.translatable("message.autotorch.selected_b", formatPosition(event.getPos())), false
+                Component.translatable(SelectionState.shape() == AreaShape.SPHERE
+                                ? "message.autotorch.selected_radius" : "message.autotorch.selected_b",
+                        formatPosition(event.getPos())), false
         );
     }
 
