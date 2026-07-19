@@ -23,9 +23,12 @@ public final class LightingScreen extends Screen {
             value.isEmpty() || value.equals("-") || value.matches("-?\\d{0,8}");
     private static final Predicate<String> LIMIT_FILTER = value ->
             value.isEmpty() || value.equals("∞") || value.matches("\\d{0,4}");
+    private static final Predicate<String> SIZE_FILTER = value ->
+            value.isEmpty() || value.matches("\\d{0,9}");
 
     private final EditBox[] first = new EditBox[3];
     private final EditBox[] second = new EditBox[3];
+    private final EditBox[] dimensions = new EditBox[3];
     private EditBox maxTorches;
     private EditBox minSpacing;
     private Button shapeButton;
@@ -37,6 +40,7 @@ public final class LightingScreen extends Screen {
     private Button undergroundButton;
     private boolean consumeTorches;
     private boolean undergroundOnly = true;
+    private boolean syncingInputs;
     private Component error = Component.empty();
 
     public LightingScreen() {
@@ -53,54 +57,68 @@ public final class LightingScreen extends Screen {
             SelectionState.setShape(SelectionState.shape() == AreaShape.BOX ? AreaShape.SPHERE : AreaShape.BOX);
             shapeButton.setMessage(shapeMessage());
             updatePointButtonMessages();
-        }).bounds(left, 22, 150, 20).build());
+            refreshDimensionInputs();
+        }).bounds(left, 20, 150, 20).build());
         displayButton = addRenderableWidget(Button.builder(displayMessage(), button -> {
             SelectionState.DisplayMode next = SelectionState.displayMode() == SelectionState.DisplayMode.FACES
                     ? SelectionState.DisplayMode.LINES : SelectionState.DisplayMode.FACES;
             SelectionState.setDisplayMode(next);
             displayButton.setMessage(displayMessage());
-        }).bounds(left + 160, 22, 150, 20).build());
+        }).bounds(left + 160, 20, 150, 20).build());
 
-        createCoordinateRow(first, left, 48, SelectionState.first(playerPos));
+        createCoordinateRow(first, left, 44, SelectionState.first(playerPos));
         useCurrentFirstButton = addRenderableWidget(Button.builder(firstPointMessage(), button -> {
-            setPosition(first, currentPosition());
-            saveSelection();
-        }).bounds(left + 176, 48, 134, 20).build());
+            setCoordinatePosition(first, currentPosition());
+        }).bounds(left + 176, 44, 134, 20).build());
 
-        createCoordinateRow(second, left, 72, SelectionState.second(playerPos));
+        createCoordinateRow(second, left, 66, SelectionState.second(playerPos));
         useCurrentSecondButton = addRenderableWidget(Button.builder(secondPointMessage(), button -> {
-            setPosition(second, currentPosition());
-            saveSelection();
-        }).bounds(left + 176, 72, 134, 20).build());
+            setCoordinatePosition(second, currentPosition());
+        }).bounds(left + 176, 66, 134, 20).build());
 
-        addRenderableWidget(new ColoredButton(left, 98, 120, 20,
+        for (int i = 0; i < dimensions.length; i++) {
+            dimensions[i] = sizeBox(left + 18 + i * 52, 88, 48);
+            dimensions[i].setResponder(value -> onDimensionChanged());
+        }
+        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.swap_points"), button -> swapPoints())
+                .bounds(left + 176, 88, 134, 20).build());
+
+        for (EditBox box : first) {
+            box.setResponder(value -> onCoordinatesChanged());
+        }
+        for (EditBox box : second) {
+            box.setResponder(value -> onCoordinatesChanged());
+        }
+        refreshDimensionInputs();
+
+        addRenderableWidget(new ColoredButton(left, 112, 120, 20,
                 Component.translatable("screen.autotorch.set_lighting"), button -> setLightingZone(),
                 0xDD176B35, 0xEE218A47));
-        exclusionButton = addRenderableWidget(new ColoredButton(left + 124, 98, 120, 20,
+        exclusionButton = addRenderableWidget(new ColoredButton(left + 124, 112, 120, 20,
                 exclusionMessage(), button -> addExclusion(), 0xDDA52B2B, 0xEEC83C3C));
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.manage_exclusions"), button -> {
             saveSelection();
             minecraft.setScreen(new ExclusionListScreen());
-        }).bounds(left + 248, 98, 62, 20).build());
+        }).bounds(left + 248, 112, 62, 20).build());
 
-        maxTorches = limitBox(left + 80, 124, 60, "∞");
-        minSpacing = integerBox(left + 250, 124, 60, "8");
+        maxTorches = limitBox(left + 80, 136, 60, "∞");
+        minSpacing = integerBox(left + 250, 136, 60, "8");
 
         consumeButton = addRenderableWidget(Button.builder(consumeMessage(), button -> {
             consumeTorches = !consumeTorches;
             consumeButton.setMessage(consumeMessage());
-        }).bounds(left, 150, 150, 20).build());
+        }).bounds(left, 160, 150, 20).build());
         undergroundButton = addRenderableWidget(Button.builder(undergroundMessage(), button -> {
             undergroundOnly = !undergroundOnly;
             undergroundButton.setMessage(undergroundMessage());
-        }).bounds(left + 160, 150, 150, 20).build());
+        }).bounds(left + 160, 160, 150, 20).build());
 
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.start"), button -> startTask())
-                .bounds(left, 176, 150, 20).build());
+                .bounds(left, 184, 150, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.cancel_task"), button -> {
             ClientPacketDistributor.sendToServer(new CancelLightingPayload());
             onClose();
-        }).bounds(left + 160, 176, 150, 20).build());
+        }).bounds(left + 160, 184, 150, 20).build());
     }
 
     private void createCoordinateRow(EditBox[] boxes, int left, int y, BlockPos initial) {
@@ -124,6 +142,129 @@ public final class LightingScreen extends Screen {
         box.setFilter(LIMIT_FILTER);
         box.setValue(value);
         return addRenderableWidget(box);
+    }
+
+    private EditBox sizeBox(int x, int y, int boxWidth) {
+        EditBox box = new EditBox(font, x, y, boxWidth, 20, Component.empty());
+        box.setMaxLength(9);
+        box.setFilter(SIZE_FILTER);
+        return addRenderableWidget(box);
+    }
+
+    private void onCoordinatesChanged() {
+        if (syncingInputs) {
+            return;
+        }
+        try {
+            BlockPos firstPos = readPosition(first);
+            BlockPos secondPos = readPosition(second);
+            SelectionState.setFirst(firstPos);
+            SelectionState.setSecond(secondPos);
+            refreshDimensionInputs(firstPos, secondPos);
+        } catch (IllegalArgumentException ignored) {
+            // 坐标输入尚不完整时，等待用户继续输入。
+        }
+    }
+
+    private void onDimensionChanged() {
+        if (syncingInputs) {
+            return;
+        }
+        try {
+            BlockPos anchor = readPosition(first);
+            BlockPos currentSecond = readPosition(second);
+            BlockPos updatedSecond;
+            if (SelectionState.shape() == AreaShape.SPHERE) {
+                int radius = readPositive(dimensions[0], 1, AreaZone.MAX_SPHERE_RADIUS);
+                updatedSecond = offsetChecked(anchor, radius, 0, 0);
+            } else {
+                int sizeX = readPositive(dimensions[0], 1, 256);
+                int sizeZ = readPositive(dimensions[1], 1, 256);
+                int sizeY = readPositive(dimensions[2], 1, 256);
+                int[] anchorValues = {anchor.getX(), anchor.getY(), anchor.getZ()};
+                int[] secondValues = {currentSecond.getX(), currentSecond.getY(), currentSecond.getZ()};
+                int[] sizes = {sizeX, sizeY, sizeZ};
+                int[] offsets = new int[3];
+                for (int i = 0; i < offsets.length; i++) {
+                    int direction = Integer.compare(secondValues[i], anchorValues[i]);
+                    if (direction == 0) {
+                        direction = 1;
+                    }
+                    offsets[i] = direction * (sizes[i] - 1);
+                }
+                updatedSecond = offsetChecked(anchor, offsets[0], offsets[1], offsets[2]);
+            }
+            setCoordinatePosition(second, updatedSecond);
+        } catch (IllegalArgumentException ignored) {
+            // 尺寸输入尚不完整或超出范围时，不改变坐标。
+        }
+    }
+
+    private void refreshDimensionInputs() {
+        try {
+            refreshDimensionInputs(readPosition(first), readPosition(second));
+        } catch (IllegalArgumentException ignored) {
+            // 坐标输入尚不完整时保留上一次显示。
+        }
+    }
+
+    private void refreshDimensionInputs(BlockPos firstPos, BlockPos secondPos) {
+        syncingInputs = true;
+        try {
+            boolean sphere = SelectionState.shape() == AreaShape.SPHERE;
+            dimensions[0].setValue(Integer.toString(sphere
+                    ? new AreaZone(AreaShape.SPHERE, firstPos, secondPos).radius()
+                    : Math.abs(secondPos.getX() - firstPos.getX()) + 1));
+            dimensions[1].visible = !sphere;
+            dimensions[2].visible = !sphere;
+            if (!sphere) {
+                dimensions[1].setValue(Integer.toString(Math.abs(secondPos.getZ() - firstPos.getZ()) + 1));
+                dimensions[2].setValue(Integer.toString(Math.abs(secondPos.getY() - firstPos.getY()) + 1));
+            }
+        } finally {
+            syncingInputs = false;
+        }
+    }
+
+    private void swapPoints() {
+        try {
+            BlockPos firstPos = readPosition(first);
+            BlockPos secondPos = readPosition(second);
+            syncingInputs = true;
+            try {
+                setPosition(first, secondPos);
+                setPosition(second, firstPos);
+            } finally {
+                syncingInputs = false;
+            }
+            SelectionState.setFirst(secondPos);
+            SelectionState.setSecond(firstPos);
+            refreshDimensionInputs(secondPos, firstPos);
+        } catch (IllegalArgumentException ignored) {
+            error = Component.translatable("screen.autotorch.invalid_value");
+        }
+    }
+
+    private void setCoordinatePosition(EditBox[] boxes, BlockPos pos) {
+        syncingInputs = true;
+        try {
+            setPosition(boxes, pos);
+        } finally {
+            syncingInputs = false;
+        }
+        onCoordinatesChanged();
+    }
+
+    private static BlockPos offsetChecked(BlockPos anchor, int x, int y, int z) {
+        long targetX = (long) anchor.getX() + x;
+        long targetY = (long) anchor.getY() + y;
+        long targetZ = (long) anchor.getZ() + z;
+        if (targetX < Integer.MIN_VALUE || targetX > Integer.MAX_VALUE
+                || targetY < Integer.MIN_VALUE || targetY > Integer.MAX_VALUE
+                || targetZ < Integer.MIN_VALUE || targetZ > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Coordinate overflow");
+        }
+        return new BlockPos((int) targetX, (int) targetY, (int) targetZ);
     }
 
     private void setLightingZone() {
@@ -317,16 +458,23 @@ public final class LightingScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int left = panelLeft();
-        graphics.centeredText(font, title, width / 2, 8, 0xFFFFFFFF);
+        graphics.centeredText(font, title, width / 2, 6, 0xFFFFFFFF);
         boolean sphere = SelectionState.shape() == AreaShape.SPHERE;
-        graphics.text(font, sphere ? "C" : "A", left + 5, 54, 0xFF70A0FF);
-        graphics.text(font, sphere ? "R" : "B", left + 5, 78, 0xFF70A0FF);
-        graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 130, 0xFFFFFFFF);
-        graphics.text(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 130, 0xFFFFFFFF);
+        graphics.text(font, sphere ? "C" : "A", left + 5, 50, 0xFF70A0FF);
+        graphics.text(font, sphere ? "R" : "B", left + 5, 72, 0xFF70A0FF);
+        if (sphere) {
+            graphics.text(font, Component.translatable("screen.autotorch.radius_label"), left + 5, 94, 0xFF70A0FF);
+        } else {
+            graphics.text(font, Component.translatable("screen.autotorch.length_label"), left + 5, 94, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.width_label"), left + 57, 94, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.height_label"), left + 109, 94, 0xFF70A0FF);
+        }
+        graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 142, 0xFFFFFFFF);
+        graphics.text(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 142, 0xFFFFFFFF);
         graphics.text(font, Component.translatable("screen.autotorch.zone_summary",
-                SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()), left, 202, 0xFFA0A0A0);
+                SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()), left, 210, 0xFFA0A0A0);
         if (!error.getString().isEmpty()) {
-            graphics.centeredText(font, error, width / 2, 216, 0xFFFF6060);
+            graphics.centeredText(font, error, width / 2, 224, 0xFFFF6060);
         }
     }
 
