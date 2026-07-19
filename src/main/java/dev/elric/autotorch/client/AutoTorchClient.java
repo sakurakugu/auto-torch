@@ -16,7 +16,9 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Items;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
@@ -43,7 +45,8 @@ public final class AutoTorchClient {
             CATEGORY
     );
 
-    public AutoTorchClient(IEventBus modBus) {
+    public AutoTorchClient(IEventBus modBus, ModContainer modContainer) {
+        modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
         modBus.addListener(this::registerKeyMappings);
         NeoForge.EVENT_BUS.addListener(this::onClientTick);
         NeoForge.EVENT_BUS.addListener(this::onLeftClick);
@@ -64,6 +67,7 @@ public final class AutoTorchClient {
         // 切换世界或退出存档时重置选区，避免把旧维度坐标带入新世界。
         SelectionState.updateLevel(minecraft.level, currentPosition);
         LightOverlayState.tick(minecraft);
+        NearbyAutoTorch.tick(minecraft);
         while (OPEN_SCREEN.consumeClick()) {
             if (minecraft.player != null && minecraft.screen == null) {
                 minecraft.setScreen(new LightingScreen());

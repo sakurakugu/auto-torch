@@ -21,7 +21,7 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /** 自动照明的参数界面，负责选区管理、客户端校验和任务提交。 */
 public final class LightingScreen extends Screen {
-    private static final int CONTENT_HEIGHT = 306;
+    private static final int CONTENT_HEIGHT = 374;
     private static final int VIEWPORT_MARGIN = 4;
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int MIN_SCROLLBAR_HEIGHT = 20;
@@ -54,6 +54,8 @@ public final class LightingScreen extends Screen {
     private Button lightOverlayModeButton;
     private Button swampSlimeDetectionButton;
     private Button drownedDetectionButton;
+    private Button nearbyAutoTorchButton;
+    private Button nearbyAutoTorchSkyLightButton;
     private boolean consumeTorches;
     private boolean undergroundOnly = true;
     private boolean syncingInputs;
@@ -170,6 +172,18 @@ public final class LightingScreen extends Screen {
         }).bounds(left + 157, 282, 153, 20)
                 .tooltip(Tooltip.create(Component.translatable("screen.autotorch.drowned_detection.tooltip")))
                 .build());
+
+        nearbyAutoTorchButton = addRenderableWidget(Button.builder(nearbyAutoTorchMessage(), button -> {
+            ClientConfig.setNearbyAutoTorchEnabled(!ClientConfig.isNearbyAutoTorchEnabled());
+            nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage());
+        }).bounds(left, 326, 153, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.nearby_auto_torch.tooltip")))
+                .build());
+        addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 326, 153, 20));
+        nearbyAutoTorchSkyLightButton = addRenderableWidget(Button.builder(nearbyAutoTorchSkyLightMessage(), button -> {
+            ClientConfig.setIncludesSkyLight(!ClientConfig.includesSkyLight());
+            nearbyAutoTorchSkyLightButton.setMessage(nearbyAutoTorchSkyLightMessage());
+        }).bounds(left, 350, 310, 20).build());
 
         scrollOffset = Math.min(scrollOffset, maxScrollOffset());
         moveWidgets(-scrollOffset);
@@ -614,6 +628,18 @@ public final class LightingScreen extends Screen {
                 : "screen.autotorch.drowned_detection_off");
     }
 
+    private Component nearbyAutoTorchMessage() {
+        return Component.translatable(ClientConfig.isNearbyAutoTorchEnabled()
+                ? "screen.autotorch.nearby_auto_torch_on"
+                : "screen.autotorch.nearby_auto_torch_off");
+    }
+
+    private Component nearbyAutoTorchSkyLightMessage() {
+        return Component.translatable(ClientConfig.includesSkyLight()
+                ? "screen.autotorch.nearby_auto_torch_sky_light_on"
+                : "screen.autotorch.nearby_auto_torch_sky_light_off");
+    }
+
     private int panelLeft() {
         return width / 2 - 155;
     }
@@ -745,6 +771,9 @@ public final class LightingScreen extends Screen {
         graphics.fill(left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
         graphics.centeredText(font, Component.translatable("screen.autotorch.light_overlay_title"),
                 width / 2, 246 - offset, 0xFFFFFFFF);
+        graphics.fill(left, 310 - offset, left + 310, 311 - offset, 0xFF606060);
+        graphics.centeredText(font, Component.translatable("screen.autotorch.nearby_auto_torch_title"),
+                width / 2, 314 - offset, 0xFFFFFFFF);
         graphics.disableScissor();
 
         if (maxScrollOffset() > 0) {
@@ -787,6 +816,28 @@ public final class LightingScreen extends Screen {
         private static double toSliderValue(int range) {
             return (double) (range - LightOverlayState.MIN_HORIZONTAL_RANGE)
                     / (LightOverlayState.MAX_HORIZONTAL_RANGE - LightOverlayState.MIN_HORIZONTAL_RANGE);
+        }
+    }
+
+    private static final class NearbyAutoTorchThresholdSlider extends AbstractSliderButton {
+        private NearbyAutoTorchThresholdSlider(int x, int y, int width, int height) {
+            super(x, y, width, height, Component.empty(), (ClientConfig.nearbyAutoTorchThreshold() - 1) / 15.0);
+            updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(Component.translatable(
+                    "screen.autotorch.nearby_auto_torch_threshold", threshold()));
+        }
+
+        @Override
+        protected void applyValue() {
+            ClientConfig.setNearbyAutoTorchThreshold(threshold());
+        }
+
+        private int threshold() {
+            return 1 + (int) Math.round(value * 15.0);
         }
     }
 }
