@@ -1,10 +1,25 @@
 # Auto Torch
 
+[English](README_EN.md) | 简体中文
+
 适用于 Minecraft 26.1.2 / NeoForge 26.1.2 的自动插火把模组。
+
+![icon](.\src\main\resources\autotorch.png)
 
 ## 开发原因
 
 挖空置域太麻烦了，然后自动插火把也容易遗漏。
+
+## 简介
+
+- 默认按 `G` 打开选区面板，可以设置区间或附近自动插火把功能
+- 默认按 `F7` 开关纯客户端光照显示，支持溺尸和沼泽史莱姆特判
+
+## 图例
+
+![区间自动插火把功能](.\docs\image\区间自动插火把功能.png)
+![显示光照强度功能](.\docs\image\显示光照强度功能.png)
+![设置面板](.\docs\image\设置面板_cn.png)
 
 ## 功能
 
