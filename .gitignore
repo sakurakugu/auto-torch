@@ -29,20 +29,20 @@ bin/
 ### VS Code ###
 .vscode/
 
-### Local environment ###
+### 本地环境 ###
 .env
 
-### Mac OS ###
+### macOS ###
 .DS_Store
 
-### Minecraft Modding ###
+### Minecraft 模组开发 ###
 run/
 !**/src/**/run/
 **/src/generated/**/.cache/
 repo/
 !**/src/**/repo/
 
-### Other ###
+### 其他 ###
 other/
 
 ### Python ###

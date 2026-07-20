@@ -17,7 +17,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 
-/** Maintains the client-only light-risk scan and an immutable snapshot for rendering. */
+/** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
     public static final int MIN_HORIZONTAL_RANGE = 1;
     public static final int MAX_HORIZONTAL_RANGE = 64;
@@ -243,7 +243,7 @@ public final class LightOverlayState {
     }
 
     private static boolean isDrownedRisk(ClientLevel level, BlockPos pos) {
-        // Keep only the highest fully valid position in each continuous spawnable water column.
+        // 每个连续且可生成怪物的水柱中，仅保留最高的完全有效位置。
         return isDrownedSpawnPosition(level, pos) && !isDrownedSpawnPosition(level, pos.above());
     }
 

@@ -1,89 +1,89 @@
-# This is an example neoforge.mods.toml file. It contains the data relating to the loading mods.
-# There are several mandatory fields (#mandatory), and many more that are optional (#optional).
-# The overall format is standard TOML format, v0.5.0.
-# Note that there are a couple of TOML lists in this file.
-# Find more information on toml format here:  https://github.com/toml-lang/toml
+# 这是 neoforge.mods.toml 示例文件，包含加载模组所需的数据。
+# 其中有若干必填字段（#必填），以及更多可选字段（#可选）。
+# 文件整体采用标准 TOML v0.5.0 格式。
+# 请注意，此文件中包含若干 TOML 列表。
+# 有关 TOML 格式的更多信息，请参阅：https://github.com/toml-lang/toml
 
-# The license for you mod. This is mandatory metadata and allows for easier comprehension of your redistributive properties.
-# Review your options at https://choosealicense.com/. All rights reserved is the default copyright stance, and is thus the default here.
+# 模组许可证。这是必填元数据，有助于他人理解模组的再分发条款。
+# 可在 https://choosealicense.com/ 查看可选方案；默认版权立场为保留所有权利。
 license="${mod_license}"
 
-# A URL to refer people to when problems occur with this mod
-#issueTrackerURL="https://change.me.to.your.issue.tracker.example.invalid/" #optional
+# 当此模组出现问题时，引导用户前往的 URL
+#issueTrackerURL="https://change.me.to.your.issue.tracker.example.invalid/" #可选
 
-# A list of mods - how many allowed here is determined by the individual mod loader
-[[mods]] #mandatory
+# 模组列表，此处允许的数量由具体模组加载器决定
+[[mods]] #必填
 
-# The modid of the mod
-modId="${mod_id}" #mandatory
+# 模组 ID
+modId="${mod_id}" #必填
 
-# The version number of the mod
-version="${mod_version}" #mandatory
+# 模组版本号
+version="${mod_version}" #必填
 
-# A display name for the mod
-displayName="${mod_name}" #mandatory
+# 模组显示名称
+displayName="${mod_name}" #必填
 
-# A URL to query for updates for this mod. See the JSON update specification https://docs.neoforged.net/docs/misc/updatechecker/
-#updateJSONURL="https://change.me.example.invalid/updates.json" #optional
+# 用于查询此模组更新的 URL。参阅 JSON 更新规范：https://docs.neoforged.net/docs/misc/updatechecker/
+#updateJSONURL="https://change.me.example.invalid/updates.json" #可选
 
-# A URL for the "homepage" for this mod, displayed in the mod UI
-#displayURL="https://change.me.to.your.mods.homepage.example.invalid/" #optional
+# 此模组的“主页” URL，将显示在模组界面中
+#displayURL="https://change.me.to.your.mods.homepage.example.invalid/" #可选
 
-# A file name (in the root of the mod JAR) containing a logo for display
-logoFile="autotorch.png" #optional
+# 包含显示用徽标的文件名，文件位于模组 JAR 根目录
+logoFile="autotorch.png" #可选
 
-# A text field displayed in the mod UI
-#credits="" #optional
+# 显示在模组界面中的文本字段
+#credits="" #可选
 
-# The authors of the mod, displayed in the mod UI (optional)
+# 模组作者，将显示在模组界面中（可选）
 authors="sakurakugu"
 
-# The description text for the mod (multi line!) (#mandatory)
+# 模组描述文本（可多行）（#必填）
 description='''
 Scans a selected underground area in small server-side batches and places sparse, irregular torches on potential hostile-mob spawning surfaces.
 '''
 
-# The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.
+# [[mixins]] 块用于向 FML 声明要加载的 Mixin 配置。
 #[[mixins]]
 #config="${mod_id}.mixins.json"
 
-# The [[accessTransformers]] block allows you to declare where your AT file is.
-# If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
+# [[accessTransformers]] 块用于声明 AT 文件的位置。
+# 如果省略此块，系统会尝试从 META-INF/accesstransformer.cfg 加载 AT 作为后备方案。
 #[[accessTransformers]]
 #file="META-INF/accesstransformer.cfg"
 
-# The coremods config file path is not configurable and is always loaded from META-INF/coremods.json
+# 核心模组配置文件路径不可配置，始终从 META-INF/coremods.json 加载
 
-# A dependency - use the . to indicate dependency for a specific modid. Dependencies are optional.
-[[dependencies.${mod_id}]] #optional
-    # the modid of the dependency
-    modId="neoforge" #mandatory
-    # The type of the dependency. Can be one of "required", "optional", "incompatible" or "discouraged" (case insensitive).
-    # 'required' requires the mod to exist, 'optional' does not
-    # 'incompatible' will prevent the game from loading when the mod exists, and 'discouraged' will show a warning
-    type="required" #mandatory
-    # Optional field describing why the dependency is required or why it is incompatible
+# 依赖项，使用点号指定其所属的模组 ID。依赖项本身可选。
+[[dependencies.${mod_id}]] #可选
+    # 依赖项的模组 ID
+    modId="neoforge" #必填
+    # 依赖类型，可为 "required"、"optional"、"incompatible" 或 "discouraged"（不区分大小写）。
+    # "required" 要求模组存在，"optional" 则不要求
+    # 模组存在时，"incompatible" 会阻止游戏加载，"discouraged" 会显示警告
+    type="required" #必填
+    # 可选字段，用于说明为何需要该依赖或为何与其不兼容
     # reason="..."
-    # The version range of the dependency
-    versionRange="[${neo_version},)" #mandatory
-    # An ordering relationship for the dependency.
-    # BEFORE - This mod is loaded BEFORE the dependency
-    # AFTER - This mod is loaded AFTER the dependency
+    # 依赖项的版本范围
+    versionRange="[${neo_version},)" #必填
+    # 与依赖项的加载顺序关系。
+    # BEFORE：此模组在依赖项之前加载
+    # AFTER：此模组在依赖项之后加载
     ordering="NONE"
-    # Side this dependency is applied on - BOTH, CLIENT, or SERVER
+    # 此依赖项适用的端：BOTH、CLIENT 或 SERVER
     side="BOTH"
 
-# Here's another dependency
+# 另一个依赖项
 [[dependencies.${mod_id}]]
     modId="minecraft"
     type="required"
-    # This version range declares a minimum of the current minecraft version up to but not including the next major version
+    # 此版本范围以下限包含当前 Minecraft 版本，上限不包含下一个主要版本
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"
 
-# Features are specific properties of the game environment, that you may want to declare you require. This example declares
-# that your mod requires GL version 3.2 or higher. Other features will be added. They are side aware so declaring this won't
-# stop your mod loading on the server for example.
+# 功能是游戏环境的特定属性，可声明为模组的运行要求。此示例声明
+# 模组需要 GL 3.2 或更高版本。以后还会增加其他功能。功能会区分适用端，
+# 因此，例如声明此要求不会阻止模组在服务端加载。
 #[features.${mod_id}]
 #openGLVersion="[3.2,)"

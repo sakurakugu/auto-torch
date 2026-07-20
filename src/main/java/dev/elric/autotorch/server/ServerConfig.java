@@ -4,7 +4,7 @@ import dev.sakurakugu.autotorch.network.AreaZone;
 import dev.sakurakugu.autotorch.network.StartLightingPayload;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
-/** Server-authoritative limits and performance budgets for area-lighting tasks. */
+/** 由服务端权威控制的区域照明任务限制与性能预算。 */
 public final class ServerConfig {
     public static final int HARD_MAX_BOX_AXIS_LENGTH = 256;
     public static final int HARD_MAX_TORCHES = 4096;

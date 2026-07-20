@@ -14,7 +14,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
-/** Uses ordinary client interactions to place hotbar torches near the player in dark areas. */
+/** 通过普通客户端交互，在玩家附近的黑暗区域放置快捷栏中的火把。 */
 public final class NearbyAutoTorch {
     private static final int SCAN_INTERVAL_TICKS = 10;
     private static final int RETRY_DELAY_TICKS = 40;

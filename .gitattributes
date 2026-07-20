@@ -1,5 +1,5 @@
-# Disable autocrlf on generated files, they always generate with LF
-# Add any extra files or paths here to make git stop saying they
-# are changed when only line endings change.
+# 禁止对生成文件应用 autocrlf，这些文件始终使用 LF 换行符
+# 可在此添加其他文件或路径，避免 Git 仅因换行符变化
+# 而将它们标记为已修改。
 src/generated/**/.cache/* text eol=lf
 src/generated/**/*.json text eol=lf
