@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "autotorch",
+  "version": "${version}",
+  "name": "Auto Torch",
+  "description": "Automatic nearby and selected-area torch placement.",
+  "authors": ["sakurakugu"],
+  "contact": {
+    "sources": "https://github.com/sakurakugu/auto-torch"
+  },
+  "license": "MIT",
+  "icon": "autotorch.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.sakurakugu.autotorch.fabric.AutoTorchFabric"],
+    "client": ["dev.sakurakugu.autotorch.fabric.AutoTorchFabricClient"]
+  },
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

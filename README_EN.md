@@ -2,9 +2,9 @@
 
 English | [简体中文](README.md)
 
-An automatic torch placement mod for Minecraft 26.1.2 / NeoForge 26.1.2.
+An automatic torch placement mod for Minecraft 26.1.2 on NeoForge or Fabric.
 
-![Icon](./src/main/resources/autotorch.png)
+![Icon](./common/src/main/resources/autotorch.png)
 
 ## Motivation
 
@@ -58,7 +58,12 @@ $env:JAVA_HOME='path to your Java 25 installation'
 .\gradlew.bat build
 ```
 
-The generated JAR is located at `build/libs/autotorch-x.x.x.jar`.
+The generated JARs are located at:
+
+- `neoforge/build/libs/autotorch-<MC version>-neoforge-<mod version>.jar`
+- `fabric/build/libs/autotorch-<MC version>-fabric-<mod version>.jar`
+
+Run the NeoForge development client with `\.\gradlew.bat :neoforge:runClient`, or Fabric with `\.\gradlew.bat :fabric:runClient`.
 
 On Windows, you can also start the development client with `tools\1.一键启动mc脚本.ps1`.
 

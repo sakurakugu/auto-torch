@@ -2,9 +2,9 @@
 
 [English](README_EN.md) | 简体中文
 
-适用于 Minecraft 26.1.2 / NeoForge 26.1.2 的自动插火把模组。
+适用于 Minecraft 26.1.2 / NeoForge 或 Fabric 的自动插火把模组。
 
-![icon](./src/main/resources/autotorch.png)
+![icon](./common/src/main/resources/autotorch.png)
 
 ## 开发原因
 
@@ -58,7 +58,12 @@ $env:JAVA_HOME='你的 Java 25 安装目录'
 .\gradlew.bat build
 ```
 
-生成的 JAR 位于 `build/libs/autotorch-x.x.x.jar`。
+生成的 JAR 分别位于：
+
+- `neoforge/build/libs/autotorch-<MC版本>-neoforge-<模组版本>.jar`
+- `fabric/build/libs/autotorch-<MC版本>-fabric-<模组版本>.jar`
+
+运行 NeoForge 开发客户端使用 `\.\gradlew.bat :neoforge:runClient`，Fabric 使用 `\.\gradlew.bat :fabric:runClient`。
 
 在 Windows 上启动开发客户端时，也可以运行 `tools\1.一键启动mc脚本.ps1`。
 
