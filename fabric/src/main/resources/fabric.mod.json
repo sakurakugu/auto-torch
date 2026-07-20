@@ -12,8 +12,8 @@
   "icon": "autotorch.png",
   "environment": "*",
   "entrypoints": {
-    "main": ["dev.sakurakugu.autotorch.fabric.AutoTorchFabric"],
-    "client": ["dev.sakurakugu.autotorch.fabric.AutoTorchFabricClient"]
+    "main": ["com.sakurakugu.autotorch.fabric.AutoTorchFabric"],
+    "client": ["com.sakurakugu.autotorch.fabric.AutoTorchFabricClient"]
   },
   "depends": {
     "fabricloader": ">=${fabric_loader_version}",
