@@ -28,9 +28,9 @@ Digging out a perimeter is tedious, and placing every torch by hand makes it eas
 - The `G` panel includes a client-side "Auto Torch Nearby" mode, disabled by default. It searches for valid placement positions within about two blocks of the player and uses vanilla right-click interaction to place regular torches when the light level is below a configurable threshold. Sky light can optionally be included in the light calculation.
 - Select two points, A and B, to define a sphere or cuboid. A sphere is centered on A, with the distance from A to B as its radius.
 - Convert a cuboid draft to its inscribed sphere, or a sphere draft to its circumscribed cube. Converting automatically updates the selection coordinates.
-- While holding a wooden axe, left-click a block to set point A and right-click a block to set point B, similar to WorldEdit. The wooden-axe selection interaction can be disabled at the bottom of the panel to restore vanilla axe behavior.
+- While holding a wooden axe, left-click a block to set point A and right-click a block to set point B, similar to WorldEdit. The wooden-axe selection interaction can be disabled with the button to the right of "Swap points" to restore vanilla axe behavior.
 - A/B drafts are shown in blue, the confirmed scan area in green, and all exclusion areas in red.
-- The "Areas" button controls selection visibility, while the display-mode button at the top switches between faces and outlines. These settings do not affect the light level overlay.
+- The "Display" button at the top cycles the selection overlay between faces, outlines, and off. These settings do not affect the light level overlay.
 - Server-side scanning is processed in batches with both per-task and server-wide scan and placement budgets. Active tasks rotate through the shared budget.
 - Torches are placed only near positions where block light is 0, the foot and head spaces are empty, and the ground is safe to stand on.
 - By default, only underground areas with a sky light level of 0 are scanned.
