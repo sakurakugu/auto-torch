@@ -1,6 +1,7 @@
 package dev.sakurakugu.autotorch.network;
 
 import dev.sakurakugu.autotorch.server.LightingTaskManager;
+import dev.sakurakugu.autotorch.server.SelectionToolEvents;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -12,7 +13,7 @@ public final class ModNetworking {
 
     public static void register(RegisterPayloadHandlersEvent event) {
         // 协议版本变化时应同步调整此版本号，以拒绝不兼容的客户端。
-        PayloadRegistrar registrar = event.registrar("3");
+        PayloadRegistrar registrar = event.registrar("4");
         registrar.playToServer(StartLightingPayload.TYPE, StartLightingPayload.STREAM_CODEC, (payload, context) -> {
             if (context.player() instanceof ServerPlayer player) {
                 LightingTaskManager.start(player, payload);
@@ -21,6 +22,11 @@ public final class ModNetworking {
         registrar.playToServer(CancelLightingPayload.TYPE, CancelLightingPayload.STREAM_CODEC, (payload, context) -> {
             if (context.player() instanceof ServerPlayer player) {
                 LightingTaskManager.cancel(player);
+            }
+        });
+        registrar.playToServer(SetSelectionToolPayload.TYPE, SetSelectionToolPayload.STREAM_CODEC, (payload, context) -> {
+            if (context.player() instanceof ServerPlayer player) {
+                SelectionToolEvents.setEnabled(player, payload.enabled());
             }
         });
     }

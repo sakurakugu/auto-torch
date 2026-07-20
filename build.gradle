@@ -28,6 +28,7 @@ sourceSets.main.resources {
 
 repositories {
     // 如果下方某些依赖需要额外仓库，请在此添加。
+    mavenCentral()
 }
 
 base {
@@ -112,6 +113,9 @@ configurations {
 }
 
 dependencies {
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     // 使用 JEI 的可选模组依赖示例
     // 编译时声明 JEI API，运行时则使用完整的 JEI 构件
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"
@@ -133,6 +137,10 @@ dependencies {
     // 更多信息：
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
 }
 
 // 此代码块会在指定资源目标中展开所有声明的替换属性。

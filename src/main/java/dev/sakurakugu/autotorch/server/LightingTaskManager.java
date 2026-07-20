@@ -1,10 +1,12 @@
 package dev.sakurakugu.autotorch.server;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import dev.sakurakugu.autotorch.AutoTorchRules;
 import dev.sakurakugu.autotorch.network.AreaShape;
 import dev.sakurakugu.autotorch.network.AreaZone;
 import dev.sakurakugu.autotorch.network.StartLightingPayload;
@@ -16,6 +18,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 /** 按玩家管理照明任务，并在每个服务端刻推进任务。 */
 public final class LightingTaskManager {
     private static final Map<UUID, LightingTask> TASKS = new HashMap<>();
+    private static int roundRobinStart;
 
     private LightingTaskManager() {
     }
@@ -74,7 +77,8 @@ public final class LightingTaskManager {
 
         int maxTorches = payload.maxTorches();
         int minSpacing = payload.minSpacing();
-        boolean consumeTorches = player.isCreative() && payload.consumeTorches();
+        boolean consumeTorches = AutoTorchRules.consumesInventoryTorches(
+                player.isCreative(), payload.consumeTorches());
 
         LightingTask task = new LightingTask(
                 player.level(), selection, maxTorches, minSpacing,
@@ -108,14 +112,40 @@ public final class LightingTaskManager {
     }
 
     public static void onServerTick(ServerTickEvent.Post event) {
-        Iterator<Map.Entry<UUID, LightingTask>> iterator = TASKS.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<UUID, LightingTask> entry = iterator.next();
-            ServerPlayer player = event.getServer().getPlayerList().getPlayer(entry.getKey());
-            // 玩家离线或 tick 返回已完成时，立即释放对应任务。
-            if (player == null || entry.getValue().tick(player)) {
-                iterator.remove();
+        if (TASKS.isEmpty()) {
+            roundRobinStart = 0;
+            return;
+        }
+
+        List<UUID> players = new ArrayList<>(TASKS.keySet());
+        int taskCount = players.size();
+        int scanRemaining = ServerConfig.globalScanBudgetPerTick();
+        int placeRemaining = ServerConfig.globalPlaceBudgetPerTick();
+        List<UUID> completed = new ArrayList<>();
+
+        for (int offset = 0; offset < taskCount && scanRemaining > 0 && placeRemaining > 0; offset++) {
+            UUID playerId = players.get((roundRobinStart + offset) % taskCount);
+            LightingTask task = TASKS.get(playerId);
+            ServerPlayer player = event.getServer().getPlayerList().getPlayer(playerId);
+            if (task == null || player == null) {
+                completed.add(playerId);
+                continue;
+            }
+
+            int tasksRemaining = taskCount - offset;
+            int scanBudget = Math.min(ServerConfig.scanBudgetPerTaskTick(),
+                    AutoTorchRules.divideRoundUp(scanRemaining, tasksRemaining));
+            int placeBudget = Math.min(ServerConfig.placeBudgetPerTaskTick(),
+                    AutoTorchRules.divideRoundUp(placeRemaining, tasksRemaining));
+            LightingTask.TickResult result = task.tick(player, scanBudget, placeBudget);
+            scanRemaining -= result.scanned();
+            placeRemaining -= result.placed();
+            if (result.done()) {
+                completed.add(playerId);
             }
         }
+        completed.forEach(TASKS::remove);
+        roundRobinStart = (roundRobinStart + 1) % Math.max(1, taskCount);
     }
+
 }

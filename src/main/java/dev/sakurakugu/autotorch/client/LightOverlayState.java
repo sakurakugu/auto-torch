@@ -2,6 +2,8 @@ package dev.sakurakugu.autotorch.client;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import dev.sakurakugu.autotorch.AutoTorchRules;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -25,7 +27,6 @@ public final class LightOverlayState {
     private static final int DOWN_RANGE = 16;
     private static final int UP_RANGE = 4;
     private static final int SCAN_BUDGET_PER_TICK = 12_000;
-    private static final int REFRESH_INTERVAL_TICKS = 4;
     private static final int HEIGHT = DOWN_RANGE + UP_RANGE + 1;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
@@ -134,7 +135,8 @@ public final class LightOverlayState {
         int scanVolume = scanVolume();
         if (scanIndex >= scanVolume) {
             ticksSinceCompleted++;
-            if (ticksSinceCompleted >= REFRESH_INTERVAL_TICKS || movedOutsideRefreshArea(playerPos, scanCenter)) {
+            if (ticksSinceCompleted >= AutoTorchRules.lightOverlayRefreshIntervalTicks(scanRange)
+                    || movedOutsideRefreshArea(playerPos, scanCenter)) {
                 beginScan(playerPos);
                 scanVolume = scanVolume();
             } else {

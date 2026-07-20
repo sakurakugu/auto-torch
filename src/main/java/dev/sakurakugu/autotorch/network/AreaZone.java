@@ -1,5 +1,6 @@
 package dev.sakurakugu.autotorch.network;
 
+import dev.sakurakugu.autotorch.AutoTorchRules;
 import net.minecraft.core.BlockPos;
 
 /** 由 A/B 两点定义的球形或轴对齐长方体区域。 */
@@ -59,5 +60,38 @@ public record AreaZone(AreaShape shape, BlockPos first, BlockPos second) {
         return pos.getX() >= min.getX() && pos.getX() <= max.getX()
                 && pos.getY() >= min.getY() && pos.getY() <= max.getY()
                 && pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
+    }
+
+    /** 判断两个离散区域是否可能包含同一个方块位置。 */
+    public boolean intersects(AreaZone other) {
+        if (shape == AreaShape.SPHERE && other.shape == AreaShape.SPHERE) {
+            return AutoTorchRules.spheresIntersect(
+                    first.getX(), first.getY(), first.getZ(), radiusSquared(),
+                    other.first.getX(), other.first.getY(), other.first.getZ(), other.radiusSquared());
+        }
+        if (shape == AreaShape.SPHERE) {
+            return sphereIntersectsBox(this, other);
+        }
+        if (other.shape == AreaShape.SPHERE) {
+            return sphereIntersectsBox(other, this);
+        }
+
+        BlockPos thisMin = min();
+        BlockPos thisMax = max();
+        BlockPos otherMin = other.min();
+        BlockPos otherMax = other.max();
+        return AutoTorchRules.boxesIntersect(
+                thisMin.getX(), thisMin.getY(), thisMin.getZ(),
+                thisMax.getX(), thisMax.getY(), thisMax.getZ(),
+                otherMin.getX(), otherMin.getY(), otherMin.getZ(),
+                otherMax.getX(), otherMax.getY(), otherMax.getZ());
+    }
+
+    private static boolean sphereIntersectsBox(AreaZone sphere, AreaZone box) {
+        BlockPos boxMin = box.min();
+        BlockPos boxMax = box.max();
+        return AutoTorchRules.sphereIntersectsBox(
+                sphere.first.getX(), sphere.first.getY(), sphere.first.getZ(), sphere.radiusSquared(),
+                boxMin.getX(), boxMin.getY(), boxMin.getZ(), boxMax.getX(), boxMax.getY(), boxMax.getZ());
     }
 }

@@ -24,14 +24,14 @@ Digging out a perimeter is tedious, and placing every torch by hand makes it eas
 ## Features
 
 - Press `G` by default to open the selection panel. The key binding can be changed in Minecraft's Controls settings.
-- Press `F7` by default to toggle the client-side light level overlay, or toggle it from the `G` panel. The overlay supports X markers and numeric block light levels, with a configurable horizontal display radius from `1` to `64` blocks (16 by default). X markers show only dangerous positions, while numbers show all eligible positions. Red indicates danger at any time, yellow indicates danger at night, and green indicates safety. Optional checks for swamp slimes and drowned are disabled by default; purple indicates a swamp slime risk and cyan indicates a drowned risk.
+- Press `F7` by default to toggle the client-side light level overlay, or toggle it from the `G` panel. The overlay supports X markers and numeric block light levels, with a configurable horizontal display radius from `1` to `64` blocks (16 by default). Nearby ranges retain fast refreshes, while larger ranges automatically wait longer between full rescans. X markers show only dangerous positions, while numbers show all eligible positions. Red indicates danger at any time, yellow indicates danger at night, and green indicates safety. Optional checks for swamp slimes and drowned are disabled by default; purple indicates a swamp slime risk and cyan indicates a drowned risk.
 - The `G` panel includes a client-side "Auto Torch Nearby" mode, disabled by default. It searches for valid placement positions within about two blocks of the player and uses vanilla right-click interaction to place regular torches when the light level is below a configurable threshold. Sky light can optionally be included in the light calculation.
 - Select two points, A and B, to define a sphere or cuboid. A sphere is centered on A, with the distance from A to B as its radius.
 - Convert a cuboid draft to its inscribed sphere, or a sphere draft to its circumscribed cube. Converting automatically updates the selection coordinates.
-- While holding a wooden axe, left-click a block to set point A and right-click a block to set point B, similar to WorldEdit.
+- While holding a wooden axe, left-click a block to set point A and right-click a block to set point B, similar to WorldEdit. The wooden-axe selection interaction can be disabled at the bottom of the panel to restore vanilla axe behavior.
 - A/B drafts are shown in blue, the confirmed scan area in green, and all exclusion areas in red.
-- Selection rendering is disabled by default. Use the display button in the panel to cycle between off, faces, and outlines. This setting does not affect the light level overlay.
-- Server-side scanning is processed in batches, so the entire selection is never scanned in a single frame.
+- The "Areas" button controls selection visibility, while the display-mode button at the top switches between faces and outlines. These settings do not affect the light level overlay.
+- Server-side scanning is processed in batches with both per-task and server-wide scan and placement budgets. Active tasks rotate through the shared budget.
 - Torches are placed only near positions where block light is 0, the foot and head spaces are empty, and the ground is safe to stand on.
 - By default, only underground areas with a sky light level of 0 are scanned.
 - The selection is traversed in a randomized order without duplicates, and areas already lit are skipped based on real-time light levels.
@@ -45,7 +45,7 @@ Digging out a perimeter is tedious, and placing every torch by hand makes it eas
 NeoForge automatically creates two configuration files after the first launch:
 
 - `config/autotorch-client.toml`: Stores client preferences for nearby automatic torch placement, the light level overlay, selection rendering, and task panel defaults.
-- `<world directory>/serverconfig/autotorch-server.toml`: Stores server limits for selection dimensions, torch counts, exclusion areas, concurrent tasks, and the per-tick work budget.
+- `<world directory>/serverconfig/autotorch-server.toml`: Stores server limits for selection dimensions, torch counts, exclusion areas, concurrent tasks, and per-task and server-wide work budgets.
 
 Server configuration and server-side validation always take precedence. Even if a Survival player sends modified network data, inventory consumption is forcibly disabled.
 

@@ -69,7 +69,7 @@ final class LightingTask {
         this.configuredSpacing = configuredSpacing;
         this.consumeTorches = consumeTorches;
         this.undergroundOnly = undergroundOnly;
-        this.exclusions = List.copyOf(exclusions);
+        this.exclusions = exclusions.stream().filter(selection::intersects).toList();
 
         // 使用稳定种子生成伪随机遍历，使结果可复现，同时避免总从选区同一角开始。
         long seed = level.getSeed() ^ playerId.getMostSignificantBits() ^ playerId.getLeastSignificantBits()
@@ -79,21 +79,20 @@ final class LightingTask {
         this.permutationStep = chooseCoprimeStep(volume, random);
     }
 
-    boolean tick(ServerPlayer player) {
+    TickResult tick(ServerPlayer player, int scanBudget, int placeBudget) {
         if (player.level() != level) {
             player.sendSystemMessage(Component.translatable("message.autotorch.wrong_dimension"));
-            return true;
+            return new TickResult(true, 0, 0);
         }
         if (maxTorches > 0 && placed >= maxTorches) {
             player.sendSystemMessage(Component.translatable("message.autotorch.max_reached", placed));
-            return true;
+            return new TickResult(true, 0, 0);
         }
 
         int scannedThisTick = 0;
         int placedThisTick = 0;
         // 扫描量和放置量分别限流，兼顾无效位置扫描与方块更新的两类开销。
-        while (scannedThisTick < ServerConfig.scanBudgetPerTaskTick()
-                && placedThisTick < ServerConfig.placeBudgetPerTaskTick()) {
+        while (scannedThisTick < scanBudget && placedThisTick < placeBudget) {
             if (scanIndex >= volume) {
                 if (pass == 0) {
                     // 第一轮按配置间距铺设，第二轮以更小间距填补仍然无光的位置。
@@ -102,7 +101,7 @@ final class LightingTask {
                     continue;
                 }
                 player.sendSystemMessage(Component.translatable("message.autotorch.completed", placed, skippedUnloaded));
-                return true;
+                return new TickResult(true, scannedThisTick, placedThisTick);
             }
 
             BlockPos feet = positionAt(scanIndex++);
@@ -119,14 +118,14 @@ final class LightingTask {
             if (torchPos == null || !farEnoughFromPlaced(torchPos, currentSpacing())) {
                 continue;
             }
-            if (consumeTorches && !player.isCreative() && !hasTorch(player)) {
+            if (consumeTorches && !hasTorch(player)) {
                 player.sendSystemMessage(Component.translatable("message.autotorch.out_of_torches", placed));
-                return true;
+                return new TickResult(true, scannedThisTick, placedThisTick);
             }
             if (!level.setBlock(torchPos, Blocks.TORCH.defaultBlockState(), Block.UPDATE_ALL)) {
                 continue;
             }
-            if (consumeTorches && !player.isCreative()) {
+            if (consumeTorches) {
                 consumeTorch(player);
             }
 
@@ -135,10 +134,10 @@ final class LightingTask {
             placedThisTick++;
             if (maxTorches > 0 && placed >= maxTorches) {
                 player.sendSystemMessage(Component.translatable("message.autotorch.max_reached", placed));
-                return true;
+                return new TickResult(true, scannedThisTick, placedThisTick);
             }
         }
-        return false;
+        return new TickResult(false, scannedThisTick, placedThisTick);
     }
 
     private BlockPos positionAt(long index) {
@@ -275,5 +274,8 @@ final class LightingTask {
             b = remainder;
         }
         return a;
+    }
+
+    record TickResult(boolean done, int scanned, int placed) {
     }
 }

@@ -20,6 +20,8 @@ public final class ServerConfig {
     private static final ModConfigSpec.IntValue MAX_CONCURRENT_TASKS;
     private static final ModConfigSpec.IntValue SCAN_BUDGET_PER_TASK_TICK;
     private static final ModConfigSpec.IntValue PLACE_BUDGET_PER_TASK_TICK;
+    private static final ModConfigSpec.IntValue GLOBAL_SCAN_BUDGET_PER_TICK;
+    private static final ModConfigSpec.IntValue GLOBAL_PLACE_BUDGET_PER_TICK;
     private static final ModConfigSpec.IntValue RANDOM_PLACEMENT_ATTEMPTS;
 
     static {
@@ -46,6 +48,12 @@ public final class ServerConfig {
         PLACE_BUDGET_PER_TASK_TICK = builder
                 .comment("Maximum torches placed by each active task per server tick.")
                 .defineInRange("placeBudgetPerTaskTick", 8, 1, 64);
+        GLOBAL_SCAN_BUDGET_PER_TICK = builder
+                .comment("Maximum positions scanned by all active tasks per server tick.")
+                .defineInRange("globalScanBudgetPerTick", 24_000, 1, 240_000);
+        GLOBAL_PLACE_BUDGET_PER_TICK = builder
+                .comment("Maximum torches placed by all active tasks per server tick.")
+                .defineInRange("globalPlaceBudgetPerTick", 16, 1, 256);
         RANDOM_PLACEMENT_ATTEMPTS = builder.defineInRange("randomPlacementAttempts", 32, 1, 128);
         builder.pop();
         SPEC = builder.build();
@@ -64,5 +72,7 @@ public final class ServerConfig {
     public static int maxConcurrentTasks() { return MAX_CONCURRENT_TASKS.get(); }
     public static int scanBudgetPerTaskTick() { return SCAN_BUDGET_PER_TASK_TICK.get(); }
     public static int placeBudgetPerTaskTick() { return PLACE_BUDGET_PER_TASK_TICK.get(); }
+    public static int globalScanBudgetPerTick() { return GLOBAL_SCAN_BUDGET_PER_TICK.get(); }
+    public static int globalPlaceBudgetPerTick() { return GLOBAL_PLACE_BUDGET_PER_TICK.get(); }
     public static int randomPlacementAttempts() { return RANDOM_PLACEMENT_ATTEMPTS.get(); }
 }

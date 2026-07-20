@@ -6,6 +6,7 @@ import dev.sakurakugu.autotorch.network.AreaShape;
 import dev.sakurakugu.autotorch.network.AreaZone;
 import dev.sakurakugu.autotorch.network.CancelLightingPayload;
 import dev.sakurakugu.autotorch.network.StartLightingPayload;
+import dev.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -21,7 +22,7 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /** 自动照明的参数界面，负责选区管理、客户端校验和任务提交。 */
 public final class LightingScreen extends Screen {
-    private static final int CONTENT_HEIGHT = 374;
+    private static final int CONTENT_HEIGHT = 398;
     private static final int VIEWPORT_MARGIN = 4;
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int MIN_SCROLLBAR_HEIGHT = 20;
@@ -45,6 +46,7 @@ public final class LightingScreen extends Screen {
     private Button convertShapeButton;
     private Button sphereDisplayButton;
     private Button displayButton;
+    private Button selectionOverlayButton;
     private Button useCurrentFirstButton;
     private Button useCurrentSecondButton;
     private Button exclusionButton;
@@ -56,6 +58,7 @@ public final class LightingScreen extends Screen {
     private Button drownedDetectionButton;
     private Button nearbyAutoTorchButton;
     private Button nearbyAutoTorchSkyLightButton;
+    private Button woodenAxeSelectionButton;
     private boolean consumeTorches;
     private boolean undergroundOnly;
     private boolean syncingInputs;
@@ -152,47 +155,60 @@ public final class LightingScreen extends Screen {
             undergroundButton.setMessage(undergroundMessage());
         }).bounds(left + 157, 184, 153, 20).build());
 
+        woodenAxeSelectionButton = addRenderableWidget(Button.builder(woodenAxeSelectionMessage(), button -> {
+            boolean enabled = !ClientConfig.isWoodenAxeSelectionEnabled();
+            ClientConfig.setWoodenAxeSelectionEnabled(enabled);
+            ClientPacketDistributor.sendToServer(new SetSelectionToolPayload(enabled));
+            woodenAxeSelectionButton.setMessage(woodenAxeSelectionMessage());
+        }).bounds(left, 208, 153, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.wooden_axe_selection.tooltip")))
+                .build());
+        selectionOverlayButton = addRenderableWidget(Button.builder(selectionOverlayMessage(), button -> {
+            SelectionState.toggleOverlay();
+            selectionOverlayButton.setMessage(selectionOverlayMessage());
+        }).bounds(left + 157, 208, 153, 20).build());
+
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.start"), button -> startTask())
-                .bounds(left, 208, 153, 20).build());
+                .bounds(left, 232, 153, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.cancel_task"), button -> {
             ClientPacketDistributor.sendToServer(new CancelLightingPayload());
             onClose();
-        }).bounds(left + 157, 208, 153, 20).build());
+        }).bounds(left + 157, 232, 153, 20).build());
 
         lightOverlayButton = addRenderableWidget(Button.builder(lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
             lightOverlayButton.setMessage(lightOverlayMessage());
-        }).bounds(left, 258, 106, 20).build());
+        }).bounds(left, 282, 106, 20).build());
         lightOverlayModeButton = addRenderableWidget(Button.builder(lightOverlayModeMessage(), button -> {
             LightOverlayState.cycleDisplayMode();
             lightOverlayModeButton.setMessage(lightOverlayModeMessage());
-        }).bounds(left + 110, 258, 88, 20).build());
-        addRenderableWidget(new LightRangeSlider(left + 202, 258, 108, 20));
+        }).bounds(left + 110, 282, 88, 20).build());
+        addRenderableWidget(new LightRangeSlider(left + 202, 282, 108, 20));
 
         swampSlimeDetectionButton = addRenderableWidget(Button.builder(swampSlimeDetectionMessage(), button -> {
             LightOverlayState.toggleSwampSlimeDetection();
             swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
-        }).bounds(left, 282, 153, 20)
+        }).bounds(left, 306, 153, 20)
                 .tooltip(Tooltip.create(Component.translatable("screen.autotorch.swamp_slime_detection.tooltip")))
                 .build());
         drownedDetectionButton = addRenderableWidget(Button.builder(drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage());
-        }).bounds(left + 157, 282, 153, 20)
+        }).bounds(left + 157, 306, 153, 20)
                 .tooltip(Tooltip.create(Component.translatable("screen.autotorch.drowned_detection.tooltip")))
                 .build());
 
         nearbyAutoTorchButton = addRenderableWidget(Button.builder(nearbyAutoTorchMessage(), button -> {
             ClientConfig.setNearbyAutoTorchEnabled(!ClientConfig.isNearbyAutoTorchEnabled());
             nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage());
-        }).bounds(left, 326, 153, 20)
+        }).bounds(left, 350, 153, 20)
                 .tooltip(Tooltip.create(Component.translatable("screen.autotorch.nearby_auto_torch.tooltip")))
                 .build());
-        addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 326, 153, 20));
+        addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 350, 153, 20));
         nearbyAutoTorchSkyLightButton = addRenderableWidget(Button.builder(nearbyAutoTorchSkyLightMessage(), button -> {
             ClientConfig.setIncludesSkyLight(!ClientConfig.includesSkyLight());
             nearbyAutoTorchSkyLightButton.setMessage(nearbyAutoTorchSkyLightMessage());
-        }).bounds(left, 350, 310, 20).build());
+        }).bounds(left, 374, 310, 20).build());
 
         scrollOffset = Math.min(scrollOffset, maxScrollOffset());
         moveWidgets(-scrollOffset);
@@ -600,22 +616,18 @@ public final class LightingScreen extends Screen {
     }
 
     private static void cycleSelectionDisplay() {
-        if (!SelectionState.isOverlayEnabled()) {
-            SelectionState.toggleOverlay();
-            SelectionState.setDisplayMode(SelectionState.DisplayMode.FACES);
-        } else if (SelectionState.displayMode() == SelectionState.DisplayMode.FACES) {
-            SelectionState.setDisplayMode(SelectionState.DisplayMode.LINES);
-        } else {
-            SelectionState.toggleOverlay();
-        }
+        SelectionState.setDisplayMode(SelectionState.displayMode() == SelectionState.DisplayMode.FACES
+                ? SelectionState.DisplayMode.LINES : SelectionState.DisplayMode.FACES);
     }
 
     private Component displayMessage() {
-        if (!SelectionState.isOverlayEnabled()) {
-            return Component.translatable("screen.autotorch.display_off");
-        }
         return Component.translatable(SelectionState.displayMode() == SelectionState.DisplayMode.FACES
                 ? "screen.autotorch.display_faces" : "screen.autotorch.display_lines");
+    }
+
+    private Component selectionOverlayMessage() {
+        return Component.translatable(SelectionState.isOverlayEnabled()
+                ? "screen.autotorch.selection_overlay_on" : "screen.autotorch.selection_overlay_off");
     }
 
     private Component sphereDisplayMessage() {
@@ -663,6 +675,12 @@ public final class LightingScreen extends Screen {
         return Component.translatable(ClientConfig.includesSkyLight()
                 ? "screen.autotorch.nearby_auto_torch_sky_light_on"
                 : "screen.autotorch.nearby_auto_torch_sky_light_off");
+    }
+
+    private Component woodenAxeSelectionMessage() {
+        return Component.translatable(ClientConfig.isWoodenAxeSelectionEnabled()
+                ? "screen.autotorch.wooden_axe_selection_on"
+                : "screen.autotorch.wooden_axe_selection_off");
     }
 
     private int panelLeft() {
@@ -786,7 +804,7 @@ public final class LightingScreen extends Screen {
         }
         graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 166 - offset, 0xFFFFFFFF);
         graphics.text(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 166 - offset, 0xFFFFFFFF);
-        int informationY = 232 - offset;
+        int informationY = 256 - offset;
         if (!error.getString().isEmpty()) {
             graphics.centeredText(font, error, width / 2, informationY, 0xFFFF6060);
         } else {
@@ -794,12 +812,12 @@ public final class LightingScreen extends Screen {
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()),
                     left, informationY, 0xFFA0A0A0);
         }
-        graphics.fill(left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
+        graphics.fill(left, 266 - offset, left + 310, 267 - offset, 0xFF606060);
         graphics.centeredText(font, Component.translatable("screen.autotorch.light_overlay_title"),
-                width / 2, 246 - offset, 0xFFFFFFFF);
-        graphics.fill(left, 310 - offset, left + 310, 311 - offset, 0xFF606060);
+                width / 2, 270 - offset, 0xFFFFFFFF);
+        graphics.fill(left, 334 - offset, left + 310, 335 - offset, 0xFF606060);
         graphics.centeredText(font, Component.translatable("screen.autotorch.nearby_auto_torch_title"),
-                width / 2, 314 - offset, 0xFFFFFFFF);
+                width / 2, 338 - offset, 0xFFFFFFFF);
         graphics.disableScissor();
 
         if (maxScrollOffset() > 0) {

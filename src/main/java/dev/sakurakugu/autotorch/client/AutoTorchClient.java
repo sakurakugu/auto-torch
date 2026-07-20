@@ -6,8 +6,10 @@ import com.mojang.blaze3d.platform.InputConstants;
 
 import dev.sakurakugu.autotorch.AutoTorchMod;
 import dev.sakurakugu.autotorch.network.AreaShape;
+import dev.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -23,12 +25,14 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 @Mod(value = AutoTorchMod.MOD_ID, dist = Dist.CLIENT)
 public final class AutoTorchClient {
+    private ClientLevel selectionToolSyncedLevel;
     private static final KeyMapping.Category CATEGORY = new KeyMapping.Category(
             Identifier.fromNamespaceAndPath(AutoTorchMod.MOD_ID, "main")
     );
@@ -68,6 +72,7 @@ public final class AutoTorchClient {
         SelectionState.updateLevel(minecraft.level, currentPosition);
         LightOverlayState.tick(minecraft);
         NearbyAutoTorch.tick(minecraft);
+        syncSelectionToolSetting(minecraft);
         while (OPEN_SCREEN.consumeClick()) {
             if (minecraft.player != null && minecraft.screen == null) {
                 minecraft.setScreen(new LightingScreen());
@@ -83,7 +88,9 @@ public final class AutoTorchClient {
     }
 
     private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
-        if (!event.getLevel().isClientSide() || !event.getItemStack().is(Items.WOODEN_AXE)) {
+        if (!ClientConfig.isWoodenAxeSelectionEnabled()
+                || !event.getLevel().isClientSide()
+                || !event.getItemStack().is(Items.WOODEN_AXE)) {
             return;
         }
         event.setCanceled(true);
@@ -99,7 +106,8 @@ public final class AutoTorchClient {
     }
 
     private void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (!event.getLevel().isClientSide()
+        if (!ClientConfig.isWoodenAxeSelectionEnabled()
+                || !event.getLevel().isClientSide()
                 || event.getHand() != InteractionHand.MAIN_HAND
                 || !event.getItemStack().is(Items.WOODEN_AXE)) {
             return;
@@ -128,5 +136,15 @@ public final class AutoTorchClient {
 
     private static String formatPosition(BlockPos pos) {
         return pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+    }
+
+    private void syncSelectionToolSetting(Minecraft minecraft) {
+        if (minecraft.level == null) {
+            selectionToolSyncedLevel = null;
+        } else if (minecraft.player != null && minecraft.level != selectionToolSyncedLevel) {
+            ClientPacketDistributor.sendToServer(
+                    new SetSelectionToolPayload(ClientConfig.isWoodenAxeSelectionEnabled()));
+            selectionToolSyncedLevel = minecraft.level;
+        }
     }
 }

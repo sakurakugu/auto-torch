@@ -22,5 +22,6 @@ public final class AutoTorchMod {
         NeoForge.EVENT_BUS.addListener(LightingTaskManager::onServerTick);
         NeoForge.EVENT_BUS.addListener(SelectionToolEvents::onLeftClick);
         NeoForge.EVENT_BUS.addListener(SelectionToolEvents::onRightClick);
+        NeoForge.EVENT_BUS.addListener(SelectionToolEvents::onLogout);
     }
 }

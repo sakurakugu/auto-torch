@@ -20,6 +20,7 @@ public final class ClientConfig {
     private static final ModConfigSpec.IntValue DEFAULT_MIN_SPACING;
     private static final ModConfigSpec.BooleanValue DEFAULT_UNDERGROUND_ONLY;
     private static final ModConfigSpec.BooleanValue CREATIVE_CONSUME_TORCHES;
+    private static final ModConfigSpec.BooleanValue WOODEN_AXE_SELECTION_ENABLED;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -58,6 +59,9 @@ public final class ClientConfig {
         CREATIVE_CONSUME_TORCHES = builder
                 .comment("Whether area lighting consumes inventory torches in Creative mode. Survival mode always disables consumption.")
                 .define("creativeConsumeTorches", false);
+        WOODEN_AXE_SELECTION_ENABLED = builder
+                .comment("Use wooden axe block interactions to set selection points.")
+                .define("woodenAxeSelectionEnabled", true);
         builder.pop();
         SPEC = builder.build();
     }
@@ -197,6 +201,15 @@ public final class ClientConfig {
 
     public static void setCreativeConsumesTorches(boolean consumeTorches) {
         CREATIVE_CONSUME_TORCHES.set(consumeTorches);
+        SPEC.save();
+    }
+
+    public static boolean isWoodenAxeSelectionEnabled() {
+        return WOODEN_AXE_SELECTION_ENABLED.get();
+    }
+
+    public static void setWoodenAxeSelectionEnabled(boolean enabled) {
+        WOODEN_AXE_SELECTION_ENABLED.set(enabled);
         SPEC.save();
     }
 }
