@@ -58,10 +58,10 @@ $env:JAVA_HOME='path to your Java 25 installation'
 .\gradlew.bat build
 ```
 
-The generated JARs are located at:
+The generated JARs are automatically copied to the root `build` directory and renamed to:
 
-- `neoforge/build/libs/autotorch-<MC version>-neoforge-<mod version>.jar`
-- `fabric/build/libs/autotorch-<MC version>-fabric-<mod version>.jar`
+- `build/autotorch-v<mod version>-mc<MC version>-neoforge.jar`
+- `build/autotorch-v<mod version>-mc<MC version>-fabric.jar`
 
 Run the NeoForge development client with `\.\gradlew.bat :neoforge:runClient`, or Fabric with `\.\gradlew.bat :fabric:runClient`.
 

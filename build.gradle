@@ -24,14 +24,30 @@ subprojects {
     }
 }
 
+def copyBuildArtifacts = tasks.register('copyBuildArtifacts', Copy) {
+    group = 'build'
+    description = 'Copies and renames the publishable jars into the root build directory.'
+    dependsOn ':neoforge:build', ':fabric:build'
+    into layout.buildDirectory
+
+    from(project(':neoforge').layout.buildDirectory.dir('libs')) {
+        include "${mod_id}-${minecraft_version}-neoforge-${mod_version}.jar"
+        rename { "${mod_id}-v${mod_version}-mc${minecraft_version}-neoforge.jar" }
+    }
+    from(project(':fabric').layout.buildDirectory.dir('libs')) {
+        include "${mod_id}-${minecraft_version}-fabric-${mod_version}.jar"
+        rename { "${mod_id}-v${mod_version}-mc${minecraft_version}-fabric.jar" }
+    }
+}
+
 tasks.register('buildAll') {
     group = 'build'
     description = 'Builds the publishable NeoForge and Fabric jars.'
-    dependsOn ':neoforge:build', ':fabric:build'
+    dependsOn copyBuildArtifacts
 }
 
 tasks.register('build') {
     group = 'build'
     description = 'Builds and tests all loader targets.'
-    dependsOn ':common:test', ':neoforge:build', ':fabric:build'
+    dependsOn ':common:test', copyBuildArtifacts
 }

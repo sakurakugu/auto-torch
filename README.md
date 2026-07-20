@@ -58,10 +58,10 @@ $env:JAVA_HOME='你的 Java 25 安装目录'
 .\gradlew.bat build
 ```
 
-生成的 JAR 分别位于：
+生成的 JAR 会自动复制到根目录的 `build` 中并重命名为：
 
-- `neoforge/build/libs/autotorch-<MC版本>-neoforge-<模组版本>.jar`
-- `fabric/build/libs/autotorch-<MC版本>-fabric-<模组版本>.jar`
+- `build/autotorch-v<模组版本>-mc<MC版本>-neoforge.jar`
+- `build/autotorch-v<模组版本>-mc<MC版本>-fabric.jar`
 
 运行 NeoForge 开发客户端使用 `\.\gradlew.bat :neoforge:runClient`，Fabric 使用 `\.\gradlew.bat :fabric:runClient`。
 
