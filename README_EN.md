@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md)
 
-An automatic torch placement and light level overlay mod for Minecraft 26.1.2+ on NeoForge, Forge, or Fabric.
+An automatic torch placement and light level overlay mod for Minecraft 26.1.2+ on NeoForge, Forge and Fabric.
 
 ![Icon](./common/src/main/resources/autotorch.png)
 
