@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md)
 
-An automatic torch placement mod for Minecraft 26.1.2 on NeoForge, Forge, or Fabric.
+An automatic torch placement and light level overlay mod for Minecraft 26.1.2+ on NeoForge, Forge, or Fabric.
 
 ![Icon](./common/src/main/resources/autotorch.png)
 
@@ -14,6 +14,10 @@ Digging out a perimeter is tedious, and placing every torch by hand makes it eas
 
 - Press `G` by default to open the selection panel and configure automatic torch placement within a selected area or near the player.
 - Press `F7` by default to toggle the client-side light level overlay, including special checks for drowned and swamp slimes.
+
+| Nearby Torch Placement | Light Level Overlay | Area Torch Placement |
+| ---------------------- | ------------------- | -------------------- |
+| Client-side only       | Client-side only    | Client and server    |
 
 ## Screenshots
 
