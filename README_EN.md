@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md)
 
-An automatic torch placement mod for Minecraft 26.1.2 on NeoForge or Fabric.
+An automatic torch placement mod for Minecraft 26.1.2 on NeoForge, Forge, or Fabric.
 
 ![Icon](./common/src/main/resources/autotorch.png)
 
@@ -42,7 +42,9 @@ Digging out a perimeter is tedious, and placing every torch by hand makes it eas
 
 ## Configuration
 
-NeoForge automatically creates two configuration files after the first launch:
+NeoForge and Forge automatically create two configuration files after the first launch:
+
+> Fabric must be added manually, as it does not generate configuration files automatically.
 
 - `config/autotorch-client.toml`: Stores client preferences for nearby automatic torch placement, the light level overlay, selection rendering, and task panel defaults.
 - `<world directory>/serverconfig/autotorch-server.toml`: Stores server limits for selection dimensions, torch counts, exclusion areas, concurrent tasks, and per-task and server-wide work budgets.
@@ -61,9 +63,10 @@ $env:JAVA_HOME='path to your Java 25 installation'
 The generated JARs are automatically copied to the root `build` directory and renamed to:
 
 - `build/autotorch-v<mod version>-mc<MC version>-neoforge.jar`
+- `build/autotorch-v<mod version>-mc<MC version>-forge.jar`
 - `build/autotorch-v<mod version>-mc<MC version>-fabric.jar`
 
-Run the NeoForge development client with `\.\gradlew.bat :neoforge:runClient`, or Fabric with `\.\gradlew.bat :fabric:runClient`.
+Run a development client with `.\gradlew.bat :neoforge:runClient`, `.\gradlew.bat :forge:runClient`, or `.\gradlew.bat :fabric:runClient`.
 
 On Windows, you can also start the development client with `tools\1.一键启动mc脚本.ps1`.
 

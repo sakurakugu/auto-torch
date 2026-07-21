@@ -2,7 +2,7 @@
 
 [English](README_EN.md) | 简体中文
 
-适用于 Minecraft 26.1.2 / NeoForge 或 Fabric 的自动插火把模组。
+适用于 Minecraft 26.1.2 / NeoForge、Forge 或 Fabric 的自动插火把模组。
 
 ![icon](./common/src/main/resources/autotorch.png)
 
@@ -42,7 +42,9 @@
 
 ## 配置
 
-NeoForge 会在首次加载后自动生成两类配置文件：
+NeoForge 和 Forge 会在首次加载后自动生成两类配置文件：
+
+> Fabric 要手动添加，它不会自动生成
 
 - `config/autotorch-client.toml`：保存附近自动插火把、光照显示、选区显示及任务面板默认值等客户端偏好。
 - `<世界目录>/serverconfig/autotorch-server.toml`：保存选区尺寸、火把数量、排除区、并发任务，以及单任务和全服每 tick 工作预算等服务端限制。
@@ -61,9 +63,10 @@ $env:JAVA_HOME='你的 Java 25 安装目录'
 生成的 JAR 会自动复制到根目录的 `build` 中并重命名为：
 
 - `build/autotorch-v<模组版本>-mc<MC版本>-neoforge.jar`
+- `build/autotorch-v<模组版本>-mc<MC版本>-forge.jar`
 - `build/autotorch-v<模组版本>-mc<MC版本>-fabric.jar`
 
-运行 NeoForge 开发客户端使用 `\.\gradlew.bat :neoforge:runClient`，Fabric 使用 `\.\gradlew.bat :fabric:runClient`。
+运行开发客户端分别使用 `.\gradlew.bat :neoforge:runClient`、`.\gradlew.bat :forge:runClient` 或 `.\gradlew.bat :fabric:runClient`。
 
 在 Windows 上启动开发客户端时，也可以运行 `tools\1.一键启动mc脚本.ps1`。
 

@@ -5,9 +5,10 @@ param(
 
 $loaderName = switch ($Loader) {
     { $_ -in "neoforge", "--neoforge" } { "neoforge"; break }
+    { $_ -in "forge", "--forge" } { "forge"; break }
     { $_ -in "fabric", "--fabric" } { "fabric"; break }
     default {
-        throw "不支持的加载器 '$Loader'。请使用 neoforge、--neoforge、fabric 或 --fabric。"
+        throw "不支持的加载器 '$Loader'。请使用 neoforge、--neoforge、forge、--forge、fabric 或 --fabric。"
     }
 }
 

@@ -1,0 +1,58 @@
+plugins {
+    id 'java-library'
+    id 'net.minecraftforge.gradle'
+}
+
+base {
+    archivesName = "${mod_id}-${minecraft_version}-forge"
+}
+
+sourceSets.main {
+    java.srcDir project(':common').file('src/main/java')
+    resources.srcDir project(':common').file('src/main/resources')
+}
+
+minecraft {
+    runs {
+        configureEach {
+            workingDir = layout.projectDirectory.dir('run')
+            systemProperty 'eventbus.api.strictRuntimeChecks', 'true'
+        }
+        register('client')
+        register('server') { args '--nogui' }
+    }
+}
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${forge_version}")
+    annotationProcessor 'net.minecraftforge:eventbus-validator:7.0.1'
+}
+
+def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+    def values = [
+            minecraft_version: minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            forge_loader_version_range: forge_loader_version_range,
+            mod_id: mod_id,
+            mod_name: mod_name,
+            mod_license: mod_license,
+            mod_version: mod_version
+    ]
+    inputs.properties values
+    expand values
+    from 'src/main/templates'
+    into layout.buildDirectory.dir('generated/sources/modMetadata')
+}
+
+sourceSets.main.resources.srcDir generateModMetadata
+
+tasks.named('jar', Jar).configure {
+    from sourceSets.main.output.classesDirs
+}

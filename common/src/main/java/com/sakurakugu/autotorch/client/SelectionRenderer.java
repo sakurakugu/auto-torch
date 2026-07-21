@@ -10,6 +10,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
@@ -58,6 +60,16 @@ public final class SelectionRenderer {
     }
 
     public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
+        renderGeometry(camera, poseStack,
+                (stack, renderType, renderer) -> collector.submitCustomGeometry(stack, renderType, renderer::render));
+    }
+
+    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource.BufferSource buffers) {
+        renderGeometry(camera, poseStack,
+                (stack, renderType, renderer) -> renderer.render(stack.last(), buffers.getBuffer(renderType)));
+    }
+
+    private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {
         RenderData data = renderData;
         if (data == null) {
             return;
@@ -66,22 +78,22 @@ public final class SelectionRenderer {
         poseStack.translate(-camera.x(), -camera.y(), -camera.z());
 
         if (data.draft() != null) {
-            submitZone(collector, poseStack, data.draft(), data.displayMode(), data.sphereDisplayMode(),
+            submitZone(sink, poseStack, data.draft(), data.displayMode(), data.sphereDisplayMode(),
                     DRAFT_LINE_COLOR, DRAFT_FACE_COLOR, 3.0F);
         }
         if (data.lightingZone() != null) {
-            submitZone(collector, poseStack, data.lightingZone(), data.displayMode(), data.sphereDisplayMode(),
+            submitZone(sink, poseStack, data.lightingZone(), data.displayMode(), data.sphereDisplayMode(),
                     SELECTION_LINE_COLOR, SELECTION_FACE_COLOR, 3.0F);
         }
         for (AreaZone exclusion : data.exclusions()) {
-            submitZone(collector, poseStack, exclusion, data.displayMode(), data.sphereDisplayMode(),
+            submitZone(sink, poseStack, exclusion, data.displayMode(), data.sphereDisplayMode(),
                     EXCLUSION_LINE_COLOR, EXCLUSION_FACE_COLOR, 2.0F);
         }
         poseStack.popPose();
     }
 
     private static void submitZone(
-            SubmitNodeCollector collector,
+            GeometrySink sink,
             PoseStack poseStack,
             AreaZone zone,
             SelectionState.DisplayMode displayMode,
@@ -93,28 +105,28 @@ public final class SelectionRenderer {
         if (displayMode == SelectionState.DisplayMode.LINES) {
             if (zone.shape() == AreaShape.SPHERE) {
                 if (sphereDisplayMode == SelectionState.SphereDisplayMode.BLOCKY) {
-                    submitBlockySphereLines(collector, poseStack, zone, lineColor, width);
+                    submitBlockySphereLines(sink, poseStack, zone, lineColor, width);
                 } else {
-                    submitSphereLines(collector, poseStack, zone, lineColor, width);
+                    submitSphereLines(sink, poseStack, zone, lineColor, width);
                 }
             } else {
-                submitBoxLines(collector, poseStack, AABB.encapsulatingFullBlocks(zone.min(), zone.max()), lineColor, width);
+                submitBoxLines(sink, poseStack, AABB.encapsulatingFullBlocks(zone.min(), zone.max()), lineColor, width);
             }
         } else if (zone.shape() == AreaShape.SPHERE) {
             if (sphereDisplayMode == SelectionState.SphereDisplayMode.BLOCKY) {
-                submitBlockySphereFaces(collector, poseStack, zone, faceColor);
+                submitBlockySphereFaces(sink, poseStack, zone, faceColor);
             } else {
-                submitSphereFaces(collector, poseStack, zone, faceColor);
+                submitSphereFaces(sink, poseStack, zone, faceColor);
             }
         } else {
-            submitBoxFaces(collector, poseStack, AABB.encapsulatingFullBlocks(zone.min(), zone.max()), faceColor);
+            submitBoxFaces(sink, poseStack, AABB.encapsulatingFullBlocks(zone.min(), zone.max()), faceColor);
         }
     }
 
     private static void submitBoxLines(
-            SubmitNodeCollector collector, PoseStack poseStack, AABB box, int color, float width
+            GeometrySink sink, PoseStack poseStack, AABB box, int color, float width
     ) {
-        collector.submitCustomGeometry(poseStack, RenderTypes.linesTranslucent(), (pose, buffer) -> {
+        sink.submit(poseStack, RenderTypes.linesTranslucent(), (pose, buffer) -> {
             line(pose, buffer, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ, color, width);
             line(pose, buffer, box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ, color, width);
             line(pose, buffer, box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color, width);
@@ -130,8 +142,8 @@ public final class SelectionRenderer {
         });
     }
 
-    private static void submitBoxFaces(SubmitNodeCollector collector, PoseStack poseStack, AABB box, int color) {
-        collector.submitCustomGeometry(poseStack, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+    private static void submitBoxFaces(GeometrySink sink, PoseStack poseStack, AABB box, int color) {
+        sink.submit(poseStack, RenderTypes.debugFilledBox(), (pose, buffer) -> {
             quad(pose, buffer, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ,
                     box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color);
             quad(pose, buffer, box.minX, box.maxY, box.maxZ, box.maxX, box.maxY, box.maxZ,
@@ -148,13 +160,13 @@ public final class SelectionRenderer {
     }
 
     private static void submitSphereLines(
-            SubmitNodeCollector collector, PoseStack poseStack, AreaZone zone, int color, float width
+            GeometrySink sink, PoseStack poseStack, AreaZone zone, int color, float width
     ) {
         double cx = zone.first().getX() + 0.5;
         double cy = zone.first().getY() + 0.5;
         double cz = zone.first().getZ() + 0.5;
         double radius = Math.sqrt(zone.radiusSquared()) + 0.5;
-        collector.submitCustomGeometry(poseStack, RenderTypes.linesTranslucent(), (pose, buffer) -> {
+        sink.submit(poseStack, RenderTypes.linesTranslucent(), (pose, buffer) -> {
             for (int plane = 0; plane < 3; plane++) {
                 for (int segment = 0; segment < SPHERE_LONGITUDE_SEGMENTS; segment++) {
                     double angle1 = Math.PI * 2.0 * segment / SPHERE_LONGITUDE_SEGMENTS;
@@ -175,12 +187,12 @@ public final class SelectionRenderer {
         });
     }
 
-    private static void submitSphereFaces(SubmitNodeCollector collector, PoseStack poseStack, AreaZone zone, int color) {
+    private static void submitSphereFaces(GeometrySink sink, PoseStack poseStack, AreaZone zone, int color) {
         double cx = zone.first().getX() + 0.5;
         double cy = zone.first().getY() + 0.5;
         double cz = zone.first().getZ() + 0.5;
         double radius = Math.sqrt(zone.radiusSquared()) + 0.5;
-        collector.submitCustomGeometry(poseStack, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+        sink.submit(poseStack, RenderTypes.debugFilledBox(), (pose, buffer) -> {
             for (int latitude = 0; latitude < SPHERE_LATITUDE_SEGMENTS; latitude++) {
                 double lat1 = -Math.PI / 2.0 + Math.PI * latitude / SPHERE_LATITUDE_SEGMENTS;
                 double lat2 = -Math.PI / 2.0 + Math.PI * (latitude + 1) / SPHERE_LATITUDE_SEGMENTS;
@@ -199,11 +211,11 @@ public final class SelectionRenderer {
     }
 
     private static void submitBlockySphereFaces(
-            SubmitNodeCollector collector, PoseStack poseStack, AreaZone zone, int color
+            GeometrySink sink, PoseStack poseStack, AreaZone zone, int color
     ) {
         BlockySphereMesh mesh = blockySphereMesh(zone.radiusSquared());
         BlockPos center = zone.first();
-        collector.submitCustomGeometry(poseStack, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+        sink.submit(poseStack, RenderTypes.debugFilledBox(), (pose, buffer) -> {
             for (int index = 0; index < mesh.faceStrips().length; index += 2) {
                 blockFaceStrip(pose, buffer, center, mesh.faceStrips()[index], mesh.faceStrips()[index + 1], color);
             }
@@ -211,11 +223,11 @@ public final class SelectionRenderer {
     }
 
     private static void submitBlockySphereLines(
-            SubmitNodeCollector collector, PoseStack poseStack, AreaZone zone, int color, float width
+            GeometrySink sink, PoseStack poseStack, AreaZone zone, int color, float width
     ) {
         BlockySphereMesh mesh = blockySphereMesh(zone.radiusSquared());
         BlockPos center = zone.first();
-        collector.submitCustomGeometry(poseStack, RenderTypes.linesTranslucent(), (pose, buffer) -> {
+        sink.submit(poseStack, RenderTypes.linesTranslucent(), (pose, buffer) -> {
             for (int face : mesh.faces()) {
                 blockFace(pose, buffer, center, face, color, true, width);
             }
@@ -392,6 +404,17 @@ public final class SelectionRenderer {
             SelectionState.DisplayMode displayMode,
             SelectionState.SphereDisplayMode sphereDisplayMode
     ) {
+    }
+
+    @FunctionalInterface
+    private interface GeometrySink {
+        void submit(PoseStack poseStack, RenderType renderType,
+                    GeometryRenderer renderer);
+    }
+
+    @FunctionalInterface
+    private interface GeometryRenderer {
+        void render(PoseStack.Pose pose, VertexConsumer buffer);
     }
 
     private record BlockySphereMesh(int[] faces, int[] faceStrips) {

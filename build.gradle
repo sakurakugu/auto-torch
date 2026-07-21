@@ -1,6 +1,7 @@
 plugins {
     id 'net.neoforged.moddev' version '2.0.141' apply false
     id 'net.fabricmc.fabric-loom' version '1.17.16' apply false
+    id 'net.minecraftforge.gradle' version '[7.0.17,8)' apply false
 }
 
 allprojects {
@@ -27,12 +28,16 @@ subprojects {
 def copyBuildArtifacts = tasks.register('copyBuildArtifacts', Copy) {
     group = 'build'
     description = 'Copies and renames the publishable jars into the root build directory.'
-    dependsOn ':neoforge:build', ':fabric:build'
+    dependsOn ':neoforge:build', ':forge:build', ':fabric:build'
     into layout.buildDirectory
 
     from(project(':neoforge').layout.buildDirectory.dir('libs')) {
         include "${mod_id}-${minecraft_version}-neoforge-${mod_version}.jar"
         rename { "${mod_id}-v${mod_version}-mc${minecraft_version}-neoforge.jar" }
+    }
+    from(project(':forge').layout.buildDirectory.dir('libs')) {
+        include "${mod_id}-${minecraft_version}-forge-${mod_version}.jar"
+        rename { "${mod_id}-v${mod_version}-mc${minecraft_version}-forge.jar" }
     }
     from(project(':fabric').layout.buildDirectory.dir('libs')) {
         include "${mod_id}-${minecraft_version}-fabric-${mod_version}.jar"
@@ -42,7 +47,7 @@ def copyBuildArtifacts = tasks.register('copyBuildArtifacts', Copy) {
 
 tasks.register('buildAll') {
     group = 'build'
-    description = 'Builds the publishable NeoForge and Fabric jars.'
+    description = 'Builds the publishable NeoForge, Forge, and Fabric jars.'
     dependsOn copyBuildArtifacts
 }
 

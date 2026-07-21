@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
 
@@ -38,6 +39,16 @@ public final class LightOverlayRenderer {
     }
 
     public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
+        renderGeometry(camera, poseStack, (stack, renderer) -> collector.submitCustomGeometry(
+                stack, RenderTypes.linesTranslucent(), renderer::render));
+    }
+
+    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource.BufferSource buffers) {
+        renderGeometry(camera, poseStack,
+                (stack, renderer) -> renderer.render(stack.last(), buffers.getBuffer(RenderTypes.linesTranslucent())));
+    }
+
+    private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {
         RenderData data = renderData;
         if (data == null || data.markers().isEmpty() || Minecraft.getInstance().level == null) {
             return;
@@ -45,10 +56,8 @@ public final class LightOverlayRenderer {
 
         poseStack.pushPose();
         poseStack.translate(-camera.x(), -camera.y(), -camera.z());
-        collector.submitCustomGeometry(
-                poseStack, RenderTypes.linesTranslucent(),
-                (pose, buffer) -> submitMarkers(pose, buffer, data.markers(), data.displayMode())
-        );
+        sink.submit(poseStack, (pose, buffer) ->
+                submitMarkers(pose, buffer, data.markers(), data.displayMode()));
         poseStack.popPose();
     }
 
@@ -139,5 +148,15 @@ public final class LightOverlayRenderer {
     private record RenderData(
             List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
     ) {
+    }
+
+    @FunctionalInterface
+    private interface GeometrySink {
+        void submit(PoseStack poseStack, GeometryRenderer renderer);
+    }
+
+    @FunctionalInterface
+    private interface GeometryRenderer {
+        void render(PoseStack.Pose pose, VertexConsumer buffer);
     }
 }
