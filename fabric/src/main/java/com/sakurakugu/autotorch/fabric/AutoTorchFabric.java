@@ -2,6 +2,7 @@ package com.sakurakugu.autotorch.fabric;
 
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
+import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
@@ -27,6 +28,7 @@ public final class AutoTorchFabric implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(StartLightingPayload.TYPE, StartLightingPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(CancelLightingPayload.TYPE, CancelLightingPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(SetSelectionToolPayload.TYPE, SetSelectionToolPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ServerConfigPayload.TYPE, ServerConfigPayload.STREAM_CODEC);
         ServerPlayNetworking.registerGlobalReceiver(StartLightingPayload.TYPE,
                 (payload, context) -> LightingTaskManager.start(context.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(CancelLightingPayload.TYPE,
@@ -46,5 +48,8 @@ public final class AutoTorchFabric implements ModInitializer {
                         ? InteractionResult.SUCCESS_SERVER : InteractionResult.PASS);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 SelectionToolEvents.onLogout(handler.getPlayer()));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                ServerPlayNetworking.send(handler.getPlayer(),
+                        new ServerConfigPayload(ServerConfig.survivalConsumesTorches())));
     }
 }

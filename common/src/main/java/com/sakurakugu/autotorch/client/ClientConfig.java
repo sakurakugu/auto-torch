@@ -43,6 +43,8 @@ public final class ClientConfig {
     public static void setDefaultUndergroundOnly(boolean value) { setBool("lightingTaskDefaults.undergroundOnly", value); }
     public static boolean creativeConsumesTorches() { return bool("lightingTaskDefaults.creativeConsumeTorches", false); }
     public static void setCreativeConsumesTorches(boolean value) { setBool("lightingTaskDefaults.creativeConsumeTorches", value); }
+    public static boolean survivalConsumesTorches() { return bool("lightingTaskDefaults.survivalConsumeTorches", true); }
+    public static void setSurvivalConsumesTorches(boolean value) { setBool("lightingTaskDefaults.survivalConsumeTorches", value); }
     public static boolean isWoodenAxeSelectionEnabled() { return bool("lightingTaskDefaults.woodenAxeSelectionEnabled", true); }
     public static void setWoodenAxeSelectionEnabled(boolean value) { setBool("lightingTaskDefaults.woodenAxeSelectionEnabled", value); }
 

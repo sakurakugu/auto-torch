@@ -4,7 +4,9 @@ import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
+import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
+import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
@@ -22,6 +24,8 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         ClientConfig.install(new PropertiesConfigBackend(
                 FabricLoader.getInstance().getConfigDir().resolve("autotorch-client.properties")));
         PlatformNetworking.installSender(ClientPlayNetworking::send);
+        ClientPlayNetworking.registerGlobalReceiver(ServerConfigPayload.TYPE, (payload, context) ->
+                ServerConfigState.setSurvivalConsumesTorches(payload.survivalConsumesTorches()));
 
         AutoTorchClient client = new AutoTorchClient();
         KeyMappingHelper.registerKeyMapping(AutoTorchClient.OPEN_SCREEN);

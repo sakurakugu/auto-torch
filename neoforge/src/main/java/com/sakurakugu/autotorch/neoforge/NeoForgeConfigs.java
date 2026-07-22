@@ -40,6 +40,7 @@ final class NeoForgeConfigs {
         b.integer("minSpacing", 8, 3, 12);
         b.bool("undergroundOnly", true);
         b.bool("creativeConsumeTorches", false);
+        b.bool("survivalConsumeTorches", true);
         b.bool("woodenAxeSelectionEnabled", true);
         b.pop();
         b.finish();
@@ -57,6 +58,9 @@ final class NeoForgeConfigs {
         b.integer("minSpacing", 3, 3, 12);
         b.integer("maxSpacing", 12, 3, 12);
         b.integer("maxConcurrentTasks", 64, 1, 1024);
+        b.pop();
+        b.push("gameplay");
+        b.bool("survivalConsumesTorches", true);
         b.pop();
         b.push("performance");
         b.integer("scanBudgetPerTaskTick", 12_000, 1, 120_000);

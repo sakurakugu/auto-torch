@@ -29,7 +29,7 @@
   "screen.autotorch.min_spacing": "最小间距",
   "screen.autotorch.consume_on": "消耗背包火把：是",
   "screen.autotorch.consume_off": "消耗背包火把：否",
-  "screen.autotorch.consume.creative_only": "仅创造模式可以修改；生存模式固定为不消耗",
+  "screen.autotorch.consume.survival_server": "由服务器配置决定",
   "screen.autotorch.underground_on": "仅无天空光区域：是",
   "screen.autotorch.underground_off": "仅无天空光区域：否",
   "screen.autotorch.set_lighting": "设为照明范围",

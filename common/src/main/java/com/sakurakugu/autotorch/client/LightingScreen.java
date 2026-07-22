@@ -59,7 +59,7 @@ public final class LightingScreen extends Screen {
 
     public LightingScreen() {
         super(Component.translatable("screen.autotorch.title"));
-        consumeTorches = isCreativePlayer() && ClientConfig.creativeConsumesTorches();
+        consumeTorches = initialConsumeTorches();
         undergroundOnly = ClientConfig.isDefaultUndergroundOnly();
     }
 
@@ -142,12 +142,17 @@ public final class LightingScreen extends Screen {
 
         consumeButton = addRenderableWidget(Button.builder(consumeMessage(), button -> {
             consumeTorches = !consumeTorches;
-            ClientConfig.setCreativeConsumesTorches(consumeTorches);
+            if (isCreativePlayer()) {
+                ClientConfig.setCreativeConsumesTorches(consumeTorches);
+            } else {
+                ClientConfig.setSurvivalConsumesTorches(consumeTorches);
+            }
             consumeButton.setMessage(consumeMessage());
-        }).bounds(left, 184, 153, 20)
-                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.consume.creative_only")))
-                .build());
-        consumeButton.active = isCreativePlayer();
+        }).bounds(left, 184, 153, 20).build());
+        consumeButton.active = canChooseConsumeTorches();
+        if (!consumeButton.active) {
+            consumeButton.setTooltip(Tooltip.create(Component.translatable("screen.autotorch.consume.survival_server")));
+        }
         undergroundButton = addRenderableWidget(Button.builder(undergroundMessage(), button -> {
             undergroundOnly = !undergroundOnly;
             ClientConfig.setDefaultUndergroundOnly(undergroundOnly);
@@ -496,7 +501,7 @@ public final class LightingScreen extends Screen {
             ClientConfig.setDefaultMaxTorches(max);
             ClientConfig.setDefaultMinSpacing(spacing);
             PlatformNetworking.sendToServer(new StartLightingPayload(
-                    selection, max, spacing, isCreativePlayer() && consumeTorches,
+                    selection, max, spacing, consumeTorches,
                     undergroundOnly, SelectionState.exclusions()
             ));
             onClose();
@@ -540,6 +545,23 @@ public final class LightingScreen extends Screen {
 
     private static boolean isCreativePlayer() {
         return Minecraft.getInstance().player != null && Minecraft.getInstance().player.isCreative();
+    }
+
+    private static boolean isSingleplayerOwner() {
+        return Minecraft.getInstance().hasSingleplayerServer();
+    }
+
+    private static boolean canChooseConsumeTorches() {
+        return isCreativePlayer() || isSingleplayerOwner();
+    }
+
+    private static boolean initialConsumeTorches() {
+        if (isCreativePlayer()) {
+            return ClientConfig.creativeConsumesTorches();
+        }
+        return isSingleplayerOwner()
+                ? ClientConfig.survivalConsumesTorches()
+                : ServerConfigState.survivalConsumesTorches();
     }
 
     private void saveSelection() {
@@ -623,6 +645,10 @@ public final class LightingScreen extends Screen {
     }
 
     private Component consumeMessage() {
+        if (!canChooseConsumeTorches()) {
+            return Component.translatable(ServerConfigState.survivalConsumesTorches()
+                    ? "screen.autotorch.consume_on" : "screen.autotorch.consume_off");
+        }
         return Component.translatable(consumeTorches ? "screen.autotorch.consume_on" : "screen.autotorch.consume_off");
     }
 

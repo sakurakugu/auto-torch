@@ -4,6 +4,7 @@ import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
+import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -15,6 +16,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 @Mod(AutoTorch.MOD_ID)
 public final class AutoTorchNeoForge {
@@ -26,6 +28,7 @@ public final class AutoTorchNeoForge {
         NeoForge.EVENT_BUS.addListener(this::onLeftClick);
         NeoForge.EVENT_BUS.addListener(this::onRightClick);
         NeoForge.EVENT_BUS.addListener(this::onLogout);
+        NeoForge.EVENT_BUS.addListener(this::onLogin);
     }
 
     private void onServerTick(ServerTickEvent.Post event) {
@@ -50,5 +53,12 @@ public final class AutoTorchNeoForge {
 
     private void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) SelectionToolEvents.onLogout(player);
+    }
+
+    private void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            PacketDistributor.sendToPlayer(player,
+                    new ServerConfigPayload(ServerConfig.survivalConsumesTorches()));
+        }
     }
 }

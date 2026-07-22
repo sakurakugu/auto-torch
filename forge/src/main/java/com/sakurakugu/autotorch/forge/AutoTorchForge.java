@@ -4,6 +4,7 @@ import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
+import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -27,6 +28,7 @@ public final class AutoTorchForge {
         PlayerInteractEvent.LeftClickBlock.BUS.addListener(this::onLeftClick);
         PlayerInteractEvent.RightClickBlock.BUS.addListener(this::onRightClick);
         PlayerEvent.PlayerLoggedOutEvent.BUS.addListener(this::onLogout);
+        PlayerEvent.PlayerLoggedInEvent.BUS.addListener(this::onLogin);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             AutoTorchForgeClient.initialize(context);
@@ -57,5 +59,11 @@ public final class AutoTorchForge {
 
     private void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) SelectionToolEvents.onLogout(player);
+    }
+
+    private void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            ForgeNetworking.sendToPlayer(player, new ServerConfigPayload(ServerConfig.survivalConsumesTorches()));
+        }
     }
 }

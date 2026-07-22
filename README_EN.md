@@ -42,7 +42,7 @@ Digging out a perimeter is tedious, and placing every torch by hand makes it eas
 - The first pass respects the configured minimum spacing. A second pass uses tighter spacing to fill dark cave corners.
 - Configure up to one lighting area and add up to 32 spherical or cuboid exclusion areas. The management page lists every area for individual editing or deletion.
 - The default torch limit is unlimited, or it can be set from 1 to 4096 per task.
-- Survival mode never consumes torches from the inventory. In Creative mode, inventory consumption is optional and disabled by default.
+- Survival mode consumes inventory torches by default. In singleplayer it can be changed from the `G` panel; in multiplayer only the server configuration can disable consumption. In Creative mode, inventory consumption is optional and disabled by default.
 
 ## Configuration
 
@@ -53,7 +53,7 @@ NeoForge and Forge automatically create two configuration files after the first 
 - `config/autotorch-client.toml`: Stores client preferences for nearby automatic torch placement, the light level overlay, selection rendering, and task panel defaults.
 - `<world directory>/serverconfig/autotorch-server.toml`: Stores server limits for selection dimensions, torch counts, exclusion areas, concurrent tasks, and per-task and server-wide work budgets.
 
-Server configuration and server-side validation always take precedence. Even if a Survival player sends modified network data, inventory consumption is forcibly disabled.
+Server configuration and server-side validation always take precedence in multiplayer. `gameplay.survivalConsumesTorches` defaults to `true`; server administrators can set it to `false` to make area lighting free for Survival players. The local host in singleplayer can change this from the `G` panel; that preference is stored as the client property `lightingTaskDefaults.survivalConsumeTorches`. Fabric uses the same property names.
 
 ## Building
 
@@ -90,7 +90,7 @@ Area-based batch lighting still requires the following steps:
 ## Limits and Safety
 
 - By default, each side of a cuboid is limited to 256 blocks, while a sphere is limited to a radius of 160 blocks (320-block diameter). Server administrators can lower these limits within the protocol's hard limits.
-- Unlimited mode is still limited by the number of valid positions in the selection. When inventory consumption is enabled in Creative mode, it is also limited by the number of torches in the inventory.
+- Unlimited mode is still limited by the number of valid positions in the selection. Survival mode is also limited by available inventory torches by default.
 - The mod does not force-load chunks. Unloaded chunks encountered during scanning are skipped.
 - The spawnability check uses conservative rules suitable for common vanilla hostile mobs and may not cover special spawning rules added by other mods.
 - Direct server-side placement does not automatically integrate with land-claim plugins. Public servers should restrict the mod to trusted players or integrate with the server's protection API.

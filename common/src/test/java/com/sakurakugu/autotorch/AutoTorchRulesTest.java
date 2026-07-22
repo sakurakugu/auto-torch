@@ -9,10 +9,17 @@ import org.junit.jupiter.api.Test;
 
 final class AutoTorchRulesTest {
     @Test
-    void onlyConsumesWhenCreativePlayerRequestsIt() {
-        assertTrue(AutoTorchRules.consumesInventoryTorches(true, true));
-        assertFalse(AutoTorchRules.consumesInventoryTorches(true, false));
-        assertFalse(AutoTorchRules.consumesInventoryTorches(false, true));
+    void usesClientChoiceForCreativeAndSingleplayerOwner() {
+        assertTrue(AutoTorchRules.consumesInventoryTorches(true, true, false, false));
+        assertFalse(AutoTorchRules.consumesInventoryTorches(true, false, true, false));
+        assertTrue(AutoTorchRules.consumesInventoryTorches(false, true, false, true));
+        assertFalse(AutoTorchRules.consumesInventoryTorches(false, false, true, true));
+    }
+
+    @Test
+    void usesServerRuleForMultiplayerSurvival() {
+        assertTrue(AutoTorchRules.consumesInventoryTorches(false, false, true, false));
+        assertFalse(AutoTorchRules.consumesInventoryTorches(false, true, false, false));
     }
 
     @Test

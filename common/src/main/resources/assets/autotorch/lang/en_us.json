@@ -29,7 +29,7 @@
   "screen.autotorch.min_spacing": "Min spacing",
   "screen.autotorch.consume_on": "Consume torches: yes",
   "screen.autotorch.consume_off": "Consume torches: no",
-  "screen.autotorch.consume.creative_only": "Only configurable in Creative mode; Survival never consumes torches",
+  "screen.autotorch.consume.survival_server": "Determined by server configuration",
   "screen.autotorch.underground_on": "Zero skylight only: yes",
   "screen.autotorch.underground_off": "Zero skylight only: no",
   "screen.autotorch.set_lighting": "Set lighting area",

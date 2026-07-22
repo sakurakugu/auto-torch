@@ -5,8 +5,11 @@ public final class AutoTorchRules {
     private AutoTorchRules() {
     }
 
-    public static boolean consumesInventoryTorches(boolean creativePlayer, boolean requested) {
-        return creativePlayer && requested;
+    public static boolean consumesInventoryTorches(
+            boolean creativePlayer, boolean requested, boolean survivalConsumesTorches,
+            boolean singleplayerOwner
+    ) {
+        return creativePlayer || singleplayerOwner ? requested : survivalConsumesTorches;
     }
 
     public static int divideRoundUp(int value, int divisor) {

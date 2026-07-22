@@ -22,6 +22,7 @@ public final class ServerConfig {
     public static int minSpacing() { return Math.min(spacing("limits.minSpacing", 3), spacing("limits.maxSpacing", 12)); }
     public static int maxSpacing() { return Math.max(spacing("limits.minSpacing", 3), spacing("limits.maxSpacing", 12)); }
     public static int maxConcurrentTasks() { return clamp(integer("limits.maxConcurrentTasks", 64), 1, 1024); }
+    public static boolean survivalConsumesTorches() { return bool("gameplay.survivalConsumesTorches", true); }
     public static int scanBudgetPerTaskTick() { return clamp(integer("performance.scanBudgetPerTaskTick", 12_000), 1, 120_000); }
     public static int placeBudgetPerTaskTick() { return clamp(integer("performance.placeBudgetPerTaskTick", 8), 1, 64); }
     public static int globalScanBudgetPerTick() { return clamp(integer("performance.globalScanBudgetPerTick", 24_000), 1, 240_000); }

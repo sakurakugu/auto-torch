@@ -4,6 +4,8 @@ import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
+import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -15,7 +17,7 @@ import net.minecraftforge.network.PacketDistributor;
 final class ForgeNetworking {
     private static final Channel<CustomPacketPayload> CHANNEL = ChannelBuilder
             .named(Identifier.fromNamespaceAndPath(AutoTorch.MOD_ID, "main"))
-            .networkProtocolVersion(4)
+            .networkProtocolVersion(5)
             .payloadChannel()
             .play()
             .serverbound()
@@ -28,6 +30,9 @@ final class ForgeNetworking {
             .addMain(SetSelectionToolPayload.TYPE, SetSelectionToolPayload.STREAM_CODEC, (payload, context) -> {
                 if (context.getSender() != null) SelectionToolEvents.setEnabled(context.getSender(), payload.enabled());
             })
+            .clientbound()
+            .addMain(ServerConfigPayload.TYPE, ServerConfigPayload.STREAM_CODEC, (payload, context) ->
+                    ServerConfigState.setSurvivalConsumesTorches(payload.survivalConsumesTorches()))
             .build();
 
     private ForgeNetworking() {
@@ -38,5 +43,9 @@ final class ForgeNetworking {
 
     static void sendToServer(CustomPacketPayload payload) {
         CHANNEL.send(payload, PacketDistributor.SERVER.noArg());
+    }
+
+    static void sendToPlayer(net.minecraft.server.level.ServerPlayer player, CustomPacketPayload payload) {
+        CHANNEL.send(payload, PacketDistributor.PLAYER.with(player));
     }
 }
