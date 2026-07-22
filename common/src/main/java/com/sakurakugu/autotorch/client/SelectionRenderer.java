@@ -434,10 +434,15 @@ public final class SelectionRenderer {
             double x1, double y1, double z1, double x2, double y2, double z2,
             double x3, double y3, double z3, double x4, double y4, double z4, int color
     ) {
+        // 调试填充渲染会剔除背面，因此同时提交反向面，保证从选区内部也能看到边界。
         buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(color);
         buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(color);
         buffer.addVertex(pose, (float) x3, (float) y3, (float) z3).setColor(color);
         buffer.addVertex(pose, (float) x4, (float) y4, (float) z4).setColor(color);
+        buffer.addVertex(pose, (float) x4, (float) y4, (float) z4).setColor(color);
+        buffer.addVertex(pose, (float) x3, (float) y3, (float) z3).setColor(color);
+        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(color);
+        buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(color);
     }
 
     private static void line(
