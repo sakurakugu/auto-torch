@@ -85,18 +85,20 @@ public final class LightOverlayRenderer {
     }
 
     private static void submitNumber(PoseStack.Pose pose, VertexConsumer buffer, LightOverlayState.Marker marker) {
-        String value = Integer.toString(marker.blockLight());
-        double totalWidth = value.length() * DIGIT_WIDTH + (value.length() - 1) * DIGIT_GAP;
+        int value = marker.blockLight();
+        boolean hasTensDigit = value >= 10;
+        int digitCount = hasTensDigit ? 2 : 1;
+        double totalWidth = digitCount * DIGIT_WIDTH + (digitCount - 1) * DIGIT_GAP;
         double startX = marker.pos().getX() + (1.0D - totalWidth) / 2.0D;
         double startZ = marker.pos().getZ() + (1.0D - DIGIT_HEIGHT) / 2.0D;
         double y = marker.pos().getY() + SURFACE_OFFSET;
         int color = markerColor(marker);
 
-        for (int index = 0; index < value.length(); index++) {
-            int segments = DIGIT_SEGMENTS[value.charAt(index) - '0'];
-            double x = startX + index * (DIGIT_WIDTH + DIGIT_GAP);
-            submitDigit(pose, buffer, x, y, startZ, segments, color);
+        if (hasTensDigit) {
+            submitDigit(pose, buffer, startX, y, startZ, DIGIT_SEGMENTS[value / 10], color);
+            startX += DIGIT_WIDTH + DIGIT_GAP;
         }
+        submitDigit(pose, buffer, startX, y, startZ, DIGIT_SEGMENTS[value % 10], color);
     }
 
     private static int markerColor(LightOverlayState.Marker marker) {
