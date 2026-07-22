@@ -6,8 +6,10 @@ import com.mojang.blaze3d.platform.InputConstants;
 
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.network.AreaShape;
+import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -85,6 +87,17 @@ public final class AutoTorchClient {
             return false;
         }
         SelectionState.setSecond(pos);
+        if (SelectionState.shape() == AreaShape.SPHERE) {
+            AreaZone draft = SelectionState.draft(pos);
+            long maxRadiusSquared = (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
+            if (draft.radiusSquared() > maxRadiusSquared) {
+                Minecraft.getInstance().gui.setOverlayMessage(
+                        Component.translatable("message.autotorch.sphere_radius_too_large",
+                                AreaZone.MAX_SPHERE_RADIUS).withStyle(ChatFormatting.RED), false
+                );
+                return true;
+            }
+        }
         Minecraft.getInstance().gui.setOverlayMessage(
                 Component.translatable(SelectionState.shape() == AreaShape.SPHERE
                                 ? "message.autotorch.selected_radius" : "message.autotorch.selected_b",

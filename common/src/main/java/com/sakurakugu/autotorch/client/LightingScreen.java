@@ -37,6 +37,7 @@ public final class LightingScreen extends Screen {
     private Button displayButton;
     private Button useCurrentFirstButton;
     private Button useCurrentSecondButton;
+    private Button setLightingButton;
     private Button exclusionButton;
     private Button consumeButton;
     private Button undergroundButton;
@@ -52,7 +53,9 @@ public final class LightingScreen extends Screen {
     private boolean syncingInputs;
     private int scrollOffset;
     private boolean draggingScrollbar;
+    private boolean selectionInRange = true;
     private Component error = Component.empty();
+    private Component rangeMessage = Component.empty();
 
     public LightingScreen() {
         super(Component.translatable("screen.autotorch.title"));
@@ -121,11 +124,12 @@ public final class LightingScreen extends Screen {
                 .tooltip(Tooltip.create(Component.translatable("screen.autotorch.wooden_axe_selection.tooltip")))
                 .build());
 
-        addRenderableWidget(new ColoredButton(left, 136, 120, 20,
+        setLightingButton = addRenderableWidget(new ColoredButton(left, 136, 120, 20,
                 Component.translatable("screen.autotorch.set_lighting"), button -> setLightingZone(),
                 0xDD176B35, 0xEE218A47));
         exclusionButton = addRenderableWidget(new ColoredButton(left + 124, 136, 120, 20,
                 exclusionMessage(), button -> addExclusion(), 0xDDA52B2B, 0xEEC83C3C));
+        updateZoneButtonAvailability();
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.manage_exclusions"), button -> {
             saveSelection();
             saveTaskDefaults();
@@ -239,6 +243,7 @@ public final class LightingScreen extends Screen {
             SelectionState.setFirst(firstPos);
             SelectionState.setSecond(secondPos);
             refreshDimensionInputs(firstPos, secondPos);
+            error = Component.empty();
         } catch (IllegalArgumentException ignored) {
             // 坐标输入尚不完整时，等待用户继续输入。
         }
@@ -252,16 +257,45 @@ public final class LightingScreen extends Screen {
             BlockPos anchor = readPosition(first);
             BlockPos currentSecond = readPosition(second);
             BlockPos updatedSecond;
+            boolean dimensionClamped = false;
             if (SelectionState.shape() == AreaShape.SPHERE) {
-                int radius = readPositive(dimensions[0], 1, ServerConfigState.maxSphereRadius());
+                int radius = Integer.parseInt(dimensions[0].getValue());
+                int maxRadius = ServerConfigState.maxSphereRadius();
+                if (radius > maxRadius) {
+                    radius = maxRadius;
+                    syncingInputs = true;
+                    try {
+                        dimensions[0].setValue(Integer.toString(maxRadius));
+                    } finally {
+                        syncingInputs = false;
+                    }
+                    dimensionClamped = true;
+                } else if (radius < 1) {
+                    throw new IllegalArgumentException("Out of range");
+                }
                 updatedSecond = offsetChecked(anchor, radius, 0, 0);
             } else {
-                int sizeX = readPositive(dimensions[0], 1, ServerConfigState.maxBoxAxisLength());
-                int sizeZ = readPositive(dimensions[1], 1, ServerConfigState.maxBoxAxisLength());
-                int sizeY = readPositive(dimensions[2], 1, ServerConfigState.maxBoxAxisLength());
+                int maxAxisLength = ServerConfigState.maxBoxAxisLength();
+                int[] sizesByInput = new int[dimensions.length];
+                for (int i = 0; i < dimensions.length; i++) {
+                    int size = Integer.parseInt(dimensions[i].getValue());
+                    if (size > maxAxisLength) {
+                        size = maxAxisLength;
+                        syncingInputs = true;
+                        try {
+                            dimensions[i].setValue(Integer.toString(maxAxisLength));
+                        } finally {
+                            syncingInputs = false;
+                        }
+                        dimensionClamped = true;
+                    } else if (size < 1) {
+                        throw new IllegalArgumentException("Out of range");
+                    }
+                    sizesByInput[i] = size;
+                }
                 int[] anchorValues = {anchor.getX(), anchor.getY(), anchor.getZ()};
                 int[] secondValues = {currentSecond.getX(), currentSecond.getY(), currentSecond.getZ()};
-                int[] sizes = {sizeX, sizeY, sizeZ};
+                int[] sizes = {sizesByInput[0], sizesByInput[2], sizesByInput[1]};
                 int[] offsets = new int[3];
                 for (int i = 0; i < offsets.length; i++) {
                     int direction = Integer.compare(secondValues[i], anchorValues[i]);
@@ -273,6 +307,15 @@ public final class LightingScreen extends Screen {
                 updatedSecond = offsetChecked(anchor, offsets[0], offsets[1], offsets[2]);
             }
             setCoordinatePosition(second, updatedSecond);
+            error = Component.empty();
+            if (dimensionClamped) {
+                rangeMessage = Component.translatable(SelectionState.shape() == AreaShape.SPHERE
+                                ? "screen.autotorch.sphere_radius_clamped"
+                                : "screen.autotorch.box_axis_clamped",
+                        SelectionState.shape() == AreaShape.SPHERE
+                                ? ServerConfigState.maxSphereRadius()
+                                : ServerConfigState.maxBoxAxisLength());
+            }
         } catch (IllegalArgumentException ignored) {
             // 尺寸输入尚不完整或超出范围时，不改变坐标。
         }
@@ -302,6 +345,39 @@ public final class LightingScreen extends Screen {
             }
         } finally {
             syncingInputs = false;
+        }
+        updateSelectionRangeMessage(firstPos, secondPos);
+    }
+
+    private void updateSelectionRangeMessage(BlockPos firstPos, BlockPos secondPos) {
+        if (SelectionState.shape() == AreaShape.SPHERE) {
+            long maxRadiusSquared = (long) ServerConfigState.maxSphereRadius()
+                    * ServerConfigState.maxSphereRadius();
+            AreaZone zone = new AreaZone(AreaShape.SPHERE, firstPos, secondPos);
+            selectionInRange = zone.radiusSquared() <= maxRadiusSquared;
+            rangeMessage = selectionInRange ? Component.empty()
+                    : Component.translatable("screen.autotorch.sphere_radius_too_large",
+                    ServerConfigState.maxSphereRadius());
+        } else {
+            long sizeX = Math.abs((long) secondPos.getX() - firstPos.getX()) + 1L;
+            long sizeY = Math.abs((long) secondPos.getY() - firstPos.getY()) + 1L;
+            long sizeZ = Math.abs((long) secondPos.getZ() - firstPos.getZ()) + 1L;
+            selectionInRange = sizeX <= ServerConfigState.maxBoxAxisLength()
+                    && sizeY <= ServerConfigState.maxBoxAxisLength()
+                    && sizeZ <= ServerConfigState.maxBoxAxisLength();
+            rangeMessage = selectionInRange ? Component.empty()
+                    : Component.translatable("screen.autotorch.box_axis_too_large",
+                    ServerConfigState.maxBoxAxisLength());
+        }
+        updateZoneButtonAvailability();
+    }
+
+    private void updateZoneButtonAvailability() {
+        if (setLightingButton != null) {
+            setLightingButton.active = selectionInRange;
+        }
+        if (exclusionButton != null) {
+            exclusionButton.active = selectionInRange;
         }
     }
 
@@ -841,6 +917,8 @@ public final class LightingScreen extends Screen {
         int informationY = 232 - offset;
         if (!error.getString().isEmpty()) {
             graphics.centeredText(font, error, width / 2, informationY, 0xFFFF6060);
+        } else if (!rangeMessage.getString().isEmpty()) {
+            graphics.centeredText(font, rangeMessage, width / 2, informationY, 0xFFFFC060);
         } else {
             graphics.text(font, Component.translatable("screen.autotorch.zone_summary",
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()),

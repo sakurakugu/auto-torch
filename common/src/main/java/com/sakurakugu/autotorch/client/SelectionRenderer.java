@@ -9,6 +9,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -31,6 +32,9 @@ public final class SelectionRenderer {
     private static final int BLOCK_OFFSET_MASK = (1 << BLOCK_OFFSET_BITS) - 1;
     private static final int BLOCK_OFFSET_BIAS = AreaZone.MAX_SPHERE_RADIUS;
     private static final int BLOCK_FACE_DIRECTION_SHIFT = BLOCK_OFFSET_BITS * 3;
+    private static final int BLOCK_EDGE_AXIS_SHIFT = BLOCK_OFFSET_BITS * 3;
+    private static final long MAX_SPHERE_RADIUS_SQUARED =
+            (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
     private static final int MAX_CACHED_BLOCKY_SPHERES = 4;
     private static final Map<Long, BlockySphereMesh> BLOCKY_SPHERE_CACHE = new LinkedHashMap<>(8, 0.75F, true) {
         @Override
@@ -102,6 +106,9 @@ public final class SelectionRenderer {
             int faceColor,
             float width
     ) {
+        if (zone.shape() == AreaShape.SPHERE && zone.radiusSquared() > MAX_SPHERE_RADIUS_SQUARED) {
+            return;
+        }
         if (displayMode == SelectionState.DisplayMode.LINES) {
             if (zone.shape() == AreaShape.SPHERE) {
                 if (sphereDisplayMode == SelectionState.SphereDisplayMode.BLOCKY) {
@@ -228,8 +235,8 @@ public final class SelectionRenderer {
         BlockySphereMesh mesh = blockySphereMesh(zone.radiusSquared());
         BlockPos center = zone.first();
         sink.submit(poseStack, RenderTypes.linesTranslucent(), (pose, buffer) -> {
-            for (int face : mesh.faces()) {
-                blockFace(pose, buffer, center, face, color, true, width);
+            for (int edge : mesh.edges()) {
+                blockEdge(pose, buffer, center, edge, color, width);
             }
         });
     }
@@ -242,7 +249,7 @@ public final class SelectionRenderer {
 
     private static BlockySphereMesh buildBlockySphereMesh(long radiusSquared) {
         int radius = (int) Math.sqrt(radiusSquared);
-        IntArrayBuilder faces = new IntArrayBuilder(Math.max(16, radius * radius * 16));
+        IntOpenHashSet edges = new IntOpenHashSet(Math.max(16, radius * radius * 12));
         IntArrayBuilder faceStrips = new IntArrayBuilder(Math.max(16, radius * radius * 12));
         for (int first = -radius; first <= radius; first++) {
             long firstSquared = (long) first * first;
@@ -262,15 +269,47 @@ public final class SelectionRenderer {
                     runStart = second;
                     previousEdge = edge;
                 }
-                faces.add(encodeBlockFace(edge, first, second, 0));
-                faces.add(encodeBlockFace(-edge, first, second, 1));
-                faces.add(encodeBlockFace(first, edge, second, 2));
-                faces.add(encodeBlockFace(first, -edge, second, 3));
-                faces.add(encodeBlockFace(first, second, edge, 4));
-                faces.add(encodeBlockFace(first, second, -edge, 5));
+                addBlockFaceEdges(edges, edge, first, second, 0);
+                addBlockFaceEdges(edges, -edge, first, second, 1);
+                addBlockFaceEdges(edges, first, edge, second, 2);
+                addBlockFaceEdges(edges, first, -edge, second, 3);
+                addBlockFaceEdges(edges, first, second, edge, 4);
+                addBlockFaceEdges(edges, first, second, -edge, 5);
             }
         }
-        return new BlockySphereMesh(faces.toArray(), faceStrips.toArray());
+        return new BlockySphereMesh(edges.toIntArray(), faceStrips.toArray());
+    }
+
+    private static void addBlockFaceEdges(IntOpenHashSet edges, int x, int y, int z, int direction) {
+        switch (direction) {
+            case 0 -> addXFaceEdges(edges, x + 1, y, z);
+            case 1 -> addXFaceEdges(edges, x, y, z);
+            case 2 -> addYFaceEdges(edges, x, y + 1, z);
+            case 3 -> addYFaceEdges(edges, x, y, z);
+            case 4 -> addZFaceEdges(edges, x, y, z + 1);
+            default -> addZFaceEdges(edges, x, y, z);
+        }
+    }
+
+    private static void addXFaceEdges(IntOpenHashSet edges, int x, int y, int z) {
+        edges.add(encodeBlockEdge(x, y, z, 1));
+        edges.add(encodeBlockEdge(x, y, z + 1, 1));
+        edges.add(encodeBlockEdge(x, y, z, 2));
+        edges.add(encodeBlockEdge(x, y + 1, z, 2));
+    }
+
+    private static void addYFaceEdges(IntOpenHashSet edges, int x, int y, int z) {
+        edges.add(encodeBlockEdge(x, y, z, 0));
+        edges.add(encodeBlockEdge(x, y, z + 1, 0));
+        edges.add(encodeBlockEdge(x, y, z, 2));
+        edges.add(encodeBlockEdge(x + 1, y, z, 2));
+    }
+
+    private static void addZFaceEdges(IntOpenHashSet edges, int x, int y, int z) {
+        edges.add(encodeBlockEdge(x, y, z, 0));
+        edges.add(encodeBlockEdge(x, y + 1, z, 0));
+        edges.add(encodeBlockEdge(x, y, z, 1));
+        edges.add(encodeBlockEdge(x + 1, y, z, 1));
     }
 
     private static void addBlockFaceStrips(
@@ -297,28 +336,23 @@ public final class SelectionRenderer {
                 | direction << BLOCK_FACE_DIRECTION_SHIFT;
     }
 
-    private static void blockFace(
-            PoseStack.Pose pose, VertexConsumer buffer, BlockPos center, int encodedFace,
-            int color, boolean outline, float width
+    private static int encodeBlockEdge(int x, int y, int z, int axis) {
+        return x + BLOCK_OFFSET_BIAS
+                | (y + BLOCK_OFFSET_BIAS) << BLOCK_OFFSET_BITS
+                | (z + BLOCK_OFFSET_BIAS) << (BLOCK_OFFSET_BITS * 2)
+                | axis << BLOCK_EDGE_AXIS_SHIFT;
+    }
+
+    private static void blockEdge(
+            PoseStack.Pose pose, VertexConsumer buffer, BlockPos center, int encodedEdge, int color, float width
     ) {
-        int x = center.getX() + (encodedFace & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
-        int y = center.getY() + ((encodedFace >> BLOCK_OFFSET_BITS) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
-        int z = center.getZ() + ((encodedFace >> (BLOCK_OFFSET_BITS * 2)) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
-        int direction = encodedFace >>> BLOCK_FACE_DIRECTION_SHIFT;
-        switch (direction) {
-            case 0 -> blockFaceVertices(pose, buffer, color, outline, width,
-                    x + 1, y, z, x + 1, y + 1, z, x + 1, y + 1, z + 1, x + 1, y, z + 1);
-            case 1 -> blockFaceVertices(pose, buffer, color, outline, width,
-                    x, y, z + 1, x, y + 1, z + 1, x, y + 1, z, x, y, z);
-            case 2 -> blockFaceVertices(pose, buffer, color, outline, width,
-                    x, y + 1, z + 1, x + 1, y + 1, z + 1, x + 1, y + 1, z, x, y + 1, z);
-            case 3 -> blockFaceVertices(pose, buffer, color, outline, width,
-                    x, y, z, x + 1, y, z, x + 1, y, z + 1, x, y, z + 1);
-            case 4 -> blockFaceVertices(pose, buffer, color, outline, width,
-                    x + 1, y, z + 1, x + 1, y + 1, z + 1, x, y + 1, z + 1, x, y, z + 1);
-            default -> blockFaceVertices(pose, buffer, color, outline, width,
-                    x, y, z, x, y + 1, z, x + 1, y + 1, z, x + 1, y, z);
-        }
+        int x = center.getX() + (encodedEdge & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
+        int y = center.getY() + ((encodedEdge >> BLOCK_OFFSET_BITS) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
+        int z = center.getZ() + ((encodedEdge >> (BLOCK_OFFSET_BITS * 2)) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
+        int axis = encodedEdge >>> BLOCK_EDGE_AXIS_SHIFT;
+        line(pose, buffer, x, y, z,
+                x + (axis == 0 ? 1 : 0), y + (axis == 1 ? 1 : 0), z + (axis == 2 ? 1 : 0),
+                color, width);
     }
 
     private static void blockFaceStrip(
@@ -329,33 +363,18 @@ public final class SelectionRenderer {
         int z = center.getZ() + ((encodedFace >> (BLOCK_OFFSET_BITS * 2)) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
         int direction = encodedFace >>> BLOCK_FACE_DIRECTION_SHIFT;
         switch (direction) {
-            case 0 -> blockFaceVertices(pose, buffer, color, false, 0.0F,
-                    x + 1, y, z, x + 1, y + 1, z, x + 1, y + 1, z + length, x + 1, y, z + length);
-            case 1 -> blockFaceVertices(pose, buffer, color, false, 0.0F,
-                    x, y, z + length, x, y + 1, z + length, x, y + 1, z, x, y, z);
-            case 2 -> blockFaceVertices(pose, buffer, color, false, 0.0F,
-                    x, y + 1, z + length, x + 1, y + 1, z + length, x + 1, y + 1, z, x, y + 1, z);
-            case 3 -> blockFaceVertices(pose, buffer, color, false, 0.0F,
-                    x, y, z, x + 1, y, z, x + 1, y, z + length, x, y, z + length);
-            case 4 -> blockFaceVertices(pose, buffer, color, false, 0.0F,
-                    x + 1, y, z + 1, x + 1, y + length, z + 1, x, y + length, z + 1, x, y, z + 1);
-            default -> blockFaceVertices(pose, buffer, color, false, 0.0F,
-                    x, y, z, x, y + length, z, x + 1, y + length, z, x + 1, y, z);
-        }
-    }
-
-    private static void blockFaceVertices(
-            PoseStack.Pose pose, VertexConsumer buffer, int color, boolean outline, float width,
-            double x1, double y1, double z1, double x2, double y2, double z2,
-            double x3, double y3, double z3, double x4, double y4, double z4
-    ) {
-        if (outline) {
-            line(pose, buffer, x1, y1, z1, x2, y2, z2, color, width);
-            line(pose, buffer, x2, y2, z2, x3, y3, z3, color, width);
-            line(pose, buffer, x3, y3, z3, x4, y4, z4, color, width);
-            line(pose, buffer, x4, y4, z4, x1, y1, z1, color, width);
-        } else {
-            quad(pose, buffer, x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4, color);
+            case 0 -> quad(pose, buffer,
+                    x + 1, y, z, x + 1, y + 1, z, x + 1, y + 1, z + length, x + 1, y, z + length, color);
+            case 1 -> quad(pose, buffer,
+                    x, y, z + length, x, y + 1, z + length, x, y + 1, z, x, y, z, color);
+            case 2 -> quad(pose, buffer,
+                    x, y + 1, z + length, x + 1, y + 1, z + length, x + 1, y + 1, z, x, y + 1, z, color);
+            case 3 -> quad(pose, buffer,
+                    x, y, z, x + 1, y, z, x + 1, y, z + length, x, y, z + length, color);
+            case 4 -> quad(pose, buffer,
+                    x + 1, y, z + 1, x + 1, y + length, z + 1, x, y + length, z + 1, x, y, z + 1, color);
+            default -> quad(pose, buffer,
+                    x, y, z, x, y + length, z, x + 1, y + length, z, x + 1, y, z, color);
         }
     }
 
@@ -417,7 +436,7 @@ public final class SelectionRenderer {
         void render(PoseStack.Pose pose, VertexConsumer buffer);
     }
 
-    private record BlockySphereMesh(int[] faces, int[] faceStrips) {
+    private record BlockySphereMesh(int[] edges, int[] faceStrips) {
     }
 
     private static final class IntArrayBuilder {
@@ -443,4 +462,5 @@ public final class SelectionRenderer {
             return result;
         }
     }
+
 }
