@@ -166,8 +166,8 @@ File: `<world directory>/serverconfig/autotorch-server.toml`
 
 ```toml
 [limits]
-# Maximum allowed length of any side of a cuboid. Range: 1-256 blocks.
-maxBoxAxisLength = 256
+# Maximum allowed length of any side of a cuboid. Range: 1-257 blocks.
+maxBoxAxisLength = 257
 # Maximum allowed radius of a spherical selection. Range: 1-160 blocks.
 maxSphereRadius = 160
 # Maximum number of exclusion areas allowed in a single task. Range: 0-32.
@@ -230,7 +230,7 @@ lightingTaskDefaults.woodenAxeSelectionEnabled=true
 Complete default server configuration:
 
 ```properties
-limits.maxBoxAxisLength=256
+limits.maxBoxAxisLength=257
 limits.maxSphereRadius=160
 limits.maxExclusions=32
 limits.maxTorchesPerTask=4096
@@ -248,7 +248,7 @@ performance.randomPlacementAttempts=32
 
 ## Limits and Safety
 
-- By default, each side of a cuboid is limited to 256 blocks, while a sphere is limited to a radius of 160 blocks (320-block diameter). Server administrators can adjust these limits in the configuration.
+- By default, each side of a cuboid is limited to 257 blocks, while a sphere is limited to a radius of 160 blocks (320-block diameter). Server administrators can adjust these limits in the configuration.
 - The mod does not force-load chunks; unloaded chunks encountered during scanning are skipped. (With a render distance of at least 8 chunks, the relevant area will generally be loaded.)
 - The spawnability check uses conservative rules suitable for common vanilla hostile mobs and does not include special handling for other mods.
 - Land-claim plugins are not supported. Placement uses vanilla `/setblock` behavior.

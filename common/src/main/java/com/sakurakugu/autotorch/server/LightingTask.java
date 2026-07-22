@@ -8,6 +8,7 @@ import java.util.Random;
 import java.util.UUID;
 
 import com.sakurakugu.autotorch.network.AreaZone;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
@@ -23,6 +24,8 @@ import net.minecraft.world.level.block.state.BlockState;
 
 /** 单个玩家的增量照明任务，通过每刻预算避免大选区阻塞服务端线程。 */
 final class LightingTask {
+    private static final int PROGRESS_UPDATE_INTERVAL_TICKS = 10;
+    private static final int PROGRESS_BAR_LENGTH = 20;
 
     private final ServerLevel level;
     private final AreaZone selection;
@@ -46,6 +49,7 @@ final class LightingTask {
     private int pass;
     private int placed;
     private int skippedUnloaded;
+    private int ticksUntilProgressUpdate = PROGRESS_UPDATE_INTERVAL_TICKS;
 
     LightingTask(
             ServerLevel level,
@@ -81,12 +85,10 @@ final class LightingTask {
 
     TickResult tick(ServerPlayer player, int scanBudget, int placeBudget) {
         if (player.level() != level) {
-            player.sendSystemMessage(Component.translatable("message.autotorch.wrong_dimension"));
-            return new TickResult(true, 0, 0);
+            return finish(player, "message.autotorch.wrong_dimension", 0, 0);
         }
         if (maxTorches > 0 && placed >= maxTorches) {
-            player.sendSystemMessage(Component.translatable("message.autotorch.max_reached", placed));
-            return new TickResult(true, 0, 0);
+            return finish(player, "message.autotorch.max_reached", 0, 0, placed);
         }
 
         int scannedThisTick = 0;
@@ -100,8 +102,8 @@ final class LightingTask {
                     scanIndex = 0;
                     continue;
                 }
-                player.sendSystemMessage(Component.translatable("message.autotorch.completed", placed, skippedUnloaded));
-                return new TickResult(true, scannedThisTick, placedThisTick);
+                return finish(player, "message.autotorch.completed", scannedThisTick, placedThisTick,
+                        placed, skippedUnloaded);
             }
 
             BlockPos feet = positionAt(scanIndex++);
@@ -119,8 +121,7 @@ final class LightingTask {
                 continue;
             }
             if (consumeTorches && !hasTorch(player)) {
-                player.sendSystemMessage(Component.translatable("message.autotorch.out_of_torches", placed));
-                return new TickResult(true, scannedThisTick, placedThisTick);
+                return finish(player, "message.autotorch.out_of_torches", scannedThisTick, placedThisTick, placed);
             }
             if (!level.setBlock(torchPos, Blocks.TORCH.defaultBlockState(), Block.UPDATE_ALL)) {
                 continue;
@@ -133,11 +134,54 @@ final class LightingTask {
             placed++;
             placedThisTick++;
             if (maxTorches > 0 && placed >= maxTorches) {
-                player.sendSystemMessage(Component.translatable("message.autotorch.max_reached", placed));
-                return new TickResult(true, scannedThisTick, placedThisTick);
+                return finish(player, "message.autotorch.max_reached", scannedThisTick, placedThisTick, placed);
             }
         }
         return new TickResult(false, scannedThisTick, placedThisTick);
+    }
+
+    void showInitialProgress(ServerPlayer player) {
+        sendProgress(player);
+    }
+
+    void tickProgress(ServerPlayer player) {
+        if (--ticksUntilProgressUpdate > 0) {
+            return;
+        }
+        ticksUntilProgressUpdate = PROGRESS_UPDATE_INTERVAL_TICKS;
+        sendProgress(player);
+    }
+
+    private void sendProgress(ServerPlayer player) {
+        long scanned = (long) pass * volume + scanIndex;
+        long total = volume * 2L;
+        int percent = (int) Math.min(100L, scanned * 100L / total);
+        int passFilled = (int) Math.min(PROGRESS_BAR_LENGTH,
+                scanIndex * PROGRESS_BAR_LENGTH / volume);
+        Component bar;
+        if (pass == 0) {
+            bar = Component.literal("|".repeat(passFilled)).withStyle(ChatFormatting.GRAY)
+                    .append(Component.literal("|".repeat(PROGRESS_BAR_LENGTH - passFilled))
+                            .withStyle(ChatFormatting.DARK_GRAY));
+        } else {
+            // 第二轮从左向右用绿色覆盖第一轮已经铺满的灰色进度条。
+            bar = Component.literal("|".repeat(passFilled)).withStyle(ChatFormatting.GREEN)
+                    .append(Component.literal("|".repeat(PROGRESS_BAR_LENGTH - passFilled))
+                            .withStyle(ChatFormatting.GRAY));
+        }
+        player.sendSystemMessage(Component.translatable("message.autotorch.progress", bar, percent, placed), true);
+    }
+
+    private static TickResult finish(
+            ServerPlayer player,
+            String messageKey,
+            int scannedThisTick,
+            int placedThisTick,
+            Object... messageArguments
+    ) {
+        player.sendSystemMessage(Component.empty(), true);
+        player.sendSystemMessage(Component.translatable(messageKey, messageArguments));
+        return new TickResult(true, scannedThisTick, placedThisTick);
     }
 
     private BlockPos positionAt(long index) {

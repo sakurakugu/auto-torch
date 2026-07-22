@@ -26,6 +26,7 @@ public final class LightingScreen extends Screen {
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int MIN_SCROLLBAR_HEIGHT = 20;
     private static final int SCROLL_RATE = 20;
+    private static final int MAX_BOX_AXIS_LENGTH = 257;
     private static final int MAX_SELECTION_BOUND_AXIS = AreaZone.MAX_SPHERE_RADIUS * 2 + 1;
     private static final long MAX_SELECTION_BOUND_VOLUME =
             (long) MAX_SELECTION_BOUND_AXIS * MAX_SELECTION_BOUND_AXIS * MAX_SELECTION_BOUND_AXIS;
@@ -259,9 +260,9 @@ public final class LightingScreen extends Screen {
                 int radius = readPositive(dimensions[0], 1, AreaZone.MAX_SPHERE_RADIUS);
                 updatedSecond = offsetChecked(anchor, radius, 0, 0);
             } else {
-                int sizeX = readPositive(dimensions[0], 1, 256);
-                int sizeZ = readPositive(dimensions[1], 1, 256);
-                int sizeY = readPositive(dimensions[2], 1, 256);
+                int sizeX = readPositive(dimensions[0], 1, MAX_BOX_AXIS_LENGTH);
+                int sizeZ = readPositive(dimensions[1], 1, MAX_BOX_AXIS_LENGTH);
+                int sizeY = readPositive(dimensions[2], 1, MAX_BOX_AXIS_LENGTH);
                 int[] anchorValues = {anchor.getX(), anchor.getY(), anchor.getZ()};
                 int[] secondValues = {currentSecond.getX(), currentSecond.getY(), currentSecond.getZ()};
                 int[] sizes = {sizeX, sizeY, sizeZ};
@@ -358,7 +359,7 @@ public final class LightingScreen extends Screen {
                 AreaZone sphere = new AreaZone(AreaShape.SPHERE, firstPos, secondPos);
                 validateZone(sphere);
                 int radius = sphere.radius();
-                if (radius * 2L + 1L > 256L) {
+                if (radius * 2L + 1L > MAX_BOX_AXIS_LENGTH) {
                     error = Component.translatable("screen.autotorch.convert_box_too_large");
                     return;
                 }
@@ -463,9 +464,9 @@ public final class LightingScreen extends Screen {
         }
         BlockPos min = zone.min();
         BlockPos max = zone.max();
-        if ((long) max.getX() - min.getX() >= 256L
-                || (long) max.getY() - min.getY() >= 256L
-                || (long) max.getZ() - min.getZ() >= 256L) {
+        if ((long) max.getX() - min.getX() >= MAX_BOX_AXIS_LENGTH
+                || (long) max.getY() - min.getY() >= MAX_BOX_AXIS_LENGTH
+                || (long) max.getZ() - min.getZ() >= MAX_BOX_AXIS_LENGTH) {
             throw new IllegalArgumentException("Box axis out of range");
         }
     }

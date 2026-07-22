@@ -166,8 +166,8 @@ woodenAxeSelectionEnabled = true
 
 ```toml
 [limits]
-# 长方体任一边允许的最大长度，范围 1~256 格。
-maxBoxAxisLength = 256
+# 长方体任一边允许的最大长度，范围 1~257 格。
+maxBoxAxisLength = 257
 # 球形选区允许的最大半径，范围 1~160 格。
 maxSphereRadius = 160
 # 单个任务允许提交的最大排除区数量，范围 0~32。
@@ -230,7 +230,7 @@ lightingTaskDefaults.woodenAxeSelectionEnabled=true
 服务端文件的完整默认内容：
 
 ```properties
-limits.maxBoxAxisLength=256
+limits.maxBoxAxisLength=257
 limits.maxSphereRadius=160
 limits.maxExclusions=32
 limits.maxTorchesPerTask=4096
@@ -248,7 +248,7 @@ performance.randomPlacementAttempts=32
 
 ## 限制与安全
 
-- 默认情况下长方体每条边最多 256 格，球形半径最多 160 格（直径 320 格）；服主可以修改配置调整。
+- 默认情况下长方体每条边最多 257 格，球形半径最多 160 格（直径 320 格）；服主可以修改配置调整。
 - 模组不会强制加载区块；扫描到未加载区块时会跳过。（一般视距>=8 都是会被加载的）
 - “可刷怪”使用适合原版常见敌对生物的保守判断，没添加覆盖其他模组的特判。
 - 不兼容领地插件。使用的是原版的 `/setblock`。

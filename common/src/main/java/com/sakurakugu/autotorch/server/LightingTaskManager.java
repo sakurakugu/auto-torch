@@ -89,6 +89,7 @@ public final class LightingTaskManager {
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
         TASKS.put(player.getUUID(), task);
         player.sendSystemMessage(Component.translatable("message.autotorch.started", volume));
+        task.showInitialProgress(player);
     }
 
     private static boolean isValidZone(AreaZone zone) {
@@ -106,6 +107,7 @@ public final class LightingTaskManager {
 
     public static void cancel(ServerPlayer player) {
         if (TASKS.remove(player.getUUID()) != null) {
+            player.sendSystemMessage(Component.empty(), true);
             player.sendSystemMessage(Component.translatable("message.autotorch.cancelled"));
         } else {
             player.sendSystemMessage(Component.translatable("message.autotorch.no_task"));
@@ -123,6 +125,14 @@ public final class LightingTaskManager {
         int scanRemaining = ServerConfig.globalScanBudgetPerTick();
         int placeRemaining = ServerConfig.globalPlaceBudgetPerTick();
         List<UUID> completed = new ArrayList<>();
+
+        for (UUID playerId : players) {
+            LightingTask task = TASKS.get(playerId);
+            ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+            if (task != null && player != null) {
+                task.tickProgress(player);
+            }
+        }
 
         for (int offset = 0; offset < taskCount && scanRemaining > 0 && placeRemaining > 0; offset++) {
             UUID playerId = players.get((roundRobinStart + offset) % taskCount);

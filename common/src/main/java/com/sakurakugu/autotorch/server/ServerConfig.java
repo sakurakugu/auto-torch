@@ -6,7 +6,7 @@ import com.sakurakugu.autotorch.network.StartLightingPayload;
 
 /** Loader-neutral facade for server-authoritative limits and budgets. */
 public final class ServerConfig {
-    public static final int HARD_MAX_BOX_AXIS_LENGTH = 256;
+    public static final int HARD_MAX_BOX_AXIS_LENGTH = 257;
     public static final int HARD_MAX_TORCHES = 4096;
     private static ConfigBackend backend = new DefaultsBackend();
 
