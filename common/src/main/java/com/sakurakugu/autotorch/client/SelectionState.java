@@ -156,7 +156,7 @@ public final class SelectionState {
             drafting = false;
             return true;
         }
-        if (EXCLUSIONS.size() >= 32) {
+        if (EXCLUSIONS.size() >= ServerConfigState.maxExclusions()) {
             return false;
         }
         EXCLUSIONS.add(exclusion);

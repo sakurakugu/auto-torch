@@ -10,7 +10,7 @@
   "screen.autotorch.convert_to_circumscribed_box": "转换为外切正方体",
   "screen.autotorch.convert_box_too_small": "区间过窄：内切圆要求每条边至少 3 格",
   "screen.autotorch.convert_sphere_too_large": "区间过大：内切圆半径最多 160 格",
-  "screen.autotorch.convert_box_too_large": "圆形过大：外切正方体每条边最多 257 格",
+  "screen.autotorch.convert_box_too_large": "圆形过大：外切正方体每条边最多 %s 格",
   "screen.autotorch.sphere_display_blocky": "球体：方块圆形",
   "screen.autotorch.sphere_display_smooth": "球体：平滑圆形",
   "screen.autotorch.display_faces": "显示：面",

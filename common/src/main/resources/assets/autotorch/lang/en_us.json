@@ -10,7 +10,7 @@
   "screen.autotorch.convert_to_circumscribed_box": "Convert to circumscribed box",
   "screen.autotorch.convert_box_too_small": "Box too narrow: an inscribed sphere requires at least 3 blocks on every axis",
   "screen.autotorch.convert_sphere_too_large": "Box too large: the inscribed sphere radius is limited to 160 blocks",
-  "screen.autotorch.convert_box_too_large": "Sphere too large: the circumscribed box is limited to 257 blocks per axis",
+  "screen.autotorch.convert_box_too_large": "Sphere too large: the circumscribed box is limited to %s blocks per axis",
   "screen.autotorch.sphere_display_blocky": "Sphere: blocky",
   "screen.autotorch.sphere_display_smooth": "Sphere: smooth",
   "screen.autotorch.display_faces": "Display: faces",

@@ -1,6 +1,6 @@
 package com.sakurakugu.autotorch.client;
 
-
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
@@ -26,10 +26,6 @@ public final class LightingScreen extends Screen {
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int MIN_SCROLLBAR_HEIGHT = 20;
     private static final int SCROLL_RATE = 20;
-    private static final int MAX_BOX_AXIS_LENGTH = 257;
-    private static final int MAX_SELECTION_BOUND_AXIS = AreaZone.MAX_SPHERE_RADIUS * 2 + 1;
-    private static final long MAX_SELECTION_BOUND_VOLUME =
-            (long) MAX_SELECTION_BOUND_AXIS * MAX_SELECTION_BOUND_AXIS * MAX_SELECTION_BOUND_AXIS;
     private final EditBox[] first = new EditBox[3];
     private final EditBox[] second = new EditBox[3];
     private final EditBox[] dimensions = new EditBox[3];
@@ -136,10 +132,10 @@ public final class LightingScreen extends Screen {
             minecraft.setScreen(new ExclusionListScreen());
         }).bounds(left + 248, 136, 62, 20).build());
 
-        int configuredMaxTorches = ClientConfig.defaultMaxTorches();
+        int configuredMaxTorches = effectiveDefaultMaxTorches();
         maxTorches = limitBox(left + 80, 160, 60,
                 configuredMaxTorches == 0 ? "∞" : Integer.toString(configuredMaxTorches));
-        minSpacing = integerBox(left + 250, 160, 60, Integer.toString(ClientConfig.defaultMinSpacing()));
+        minSpacing = integerBox(left + 250, 160, 60, Integer.toString(effectiveDefaultMinSpacing()));
 
         consumeButton = addRenderableWidget(Button.builder(consumeMessage(), button -> {
             consumeTorches = !consumeTorches;
@@ -257,12 +253,12 @@ public final class LightingScreen extends Screen {
             BlockPos currentSecond = readPosition(second);
             BlockPos updatedSecond;
             if (SelectionState.shape() == AreaShape.SPHERE) {
-                int radius = readPositive(dimensions[0], 1, AreaZone.MAX_SPHERE_RADIUS);
+                int radius = readPositive(dimensions[0], 1, ServerConfigState.maxSphereRadius());
                 updatedSecond = offsetChecked(anchor, radius, 0, 0);
             } else {
-                int sizeX = readPositive(dimensions[0], 1, MAX_BOX_AXIS_LENGTH);
-                int sizeZ = readPositive(dimensions[1], 1, MAX_BOX_AXIS_LENGTH);
-                int sizeY = readPositive(dimensions[2], 1, MAX_BOX_AXIS_LENGTH);
+                int sizeX = readPositive(dimensions[0], 1, ServerConfigState.maxBoxAxisLength());
+                int sizeZ = readPositive(dimensions[1], 1, ServerConfigState.maxBoxAxisLength());
+                int sizeY = readPositive(dimensions[2], 1, ServerConfigState.maxBoxAxisLength());
                 int[] anchorValues = {anchor.getX(), anchor.getY(), anchor.getZ()};
                 int[] secondValues = {currentSecond.getX(), currentSecond.getY(), currentSecond.getZ()};
                 int[] sizes = {sizeX, sizeY, sizeZ};
@@ -348,7 +344,7 @@ public final class LightingScreen extends Screen {
                     error = Component.translatable("screen.autotorch.convert_box_too_small");
                     return;
                 }
-                if (radius > AreaZone.MAX_SPHERE_RADIUS) {
+                if (radius > ServerConfigState.maxSphereRadius()) {
                     error = Component.translatable("screen.autotorch.convert_sphere_too_large");
                     return;
                 }
@@ -359,8 +355,10 @@ public final class LightingScreen extends Screen {
                 AreaZone sphere = new AreaZone(AreaShape.SPHERE, firstPos, secondPos);
                 validateZone(sphere);
                 int radius = sphere.radius();
-                if (radius * 2L + 1L > MAX_BOX_AXIS_LENGTH) {
-                    error = Component.translatable("screen.autotorch.convert_box_too_large");
+                if (radius * 2L + 1L > ServerConfigState.maxBoxAxisLength()) {
+                    error = Component.translatable(
+                            "screen.autotorch.convert_box_too_large",
+                            ServerConfigState.maxBoxAxisLength());
                     return;
                 }
                 convertedFirst = offsetChecked(firstPos, -radius, -radius, -radius);
@@ -456,7 +454,8 @@ public final class LightingScreen extends Screen {
 
     private static void validateZone(AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
-            long maxRadiusSquared = (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
+            long maxRadiusSquared = (long) ServerConfigState.maxSphereRadius()
+                    * ServerConfigState.maxSphereRadius();
             if (zone.radiusSquared() <= 0L || zone.radiusSquared() > maxRadiusSquared) {
                 throw new IllegalArgumentException("Sphere radius out of range");
             }
@@ -464,9 +463,9 @@ public final class LightingScreen extends Screen {
         }
         BlockPos min = zone.min();
         BlockPos max = zone.max();
-        if ((long) max.getX() - min.getX() >= MAX_BOX_AXIS_LENGTH
-                || (long) max.getY() - min.getY() >= MAX_BOX_AXIS_LENGTH
-                || (long) max.getZ() - min.getZ() >= MAX_BOX_AXIS_LENGTH) {
+        if ((long) max.getX() - min.getX() >= ServerConfigState.maxBoxAxisLength()
+                || (long) max.getY() - min.getY() >= ServerConfigState.maxBoxAxisLength()
+                || (long) max.getZ() - min.getZ() >= ServerConfigState.maxBoxAxisLength()) {
             throw new IllegalArgumentException("Box axis out of range");
         }
     }
@@ -477,9 +476,11 @@ public final class LightingScreen extends Screen {
         long sizeX = (long) max.getX() - min.getX() + 1L;
         long sizeY = (long) max.getY() - min.getY() + 1L;
         long sizeZ = (long) max.getZ() - min.getZ() + 1L;
-        if (sizeX > MAX_SELECTION_BOUND_AXIS || sizeY > MAX_SELECTION_BOUND_AXIS
-                || sizeZ > MAX_SELECTION_BOUND_AXIS
-                || sizeX * sizeY * sizeZ > MAX_SELECTION_BOUND_VOLUME) {
+        int maxAxis = Math.max(ServerConfigState.maxBoxAxisLength(),
+                ServerConfigState.maxSphereRadius() * 2 + 1);
+        long maxVolume = (long) maxAxis * maxAxis * maxAxis;
+        if (sizeX > maxAxis || sizeY > maxAxis || sizeZ > maxAxis
+                || sizeX * sizeY * sizeZ > maxVolume) {
             throw new IllegalArgumentException("Lighting area too large");
         }
     }
@@ -498,7 +499,8 @@ public final class LightingScreen extends Screen {
                 return;
             }
             int max = readLimit(maxTorches);
-            int spacing = readPositive(minSpacing, 3, 12);
+            int spacing = readPositive(minSpacing,
+                    ServerConfigState.minSpacing(), ServerConfigState.maxSpacing());
             ClientConfig.setDefaultMaxTorches(max);
             ClientConfig.setDefaultMinSpacing(spacing);
             PlatformNetworking.sendToServer(new StartLightingPayload(
@@ -530,18 +532,36 @@ public final class LightingScreen extends Screen {
     private static int readLimit(EditBox box) {
         String value = box.getValue();
         if (value.isEmpty() || value.equals("∞")) {
-            return 0;
+            if (ServerConfigState.allowsUnlimitedTorches()) {
+                return 0;
+            }
+            throw new IllegalArgumentException("Unlimited torches are disabled by the server");
         }
-        return readPositive(box, 1, 4096);
+        return readPositive(box, 1, ServerConfigState.maxTorchesPerTask());
     }
 
     private void saveTaskDefaults() {
         try {
             ClientConfig.setDefaultMaxTorches(readLimit(maxTorches));
-            ClientConfig.setDefaultMinSpacing(readPositive(minSpacing, 3, 12));
+            ClientConfig.setDefaultMinSpacing(readPositive(minSpacing,
+                    ServerConfigState.minSpacing(), ServerConfigState.maxSpacing()));
         } catch (IllegalArgumentException ignored) {
             // Keep the last valid defaults when closing a screen with incomplete input.
         }
+    }
+
+    private static int effectiveDefaultMaxTorches() {
+        int configured = ClientConfig.defaultMaxTorches();
+        if (configured == 0) {
+            return ServerConfigState.allowsUnlimitedTorches()
+                    ? 0 : ServerConfigState.maxTorchesPerTask();
+        }
+        return Math.min(configured, ServerConfigState.maxTorchesPerTask());
+    }
+
+    private static int effectiveDefaultMinSpacing() {
+        return Math.max(ServerConfigState.minSpacing(),
+                Math.min(ServerConfigState.maxSpacing(), ClientConfig.defaultMinSpacing()));
     }
 
     private static boolean isCreativePlayer() {
@@ -867,19 +887,22 @@ public final class LightingScreen extends Screen {
         }
 
         private int range() {
-            int steps = LightOverlayState.MAX_HORIZONTAL_RANGE - LightOverlayState.MIN_HORIZONTAL_RANGE;
-            return LightOverlayState.MIN_HORIZONTAL_RANGE + (int) Math.round(value * steps);
+            int steps = ConfigDefinitions.LIGHT_OVERLAY_HORIZONTAL_RANGE.maxValue()
+                    - ConfigDefinitions.LIGHT_OVERLAY_HORIZONTAL_RANGE.minValue();
+            return ConfigDefinitions.LIGHT_OVERLAY_HORIZONTAL_RANGE.minValue()
+                    + (int) Math.round(value * steps);
         }
 
         private static double toSliderValue(int range) {
-            return (double) (range - LightOverlayState.MIN_HORIZONTAL_RANGE)
-                    / (LightOverlayState.MAX_HORIZONTAL_RANGE - LightOverlayState.MIN_HORIZONTAL_RANGE);
+            return (double) (range - ConfigDefinitions.LIGHT_OVERLAY_HORIZONTAL_RANGE.minValue())
+                    / (ConfigDefinitions.LIGHT_OVERLAY_HORIZONTAL_RANGE.maxValue()
+                    - ConfigDefinitions.LIGHT_OVERLAY_HORIZONTAL_RANGE.minValue());
         }
     }
 
     private static final class NearbyAutoTorchThresholdSlider extends AbstractSliderButton {
         private NearbyAutoTorchThresholdSlider(int x, int y, int width, int height) {
-            super(x, y, width, height, Component.empty(), (ClientConfig.nearbyAutoTorchThreshold() - 1) / 15.0);
+            super(x, y, width, height, Component.empty(), toSliderValue(ClientConfig.nearbyAutoTorchThreshold()));
             updateMessage();
         }
 
@@ -895,7 +918,16 @@ public final class LightingScreen extends Screen {
         }
 
         private int threshold() {
-            return 1 + (int) Math.round(value * 15.0);
+            int steps = ConfigDefinitions.NEARBY_AUTO_TORCH_LIGHT_THRESHOLD.maxValue()
+                    - ConfigDefinitions.NEARBY_AUTO_TORCH_LIGHT_THRESHOLD.minValue();
+            return ConfigDefinitions.NEARBY_AUTO_TORCH_LIGHT_THRESHOLD.minValue()
+                    + (int) Math.round(value * steps);
+        }
+
+        private static double toSliderValue(int threshold) {
+            return (double) (threshold - ConfigDefinitions.NEARBY_AUTO_TORCH_LIGHT_THRESHOLD.minValue())
+                    / (ConfigDefinitions.NEARBY_AUTO_TORCH_LIGHT_THRESHOLD.maxValue()
+                    - ConfigDefinitions.NEARBY_AUTO_TORCH_LIGHT_THRESHOLD.minValue());
         }
     }
 }

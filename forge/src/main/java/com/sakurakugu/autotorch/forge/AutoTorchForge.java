@@ -63,7 +63,7 @@ public final class AutoTorchForge {
 
     private void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            ForgeNetworking.sendToPlayer(player, new ServerConfigPayload(ServerConfig.survivalConsumesTorches()));
+            ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current());
         }
     }
 }

@@ -1,74 +1,27 @@
 package com.sakurakugu.autotorch.neoforge;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.sakurakugu.autotorch.config.ConfigBackend;
-import com.sakurakugu.autotorch.network.AreaZone;
-import com.sakurakugu.autotorch.network.StartLightingPayload;
-import com.sakurakugu.autotorch.server.ServerConfig;
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 final class NeoForgeConfigs {
-    static final Backend CLIENT = client();
-    static final Backend SERVER = server();
+    static final Backend CLIENT = create(ConfigDefinitions.CLIENT);
+    static final Backend SERVER = create(ConfigDefinitions.SERVER);
 
     private NeoForgeConfigs() {
     }
 
-    private static Backend client() {
+    private static Backend create(List<Value> definitions) {
         Backend b = new Backend();
-        b.push("nearbyAutoTorch");
-        b.bool("enabled", false);
-        b.integer("lightThreshold", 4, 1, 16);
-        b.bool("includeSkyLight", true);
-        b.pop();
-        b.push("lightOverlay");
-        b.bool("enabled", false);
-        b.integer("horizontalRange", 16, 1, 64);
-        b.bool("showNumbers", false);
-        b.bool("detectSwampSlimes", false);
-        b.bool("detectDrowned", false);
-        b.pop();
-        b.push("selectionOverlay");
-        b.bool("enabled", true);
-        b.bool("linesOnly", false);
-        b.bool("smoothSpheres", false);
-        b.pop();
-        b.push("lightingTaskDefaults");
-        b.integer("maxTorches", 0, 0, 4096);
-        b.integer("minSpacing", 8, 3, 12);
-        b.bool("undergroundOnly", true);
-        b.bool("creativeConsumeTorches", false);
-        b.bool("survivalConsumeTorches", true);
-        b.bool("woodenAxeSelectionEnabled", true);
-        b.pop();
-        b.finish();
-        return b;
-    }
-
-    private static Backend server() {
-        Backend b = new Backend();
-        b.push("limits");
-        b.integer("maxBoxAxisLength", ServerConfig.HARD_MAX_BOX_AXIS_LENGTH, 1, ServerConfig.HARD_MAX_BOX_AXIS_LENGTH);
-        b.integer("maxSphereRadius", AreaZone.MAX_SPHERE_RADIUS, 1, AreaZone.MAX_SPHERE_RADIUS);
-        b.integer("maxExclusions", StartLightingPayload.MAX_EXCLUSIONS, 0, StartLightingPayload.MAX_EXCLUSIONS);
-        b.integer("maxTorchesPerTask", ServerConfig.HARD_MAX_TORCHES, 1, ServerConfig.HARD_MAX_TORCHES);
-        b.bool("allowUnlimitedTorches", true);
-        b.integer("minSpacing", 3, 3, 12);
-        b.integer("maxSpacing", 12, 3, 12);
-        b.integer("maxConcurrentTasks", 64, 1, 1024);
-        b.pop();
-        b.push("gameplay");
-        b.bool("survivalConsumesTorches", true);
-        b.pop();
-        b.push("performance");
-        b.integer("scanBudgetPerTaskTick", 12_000, 1, 120_000);
-        b.integer("placeBudgetPerTaskTick", 8, 1, 64);
-        b.integer("globalScanBudgetPerTick", 24_000, 1, 240_000);
-        b.integer("globalPlaceBudgetPerTick", 16, 1, 256);
-        b.integer("randomPlacementAttempts", 32, 1, 128);
-        b.pop();
+        definitions.forEach(b::define);
         b.finish();
         return b;
     }
@@ -76,14 +29,16 @@ final class NeoForgeConfigs {
     static final class Backend implements ConfigBackend {
         private final ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
         private final Map<String, ModConfigSpec.ConfigValue<?>> values = new HashMap<>();
-        private String section;
         private ModConfigSpec spec;
 
-        void push(String value) { section = value; builder.push(value); }
-        void pop() { builder.pop(); section = null; }
-        void bool(String key, boolean fallback) { values.put(section + "." + key, builder.define(key, fallback)); }
-        void integer(String key, int fallback, int min, int max) {
-            values.put(section + "." + key, builder.defineInRange(key, fallback, min, max));
+        void define(Value definition) {
+            List<String> path = Arrays.asList(definition.key().split("\\."));
+            if (definition instanceof BooleanValue value) {
+                values.put(value.key(), builder.define(path, value.defaultValue()));
+            } else if (definition instanceof IntValue value) {
+                values.put(value.key(), builder.defineInRange(
+                        path, value.defaultValue(), value.minValue(), value.maxValue()));
+            }
         }
         void finish() { spec = builder.build(); }
         ModConfigSpec spec() { return spec; }

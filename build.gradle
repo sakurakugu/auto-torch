@@ -4,6 +4,8 @@ plugins {
     id 'net.minecraftforge.gradle' version '[7.0.17,8)' apply false
 }
 
+ext.minecraft_version_range = "[${minecraft_version}]"
+
 allprojects {
     group = mod_group_id
     version = mod_version

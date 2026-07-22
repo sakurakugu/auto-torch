@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "id": "autotorch",
+  "id": "${mod_id}",
   "version": "${version}",
-  "name": "Auto Torch",
+  "name": "${mod_name}",
   "description": "Automatic nearby and selected-area torch placement.",
   "authors": ["sakurakugu"],
   "contact": {
     "sources": "https://github.com/sakurakugu/auto-torch"
   },
-  "license": "MIT",
+  "license": "${mod_license}",
   "icon": "autotorch.png",
   "environment": "*",
   "entrypoints": {

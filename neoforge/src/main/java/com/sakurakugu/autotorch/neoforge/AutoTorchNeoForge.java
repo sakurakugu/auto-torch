@@ -58,7 +58,7 @@ public final class AutoTorchNeoForge {
     private void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             PacketDistributor.sendToPlayer(player,
-                    new ServerConfigPayload(ServerConfig.survivalConsumesTorches()));
+                    ServerConfigPayload.current());
         }
     }
 }

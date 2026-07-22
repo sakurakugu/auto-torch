@@ -247,7 +247,7 @@ final class LightingTask {
     }
 
     private int currentSpacing() {
-        return pass == 0 ? configuredSpacing : Math.max(3, configuredSpacing / 2);
+        return pass == 0 ? configuredSpacing : Math.max(ServerConfig.minSpacing(), configuredSpacing / 2);
     }
 
     private boolean farEnoughFromPlaced(BlockPos pos, int spacing) {

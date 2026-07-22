@@ -27,6 +27,6 @@ final class NeoForgeNetworking {
             if (context.player() instanceof ServerPlayer player) SelectionToolEvents.setEnabled(player, payload.enabled());
         });
         registrar.playToClient(ServerConfigPayload.TYPE, ServerConfigPayload.STREAM_CODEC, (payload, context) ->
-                ServerConfigState.setSurvivalConsumesTorches(payload.survivalConsumesTorches()));
+                ServerConfigState.update(payload));
     }
 }

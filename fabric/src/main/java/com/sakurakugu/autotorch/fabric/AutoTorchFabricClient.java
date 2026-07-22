@@ -25,7 +25,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
                 FabricLoader.getInstance().getConfigDir().resolve("autotorch-client.properties")));
         PlatformNetworking.installSender(ClientPlayNetworking::send);
         ClientPlayNetworking.registerGlobalReceiver(ServerConfigPayload.TYPE, (payload, context) ->
-                ServerConfigState.setSurvivalConsumesTorches(payload.survivalConsumesTorches()));
+                ServerConfigState.update(payload));
 
         AutoTorchClient client = new AutoTorchClient();
         KeyMappingHelper.registerKeyMapping(AutoTorchClient.OPEN_SCREEN);

@@ -50,6 +50,6 @@ public final class AutoTorchFabric implements ModInitializer {
                 SelectionToolEvents.onLogout(handler.getPlayer()));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 ServerPlayNetworking.send(handler.getPlayer(),
-                        new ServerConfigPayload(ServerConfig.survivalConsumesTorches())));
+                        ServerConfigPayload.current()));
     }
 }

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.sakurakugu.autotorch.AutoTorchRules;
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -21,9 +22,6 @@ import org.jspecify.annotations.Nullable;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
-    public static final int MIN_HORIZONTAL_RANGE = 1;
-    public static final int MAX_HORIZONTAL_RANGE = 64;
-    private static final int DEFAULT_HORIZONTAL_RANGE = 16;
     private static final int DOWN_RANGE = 16;
     private static final int UP_RANGE = 4;
     private static final int SCAN_BUDGET_PER_TICK = 12_000;
@@ -103,9 +101,11 @@ public final class LightOverlayState {
     }
 
     public static void setHorizontalRange(int value) {
-        if (value < MIN_HORIZONTAL_RANGE || value > MAX_HORIZONTAL_RANGE) {
+        if (value < ConfigDefinitions.LIGHT_OVERLAY_HORIZONTAL_RANGE.minValue()
+                || value > ConfigDefinitions.LIGHT_OVERLAY_HORIZONTAL_RANGE.maxValue()) {
             throw new IllegalArgumentException("Light overlay range must be between "
-                    + MIN_HORIZONTAL_RANGE + " and " + MAX_HORIZONTAL_RANGE);
+                    + ConfigDefinitions.LIGHT_OVERLAY_HORIZONTAL_RANGE.minValue() + " and "
+                    + ConfigDefinitions.LIGHT_OVERLAY_HORIZONTAL_RANGE.maxValue());
         }
         if (horizontalRange != value) {
             horizontalRange = value;

@@ -32,7 +32,7 @@ final class ForgeNetworking {
             })
             .clientbound()
             .addMain(ServerConfigPayload.TYPE, ServerConfigPayload.STREAM_CODEC, (payload, context) ->
-                    ServerConfigState.setSurvivalConsumesTorches(payload.survivalConsumesTorches()))
+                    ServerConfigState.update(payload))
             .build();
 
     private ForgeNetworking() {

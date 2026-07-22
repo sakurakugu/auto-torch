@@ -18,13 +18,17 @@ dependencies {
 }
 
 processResources {
-    inputs.property 'version', project.version
-    inputs.property 'minecraft_version', minecraft_version
-    inputs.property 'fabric_loader_version', fabric_loader_version
+    def values = [
+            version: project.version,
+            minecraft_version: minecraft_version,
+            fabric_loader_version: fabric_loader_version,
+            mod_id: mod_id,
+            mod_name: mod_name,
+            mod_license: mod_license
+    ]
+    inputs.properties values
     filteringCharset 'UTF-8'
     filesMatching('fabric.mod.json') {
-        expand version: project.version,
-                minecraft_version: minecraft_version,
-                fabric_loader_version: fabric_loader_version
+        expand values
     }
 }
