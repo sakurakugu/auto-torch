@@ -24,6 +24,7 @@ public final class SelectionState {
     private static boolean drafting = true;
     private static int editingExclusion = -1;
     private static final List<AreaZone> EXCLUSIONS = new ArrayList<>();
+    private static long renderRevision;
 
     private SelectionState() {
     }
@@ -42,12 +43,14 @@ public final class SelectionState {
             drafting = true;
             editingExclusion = -1;
             EXCLUSIONS.clear();
+            renderRevision++;
         }
     }
 
     public static BlockPos first(BlockPos fallback) {
         if (first == null) {
             first = fallback.immutable();
+            renderRevision++;
         }
         return first;
     }
@@ -55,6 +58,7 @@ public final class SelectionState {
     public static BlockPos second(BlockPos fallback) {
         if (second == null) {
             second = fallback.immutable();
+            renderRevision++;
         }
         return second;
     }
@@ -62,11 +66,13 @@ public final class SelectionState {
     public static void setFirst(BlockPos pos) {
         first = pos.immutable();
         drafting = true;
+        renderRevision++;
     }
 
     public static void setSecond(BlockPos pos) {
         second = pos.immutable();
         drafting = true;
+        renderRevision++;
     }
 
     public static AreaShape shape() {
@@ -76,6 +82,7 @@ public final class SelectionState {
     public static void setShape(AreaShape value) {
         shape = value;
         drafting = true;
+        renderRevision++;
     }
 
     public static DisplayMode displayMode() {
@@ -85,6 +92,7 @@ public final class SelectionState {
     public static void setDisplayMode(DisplayMode value) {
         displayMode = value;
         ClientConfig.setUsesSelectionLines(value == DisplayMode.LINES);
+        renderRevision++;
     }
 
     public static SphereDisplayMode sphereDisplayMode() {
@@ -94,6 +102,7 @@ public final class SelectionState {
     public static void setSphereDisplayMode(SphereDisplayMode value) {
         sphereDisplayMode = value;
         ClientConfig.setUsesSmoothSpheres(value == SphereDisplayMode.SMOOTH);
+        renderRevision++;
     }
 
     public static boolean isOverlayEnabled() {
@@ -103,6 +112,7 @@ public final class SelectionState {
     public static boolean toggleOverlay() {
         overlayEnabled = !overlayEnabled;
         ClientConfig.setSelectionOverlayEnabled(overlayEnabled);
+        renderRevision++;
         return overlayEnabled;
     }
 
@@ -122,6 +132,7 @@ public final class SelectionState {
         lightingZone = zone;
         drafting = false;
         editingExclusion = -1;
+        renderRevision++;
     }
 
     public static boolean beginEditingLightingZone() {
@@ -133,6 +144,7 @@ public final class SelectionState {
         shape = lightingZone.shape();
         editingExclusion = -1;
         drafting = true;
+        renderRevision++;
         return true;
     }
 
@@ -141,6 +153,7 @@ public final class SelectionState {
             return false;
         }
         lightingZone = null;
+        renderRevision++;
         return true;
     }
 
@@ -154,6 +167,7 @@ public final class SelectionState {
             EXCLUSIONS.set(editingExclusion, exclusion);
             editingExclusion = -1;
             drafting = false;
+            renderRevision++;
             return true;
         }
         if (EXCLUSIONS.size() >= ServerConfigState.maxExclusions()) {
@@ -161,6 +175,7 @@ public final class SelectionState {
         }
         EXCLUSIONS.add(exclusion);
         drafting = false;
+        renderRevision++;
         return true;
     }
 
@@ -174,6 +189,7 @@ public final class SelectionState {
         shape = zone.shape();
         editingExclusion = index;
         drafting = true;
+        renderRevision++;
         return true;
     }
 
@@ -187,7 +203,12 @@ public final class SelectionState {
         } else if (editingExclusion > index) {
             editingExclusion--;
         }
+        renderRevision++;
         return true;
+    }
+
+    static long renderRevision() {
+        return renderRevision;
     }
 
     public static boolean isEditingExclusion() {
