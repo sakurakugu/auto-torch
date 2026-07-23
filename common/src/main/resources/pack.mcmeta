@@ -1,7 +1,6 @@
 {
   "pack": {
     "description": "Auto Torch resources",
-    "max_format": 75,
-    "min_format": [75, 0]
+    "pack_format": 34
   }
 }

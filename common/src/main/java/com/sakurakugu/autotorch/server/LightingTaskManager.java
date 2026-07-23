@@ -79,10 +79,10 @@ public final class LightingTaskManager {
         int minSpacing = payload.minSpacing();
         boolean consumeTorches = AutoTorchRules.consumesInventoryTorches(
                 player.isCreative(), payload.consumeTorches(), ServerConfig.survivalConsumesTorches(),
-                player.level().getServer().isSingleplayerOwner(player.nameAndId()));
+                player.level().getServer().isSingleplayerOwner(player.getGameProfile()));
 
         LightingTask task = new LightingTask(
-                player.level(), selection, maxTorches, minSpacing,
+                player.serverLevel(), selection, maxTorches, minSpacing,
                 consumeTorches, payload.undergroundOnly(),
                 payload.exclusions(), player.getUUID()
         );

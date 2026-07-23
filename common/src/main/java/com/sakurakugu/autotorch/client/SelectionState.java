@@ -3,8 +3,6 @@ package com.sakurakugu.autotorch.client;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jspecify.annotations.Nullable;
-
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -12,10 +10,10 @@ import net.minecraft.core.BlockPos;
 
 /** 保存当前客户端世界中的临时选区；这些数据不会跨世界持久化。 */
 public final class SelectionState {
-    private static @Nullable ClientLevel level;
-    private static @Nullable BlockPos first;
-    private static @Nullable BlockPos second;
-    private static @Nullable AreaZone lightingZone;
+    private static ClientLevel level;
+    private static BlockPos first;
+    private static BlockPos second;
+    private static AreaZone lightingZone;
     private static AreaShape shape = AreaShape.BOX;
     private static DisplayMode displayMode = ClientConfig.usesSelectionLines() ? DisplayMode.LINES : DisplayMode.FACES;
     private static SphereDisplayMode sphereDisplayMode = ClientConfig.usesSmoothSpheres()
@@ -29,7 +27,7 @@ public final class SelectionState {
     private SelectionState() {
     }
 
-    public static void updateLevel(@Nullable ClientLevel currentLevel, BlockPos currentPosition) {
+    public static void updateLevel(ClientLevel currentLevel, BlockPos currentPosition) {
         if (level != currentLevel) {
             level = currentLevel;
             first = currentPosition.immutable();
@@ -124,7 +122,7 @@ public final class SelectionState {
         return new AreaZone(shape, first(fallback), second(fallback));
     }
 
-    public static @Nullable AreaZone lightingZone() {
+    public static AreaZone lightingZone() {
         return lightingZone;
     }
 

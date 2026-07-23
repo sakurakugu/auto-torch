@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -24,11 +25,11 @@ public final class AutoTorchForge {
         context.registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
         ForgeNetworking.initialize();
 
-        TickEvent.ServerTickEvent.Post.BUS.addListener(this::onServerTick);
-        PlayerInteractEvent.LeftClickBlock.BUS.addListener(this::onLeftClick);
-        PlayerInteractEvent.RightClickBlock.BUS.addListener(this::onRightClick);
-        PlayerEvent.PlayerLoggedOutEvent.BUS.addListener(this::onLogout);
-        PlayerEvent.PlayerLoggedInEvent.BUS.addListener(this::onLogin);
+        MinecraftForge.EVENT_BUS.addListener(this::onServerTick);
+        MinecraftForge.EVENT_BUS.addListener(this::onLeftClick);
+        MinecraftForge.EVENT_BUS.addListener(this::onRightClick);
+        MinecraftForge.EVENT_BUS.addListener(this::onLogout);
+        MinecraftForge.EVENT_BUS.addListener(this::onLogin);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             AutoTorchForgeClient.initialize(context);
@@ -36,25 +37,23 @@ public final class AutoTorchForge {
     }
 
     private void onServerTick(TickEvent.ServerTickEvent.Post event) {
-        LightingTaskManager.onServerTick(event.server());
+        LightingTaskManager.onServerTick(event.getServer());
     }
 
-    private boolean onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
+    private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
         if (event.getEntity() instanceof ServerPlayer player
                 && SelectionToolEvents.handlesInteraction(player, event.getItemStack())) {
-            return true;
+            event.setCanceled(true);
         }
-        return false;
     }
 
-    private boolean onRightClick(PlayerInteractEvent.RightClickBlock event) {
+    private void onRightClick(PlayerInteractEvent.RightClickBlock event) {
         if (event.getHand() == InteractionHand.MAIN_HAND
                 && event.getEntity() instanceof ServerPlayer player
                 && SelectionToolEvents.handlesInteraction(player, event.getItemStack())) {
-            event.setCancellationResult(InteractionResult.SUCCESS_SERVER);
-            return true;
+            event.setCancellationResult(InteractionResult.SUCCESS);
+            event.setCanceled(true);
         }
-        return false;
     }
 
     private void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {

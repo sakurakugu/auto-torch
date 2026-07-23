@@ -17,7 +17,7 @@ final class ColoredButton extends Button {
     }
 
     @Override
-    protected void renderContents(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int color = isHoveredOrFocused() ? hoveredColor : backgroundColor;
         if (!active) {
             color = 0xCC555555;

@@ -1,5 +1,6 @@
 package com.sakurakugu.autotorch.fabric;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
@@ -11,7 +12,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.loader.api.FabricLoader;
@@ -47,15 +48,14 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             return InteractionResult.PASS;
         });
 
-        WorldRenderEvents.END_EXTRACTION.register(context -> {
-            SelectionRenderer.extract(context.camera().blockPosition());
-            LightOverlayRenderer.extract();
-        });
         WorldRenderEvents.BEFORE_ENTITIES.register(context -> {
-            SelectionRenderer.submit(context.worldState().cameraRenderState.pos,
-                    context.matrices(), context.commandQueue());
-            LightOverlayRenderer.submit(context.worldState().cameraRenderState.pos,
-                    context.matrices(), context.commandQueue());
+            var camera = context.camera().getPosition();
+            SelectionRenderer.extract(context.camera().getBlockPosition());
+            LightOverlayRenderer.extract();
+            // 1.21.1 在此阶段不提供矩阵栈，世界坐标只需要减去相机位置。
+            PoseStack poseStack = new PoseStack();
+            SelectionRenderer.render(camera, poseStack, context.consumers());
+            LightOverlayRenderer.render(camera, poseStack, context.consumers());
         });
     }
 }

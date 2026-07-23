@@ -2,7 +2,7 @@
 
 [English](README_EN.md) | 简体中文
 
-适用于 Minecraft 1.21.11~26.2 / NeoForge、Forge 和 Fabric 的自动插火把和光照显示模组。
+适用于 Minecraft 1.21.1~26.2 / NeoForge、Forge 和 Fabric 的自动插火把和光照显示模组。
 
 ![icon](./common/src/main/resources/autotorch.png)
 

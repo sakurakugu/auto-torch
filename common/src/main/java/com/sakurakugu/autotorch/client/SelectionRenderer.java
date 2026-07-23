@@ -11,9 +11,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -92,9 +91,9 @@ public final class SelectionRenderer {
         renderRevision = SelectionState.renderRevision();
     }
 
-    public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
-        renderGeometry(camera, poseStack,
-                (stack, renderType, renderer) -> collector.submitCustomGeometry(stack, renderType, renderer::render));
+    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource buffers) {
+        renderGeometry(camera, poseStack, (stack, renderType, renderer) ->
+                renderer.render(stack.last(), buffers.getBuffer(renderType)));
     }
 
     private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {
@@ -105,7 +104,7 @@ public final class SelectionRenderer {
         poseStack.pushPose();
         poseStack.translate(-camera.x(), -camera.y(), -camera.z());
         RenderType renderType = data.displayMode() == SelectionState.DisplayMode.LINES
-                ? RenderTypes.linesTranslucent() : RenderTypes.debugFilledBox();
+                ? RenderType.lines() : RenderType.debugStructureQuads();
         sink.submit(poseStack, renderType, (pose, buffer) -> renderZones(pose, buffer, data));
         poseStack.popPose();
     }
@@ -428,15 +427,11 @@ public final class SelectionRenderer {
             double x1, double y1, double z1, double x2, double y2, double z2,
             double x3, double y3, double z3, double x4, double y4, double z4, int color
     ) {
-        // 调试填充渲染会剔除背面，因此同时提交反向面，保证从选区内部也能看到边界。
+        // debugStructureQuads 禁用背面剔除且不写入深度，避免遮挡后续渲染的水面。
         buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(color);
         buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(color);
         buffer.addVertex(pose, (float) x3, (float) y3, (float) z3).setColor(color);
         buffer.addVertex(pose, (float) x4, (float) y4, (float) z4).setColor(color);
-        buffer.addVertex(pose, (float) x4, (float) y4, (float) z4).setColor(color);
-        buffer.addVertex(pose, (float) x3, (float) y3, (float) z3).setColor(color);
-        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(color);
-        buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(color);
     }
 
     private static void line(
@@ -460,9 +455,9 @@ public final class SelectionRenderer {
             nz /= length;
         }
         buffer.addVertex(pose, (float) x1, (float) y1, (float) z1)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(width);
+                .setColor(color).setNormal(pose, nx, ny, nz);
         buffer.addVertex(pose, (float) x2, (float) y2, (float) z2)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(width);
+                .setColor(color).setNormal(pose, nx, ny, nz);
     }
 
     private record RenderData(

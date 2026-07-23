@@ -21,7 +21,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
-import org.jspecify.annotations.Nullable;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
@@ -37,8 +36,8 @@ public final class LightOverlayState {
             ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static int scanRange = horizontalRange;
-    private static @Nullable ClientLevel level;
-    private static @Nullable BlockPos scanCenter;
+    private static ClientLevel level;
+    private static BlockPos scanCenter;
     private static int scanIndex;
     private static int ticksSinceCompleted;
     private static List<Marker> workingMarkers = new ArrayList<>();
@@ -199,7 +198,7 @@ public final class LightOverlayState {
         return diameter * diameter * HEIGHT;
     }
 
-    private static @Nullable Marker markerAt(ClientLevel level, BlockPos feet) {
+    private static Marker markerAt(ClientLevel level, BlockPos feet) {
         if (!level.hasChunk(SectionPos.blockToSectionCoord(feet.getX()),
                 SectionPos.blockToSectionCoord(feet.getZ()))) {
             return null;
@@ -269,7 +268,7 @@ public final class LightOverlayState {
     private static boolean biomeAllowsDrowned(Holder<Biome> biome) {
         boolean drownedInSpawnList = biome.value().getMobSettings()
                 .getMobs(MobCategory.MONSTER).unwrap().stream()
-                .anyMatch(entry -> entry.value().type() == EntityType.DROWNED);
+                .anyMatch(entry -> entry.type == EntityType.DROWNED);
         // 1.21.11及其以下的的生物群系网络编解码不会向客户端同步怪物生成表。
         return drownedInSpawnList
                 || biome.is(BiomeTags.IS_OCEAN)

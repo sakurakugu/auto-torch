@@ -4,7 +4,6 @@ import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
-import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
@@ -15,7 +14,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
@@ -23,9 +21,7 @@ import net.minecraft.world.item.ItemStack;
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
     private ClientLevel selectionToolSyncedLevel;
-    public static final KeyMapping.Category CATEGORY = new KeyMapping.Category(
-            Identifier.fromNamespaceAndPath(AutoTorch.MOD_ID, "main")
-    );
+    public static final String CATEGORY = "key.category.autotorch.main";
     public static final KeyMapping OPEN_SCREEN = new KeyMapping(
             "key.autotorch.open_screen",
             InputConstants.Type.KEYSYM,

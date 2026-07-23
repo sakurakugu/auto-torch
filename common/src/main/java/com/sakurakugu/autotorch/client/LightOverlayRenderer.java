@@ -5,8 +5,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.Arrays;
 import java.util.List;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.phys.Vec3;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或七段数字。 */
@@ -45,9 +45,9 @@ public final class LightOverlayRenderer {
         renderData = buildRenderData(markers, displayMode);
     }
 
-    public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
-        renderGeometry(camera, poseStack, (stack, renderer) -> collector.submitCustomGeometry(
-                stack, RenderTypes.linesTranslucent(), renderer::render));
+    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource buffers) {
+        renderGeometry(camera, poseStack, (stack, renderer) ->
+                renderer.render(stack.last(), buffers.getBuffer(RenderType.lines())));
     }
 
     private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {
@@ -157,9 +157,9 @@ public final class LightOverlayRenderer {
         float ny = y2 - y1;
         float nz = z2 - z1;
         buffer.addVertex(pose, x1, y1, z1)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
+                .setColor(color).setNormal(pose, nx, ny, nz);
         buffer.addVertex(pose, x2, y2, z2)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
+                .setColor(color).setNormal(pose, nx, ny, nz);
     }
 
     private record RenderData(

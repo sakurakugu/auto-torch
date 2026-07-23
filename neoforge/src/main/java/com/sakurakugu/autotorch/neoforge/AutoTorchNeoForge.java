@@ -46,7 +46,7 @@ public final class AutoTorchNeoForge {
         if (event.getHand() == InteractionHand.MAIN_HAND
                 && event.getEntity() instanceof ServerPlayer player
                 && SelectionToolEvents.handlesInteraction(player, event.getItemStack())) {
-            event.setCancellationResult(InteractionResult.SUCCESS_SERVER);
+            event.setCancellationResult(InteractionResult.SUCCESS);
             event.setCanceled(true);
         }
     }

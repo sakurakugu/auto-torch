@@ -9,14 +9,14 @@ import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.Channel;
 import net.minecraftforge.network.ChannelBuilder;
 import net.minecraftforge.network.PacketDistributor;
 
 final class ForgeNetworking {
     private static final Channel<CustomPacketPayload> CHANNEL = ChannelBuilder
-            .named(Identifier.fromNamespaceAndPath(AutoTorch.MOD_ID, "main"))
+            .named(ResourceLocation.fromNamespaceAndPath(AutoTorch.MOD_ID, "main"))
             .networkProtocolVersion(5)
             .payloadChannel()
             .play()

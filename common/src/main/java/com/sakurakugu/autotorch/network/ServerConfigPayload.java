@@ -6,7 +6,7 @@ import com.sakurakugu.autotorch.server.ServerConfig;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 /** 服务端在玩家登录后同步会影响客户端显示的权威配置。 */
 public record ServerConfigPayload(
@@ -20,7 +20,7 @@ public record ServerConfigPayload(
         int maxSpacing
 ) implements CustomPacketPayload {
     public static final Type<ServerConfigPayload> TYPE = new Type<>(
-            Identifier.fromNamespaceAndPath(AutoTorch.MOD_ID, "server_config")
+            ResourceLocation.fromNamespaceAndPath(AutoTorch.MOD_ID, "server_config")
     );
     public static final StreamCodec<RegistryFriendlyByteBuf, ServerConfigPayload> STREAM_CODEC =
             CustomPacketPayload.codec(ServerConfigPayload::write, ServerConfigPayload::new);

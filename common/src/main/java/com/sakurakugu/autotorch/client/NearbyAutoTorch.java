@@ -119,7 +119,7 @@ public final class NearbyAutoTorch {
         if (player.getOffhandItem().is(Items.TORCH)) {
             return new TorchSource(InteractionHand.OFF_HAND, -1);
         }
-        int selected = player.getInventory().getSelectedSlot();
+        int selected = player.getInventory().selected;
         if (player.getInventory().getItem(selected).is(Items.TORCH)) {
             return new TorchSource(InteractionHand.MAIN_HAND, selected);
         }
@@ -133,22 +133,21 @@ public final class NearbyAutoTorch {
 
     private static void place(Minecraft minecraft, TorchSource torch, BlockPos target) {
         LocalPlayer player = minecraft.player;
-        int previousSlot = player.getInventory().getSelectedSlot();
+        int previousSlot = player.getInventory().selected;
         if (torch.hotbarSlot() >= 0) {
-            player.getInventory().setSelectedSlot(torch.hotbarSlot());
+            player.getInventory().selected = torch.hotbarSlot();
         }
 
         BlockPos support = target.below();
         BlockHitResult hit = new BlockHitResult(
                 Vec3.atCenterOf(support).add(0.0, 0.5, 0.0), Direction.UP, support, false);
         InteractionResult result = minecraft.gameMode.useItemOn(player, torch.hand(), hit);
-        if (result instanceof InteractionResult.Success success
-                && success.swingSource() == InteractionResult.SwingSource.CLIENT) {
+        if (result.shouldSwing()) {
             player.swing(torch.hand());
         }
 
         if (torch.hotbarSlot() >= 0) {
-            player.getInventory().setSelectedSlot(previousSlot);
+            player.getInventory().selected = previousSlot;
         }
         lastAttemptPosition = target.immutable();
         lastAttemptAge = 0;

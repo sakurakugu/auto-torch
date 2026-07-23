@@ -8,7 +8,7 @@ import io.netty.handler.codec.DecoderException;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 /** 客户端提交的照明任务配置；服务端收到后仍需进行完整的边界校验。 */
 public record StartLightingPayload(
@@ -21,7 +21,7 @@ public record StartLightingPayload(
 ) implements CustomPacketPayload {
     public static final int MAX_EXCLUSIONS = 32;
     public static final Type<StartLightingPayload> TYPE = new Type<>(
-            Identifier.fromNamespaceAndPath(AutoTorch.MOD_ID, "start_lighting")
+            ResourceLocation.fromNamespaceAndPath(AutoTorch.MOD_ID, "start_lighting")
     );
 
     public static final StreamCodec<RegistryFriendlyByteBuf, StartLightingPayload> STREAM_CODEC =

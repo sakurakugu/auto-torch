@@ -45,7 +45,7 @@ public final class AutoTorchFabric implements ModInitializer {
                 hand == InteractionHand.MAIN_HAND
                         && player instanceof ServerPlayer serverPlayer
                         && SelectionToolEvents.handlesInteraction(serverPlayer, player.getItemInHand(hand))
-                        ? InteractionResult.SUCCESS_SERVER : InteractionResult.PASS);
+                        ? InteractionResult.SUCCESS : InteractionResult.PASS);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 SelectionToolEvents.onLogout(handler.getPlayer()));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->

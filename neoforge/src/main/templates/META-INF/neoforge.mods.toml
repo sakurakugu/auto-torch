@@ -4,6 +4,9 @@
 # 请注意，此文件中包含若干 TOML 列表。
 # 有关 TOML 格式的更多信息，请参阅：https://github.com/toml-lang/toml
 
+modLoader="javafml"
+loaderVersion="[4,)"
+
 # 模组许可证。这是必填元数据，有助于他人理解模组的再分发条款。
 # 可在 https://choosealicense.com/ 查看可选方案；默认版权立场为保留所有权利。
 license="${mod_license}"
