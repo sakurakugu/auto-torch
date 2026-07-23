@@ -25,10 +25,10 @@ public final class AutoTorchFabric implements ModInitializer {
         ServerConfig.install(new PropertiesConfigBackend(
                 FabricLoader.getInstance().getConfigDir().resolve("autotorch-server.properties")));
 
-        PayloadTypeRegistry.serverboundPlay().register(StartLightingPayload.TYPE, StartLightingPayload.STREAM_CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(CancelLightingPayload.TYPE, CancelLightingPayload.STREAM_CODEC);
-        PayloadTypeRegistry.serverboundPlay().register(SetSelectionToolPayload.TYPE, SetSelectionToolPayload.STREAM_CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(ServerConfigPayload.TYPE, ServerConfigPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playC2S().register(StartLightingPayload.TYPE, StartLightingPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playC2S().register(CancelLightingPayload.TYPE, CancelLightingPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playC2S().register(SetSelectionToolPayload.TYPE, SetSelectionToolPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(ServerConfigPayload.TYPE, ServerConfigPayload.STREAM_CODEC);
         ServerPlayNetworking.registerGlobalReceiver(StartLightingPayload.TYPE,
                 (payload, context) -> LightingTaskManager.start(context.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(CancelLightingPayload.TYPE,

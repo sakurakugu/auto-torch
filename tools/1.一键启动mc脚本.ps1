@@ -4,7 +4,7 @@ param(
 )
 
 $task = "neoforge"
-$javaPath = "C:\Software\Deps\Java\jdk-25.0.3"
+$javaPath = "C:\Software\Deps\Java\jdk-21"
 
 for ($index = 0; $index -lt $Arguments.Count; $index++) {
     switch ($Arguments[$index]) {

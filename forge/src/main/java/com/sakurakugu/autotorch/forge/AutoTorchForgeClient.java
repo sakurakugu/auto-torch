@@ -1,9 +1,6 @@
 package com.sakurakugu.autotorch.forge;
 
 import com.mojang.blaze3d.framegraph.FramePass;
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.resource.ResourceHandle;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
@@ -15,10 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelTargetBundle;
-import net.minecraft.client.renderer.RenderBuffers;
-import net.minecraft.client.renderer.SubmitNodeStorage;
-import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
-import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.client.renderer.state.LevelRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionResult;
@@ -26,14 +20,12 @@ import net.minecraftforge.client.FramePassManager;
 import net.minecraftforge.client.event.AddFramePassEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.GameShuttingDownEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 final class AutoTorchForgeClient {
     private final AutoTorchClient client = new AutoTorchClient();
-    private OverlayPass overlayPass;
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
         ClientConfig.install(ForgeConfigs.CLIENT);
@@ -42,7 +34,6 @@ final class AutoTorchForgeClient {
 
         RegisterKeyMappingsEvent.BUS.addListener(this::registerKeys);
         AddFramePassEvent.BUS.addListener(this::registerRenderPass);
-        GameShuttingDownEvent.BUS.addListener(this::onShutdown);
         TickEvent.ClientTickEvent.Post.BUS.addListener(this::onTick);
         PlayerInteractEvent.LeftClickBlock.BUS.addListener(this::onLeftClick);
         PlayerInteractEvent.RightClickBlock.BUS.addListener(this::onRightClick);
@@ -62,14 +53,7 @@ final class AutoTorchForgeClient {
     }
 
     private void registerRenderPass(AddFramePassEvent event) {
-        overlayPass = new OverlayPass();
-        event.addPass(Identifier.fromNamespaceAndPath(AutoTorch.MOD_ID, "overlays"), overlayPass);
-    }
-
-    private void onShutdown(GameShuttingDownEvent event) {
-        if (overlayPass != null) {
-            overlayPass.close();
-        }
+        event.addPass(Identifier.fromNamespaceAndPath(AutoTorch.MOD_ID, "overlays"), new OverlayPass());
     }
 
     private boolean onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
@@ -90,63 +74,29 @@ final class AutoTorchForgeClient {
         return false;
     }
 
-    private static final class OverlayPass implements FramePassManager.PassDefinition, AutoCloseable {
-        private final RenderBuffers renderBuffers;
-        private final FeatureRenderDispatcher featureRenderer;
-        private ResourceHandle<RenderTarget> mainTarget;
-        private SubmitNodeStorage submitNodes;
-
-        private OverlayPass() {
-            Minecraft minecraft = Minecraft.getInstance();
-            renderBuffers = new RenderBuffers(1);
-            featureRenderer = new FeatureRenderDispatcher(
-                    renderBuffers,
-                    minecraft.getModelManager(),
-                    minecraft.getAtlasManager(),
-                    minecraft.font,
-                    minecraft.gameRenderer.gameRenderState()
-            );
-        }
-
+    private static final class OverlayPass implements FramePassManager.PassDefinition {
         @Override
         public void extracts(LevelTargetBundle targets, FramePass pass, DeltaTracker deltaTracker) {
             targets.main = pass.readsAndWrites(targets.main);
-            mainTarget = targets.main;
 
             Minecraft minecraft = Minecraft.getInstance();
             if (minecraft.level == null) {
-                submitNodes = null;
                 return;
             }
-            var camera = minecraft.gameRenderer.mainCamera().position();
+            var camera = minecraft.gameRenderer.getMainCamera().position();
             SelectionRenderer.extract(BlockPos.containing(camera));
             LightOverlayRenderer.extract();
 
-            submitNodes = new SubmitNodeStorage();
             PoseStack poseStack = new PoseStack();
+            // 复用原版主通道的提交队列，使标记先于透明水体绘制，同时保留实体方块的深度遮挡。
+            var submitNodes = minecraft.gameRenderer.getSubmitNodeStorage();
             SelectionRenderer.submit(camera, poseStack, submitNodes);
             LightOverlayRenderer.submit(camera, poseStack, submitNodes);
         }
 
         @Override
         public void executes(LevelRenderState state) {
-            if (submitNodes == null || mainTarget == null) return;
-            RenderSystem.outputColorTextureOverride = mainTarget.get().getColorTextureView();
-            RenderSystem.outputDepthTextureOverride = mainTarget.get().getDepthTextureView();
-            try {
-                featureRenderer.renderAllFeatures(submitNodes);
-            } finally {
-                renderBuffers.endFrame();
-                submitNodes = null;
-                RenderSystem.outputColorTextureOverride = null;
-                RenderSystem.outputDepthTextureOverride = null;
-            }
-        }
-
-        @Override
-        public void close() {
-            featureRenderer.close();
-            renderBuffers.close();
+            // 几何已由原版主世界通道消费，此帧图通道仅提供提取时机。
         }
     }
 }

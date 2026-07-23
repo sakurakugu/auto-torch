@@ -1,6 +1,6 @@
 plugins {
     id 'net.neoforged.moddev' version '2.0.141' apply false
-    id 'net.fabricmc.fabric-loom' version '1.17.16' apply false
+    id 'net.fabricmc.fabric-loom-remap' version '1.17.16' apply false
     id 'net.minecraftforge.gradle' version '[7.0.17,8)' apply false
 }
 
@@ -18,7 +18,7 @@ subprojects {
     }
 
     plugins.withType(JavaPlugin).configureEach {
-        java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+        java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
         tasks.withType(JavaCompile).configureEach {
             options.encoding = 'UTF-8'

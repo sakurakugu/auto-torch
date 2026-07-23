@@ -9,15 +9,18 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
 import net.minecraft.core.SectionPos;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.SpawnPlacementTypes;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.Biomes;
 import org.jspecify.annotations.Nullable;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
@@ -221,7 +224,7 @@ public final class LightOverlayState {
         if (!Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)) {
             return null;
         }
-        if (!SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityTypes.ZOMBIE)) {
+        if (!SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityType.ZOMBIE)) {
             return null;
         }
         int blockLight = level.getBrightness(LightLayer.BLOCK, feet);
@@ -241,7 +244,7 @@ public final class LightOverlayState {
                 && feet.getY() > 50
                 && feet.getY() < 70
                 && level.getBiome(feet).is(BiomeTags.ALLOWS_SURFACE_SLIME_SPAWNS)
-                && SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityTypes.SLIME);
+                && SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityType.SLIME);
     }
 
     private static boolean isDrownedRisk(ClientLevel level, BlockPos pos) {
@@ -253,16 +256,25 @@ public final class LightOverlayState {
         if (level.getBrightness(LightLayer.BLOCK, pos) != 0
                 || !level.getFluidState(pos).is(FluidTags.WATER)
                 || !level.getFluidState(pos.below()).is(FluidTags.WATER)
-                || !SpawnPlacementTypes.IN_WATER.isSpawnPositionOk(level, pos, EntityTypes.DROWNED)) {
+                || !SpawnPlacementTypes.IN_WATER.isSpawnPositionOk(level, pos, EntityType.DROWNED)) {
             return false;
         }
 
-        boolean drownedInSpawnList = level.getBiome(pos).value().getMobSettings()
-                .getMobs(MobCategory.MONSTER).unwrap().stream()
-                .anyMatch(entry -> entry.value().type() == EntityTypes.DROWNED);
-        return drownedInSpawnList
-                && (level.getBiome(pos).is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
+        Holder<Biome> biome = level.getBiome(pos);
+        return biomeAllowsDrowned(biome)
+                && (biome.is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
                 || pos.getY() < level.getSeaLevel() - 5);
+    }
+
+    private static boolean biomeAllowsDrowned(Holder<Biome> biome) {
+        boolean drownedInSpawnList = biome.value().getMobSettings()
+                .getMobs(MobCategory.MONSTER).unwrap().stream()
+                .anyMatch(entry -> entry.value().type() == EntityType.DROWNED);
+        // 1.21.11及其以下的的生物群系网络编解码不会向客户端同步怪物生成表。
+        return drownedInSpawnList
+                || biome.is(BiomeTags.IS_OCEAN)
+                || biome.is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
+                || biome.is(Biomes.DRIPSTONE_CAVES);
     }
 
     private static Marker marker(ClientLevel level, BlockPos pos, RiskType riskType) {

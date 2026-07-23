@@ -56,7 +56,7 @@ fabric_api_version=<匹配目标 Minecraft 的 Fabric API>
 先设置 Java，再分别编译，确保错误归属清楚：
 
 ```powershell
-$env:JAVA_HOME='C:\Software\Deps\Java\jdk-25.0.3'
+$env:JAVA_HOME='C:\Software\Deps\Java\jdk-21'
 $env:Path="$env:JAVA_HOME\bin;$env:Path"
 .\gradlew.bat :common:compileJava :fabric:compileJava --console=plain
 .\gradlew.bat :forge:compileJava --console=plain

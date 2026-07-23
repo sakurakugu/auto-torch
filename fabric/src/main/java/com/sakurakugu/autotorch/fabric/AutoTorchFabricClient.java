@@ -9,10 +9,9 @@ import com.sakurakugu.autotorch.network.PlatformNetworking;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.loader.api.FabricLoader;
@@ -29,8 +28,8 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
                 ServerConfigState.update(payload));
 
         AutoTorchClient client = new AutoTorchClient();
-        KeyMappingHelper.registerKeyMapping(AutoTorchClient.OPEN_SCREEN);
-        KeyMappingHelper.registerKeyMapping(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        KeyBindingHelper.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
+        KeyBindingHelper.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
         ClientTickEvents.END_CLIENT_TICK.register(minecraft -> client.tick());
 
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
@@ -48,15 +47,15 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             return InteractionResult.PASS;
         });
 
-        LevelExtractionEvents.END_EXTRACTION.register(context -> {
+        WorldRenderEvents.END_EXTRACTION.register(context -> {
             SelectionRenderer.extract(context.camera().blockPosition());
             LightOverlayRenderer.extract();
         });
-        LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
-            SelectionRenderer.submit(context.levelState().cameraRenderState.pos,
-                    context.poseStack(), context.submitNodeCollector());
-            LightOverlayRenderer.submit(context.levelState().cameraRenderState.pos,
-                    context.poseStack(), context.submitNodeCollector());
+        WorldRenderEvents.BEFORE_ENTITIES.register(context -> {
+            SelectionRenderer.submit(context.worldState().cameraRenderState.pos,
+                    context.matrices(), context.commandQueue());
+            LightOverlayRenderer.submit(context.worldState().cameraRenderState.pos,
+                    context.matrices(), context.commandQueue());
         });
     }
 }

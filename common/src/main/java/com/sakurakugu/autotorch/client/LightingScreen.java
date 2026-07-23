@@ -7,7 +7,7 @@ import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
@@ -133,7 +133,7 @@ public final class LightingScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.manage_exclusions"), button -> {
             saveSelection();
             saveTaskDefaults();
-            minecraft.gui.setScreen(new ExclusionListScreen());
+            minecraft.setScreen(new ExclusionListScreen());
         }).bounds(left + 248, 136, 62, 20).build());
 
         int configuredMaxTorches = effectiveDefaultMaxTorches();
@@ -896,39 +896,39 @@ public final class LightingScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         graphics.enableScissor(0, VIEWPORT_MARGIN, width, height - VIEWPORT_MARGIN);
-        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        super.render(graphics, mouseX, mouseY, partialTick);
         int left = panelLeft();
         int offset = scrollOffset;
-        graphics.centeredText(font, title, width / 2, 6 - offset, 0xFFFFFFFF);
+        graphics.drawCenteredString(font, title, width / 2, 6 - offset, 0xFFFFFFFF);
         boolean sphere = SelectionState.shape() == AreaShape.SPHERE;
-        graphics.text(font, sphere ? "C" : "A", left + 5, 50 - offset, 0xFF70A0FF);
-        graphics.text(font, sphere ? "R" : "B", left + 5, 72 - offset, 0xFF70A0FF);
+        graphics.drawString(font, sphere ? "C" : "A", left + 5, 50 - offset, 0xFF70A0FF);
+        graphics.drawString(font, sphere ? "R" : "B", left + 5, 72 - offset, 0xFF70A0FF);
         if (sphere) {
-            graphics.text(font, Component.translatable("screen.autotorch.radius_label"), left + 2, 94 - offset, 0xFF70A0FF);
+            graphics.drawString(font, Component.translatable("screen.autotorch.radius_label"), left + 2, 94 - offset, 0xFF70A0FF);
         } else {
-            graphics.text(font, Component.translatable("screen.autotorch.length_label"), left + 2, 94 - offset, 0xFF70A0FF);
-            graphics.text(font, Component.translatable("screen.autotorch.width_label"), left + 104, 94 - offset, 0xFF70A0FF);
-            graphics.text(font, Component.translatable("screen.autotorch.height_label"), left + 206, 94 - offset, 0xFF70A0FF);
+            graphics.drawString(font, Component.translatable("screen.autotorch.length_label"), left + 2, 94 - offset, 0xFF70A0FF);
+            graphics.drawString(font, Component.translatable("screen.autotorch.width_label"), left + 104, 94 - offset, 0xFF70A0FF);
+            graphics.drawString(font, Component.translatable("screen.autotorch.height_label"), left + 206, 94 - offset, 0xFF70A0FF);
         }
-        graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 166 - offset, 0xFFFFFFFF);
-        graphics.text(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 166 - offset, 0xFFFFFFFF);
+        graphics.drawString(font, Component.translatable("screen.autotorch.max_torches"), left, 166 - offset, 0xFFFFFFFF);
+        graphics.drawString(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 166 - offset, 0xFFFFFFFF);
         int informationY = 232 - offset;
         if (!error.getString().isEmpty()) {
-            graphics.centeredText(font, error, width / 2, informationY, 0xFFFF6060);
+            graphics.drawCenteredString(font, error, width / 2, informationY, 0xFFFF6060);
         } else if (!rangeMessage.getString().isEmpty()) {
-            graphics.centeredText(font, rangeMessage, width / 2, informationY, 0xFFFFC060);
+            graphics.drawCenteredString(font, rangeMessage, width / 2, informationY, 0xFFFFC060);
         } else {
-            graphics.text(font, Component.translatable("screen.autotorch.zone_summary",
+            graphics.drawString(font, Component.translatable("screen.autotorch.zone_summary",
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()),
                     left, informationY, 0xFFA0A0A0);
         }
         graphics.fill(left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
-        graphics.centeredText(font, Component.translatable("screen.autotorch.light_overlay_title"),
+        graphics.drawCenteredString(font, Component.translatable("screen.autotorch.light_overlay_title"),
                 width / 2, 246 - offset, 0xFFFFFFFF);
         graphics.fill(left, 310 - offset, left + 310, 311 - offset, 0xFF606060);
-        graphics.centeredText(font, Component.translatable("screen.autotorch.nearby_auto_torch_title"),
+        graphics.drawCenteredString(font, Component.translatable("screen.autotorch.nearby_auto_torch_title"),
                 width / 2, 314 - offset, 0xFFFFFFFF);
         graphics.disableScissor();
 

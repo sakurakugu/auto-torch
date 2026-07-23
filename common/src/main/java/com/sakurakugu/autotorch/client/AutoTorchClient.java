@@ -48,14 +48,14 @@ public final class AutoTorchClient {
         NearbyAutoTorch.tick(minecraft);
         syncSelectionToolSetting(minecraft);
         while (OPEN_SCREEN.consumeClick()) {
-            if (minecraft.player != null && minecraft.gui.screen() == null) {
-                minecraft.gui.setScreen(new LightingScreen());
+            if (minecraft.player != null && minecraft.screen == null) {
+                minecraft.setScreen(new LightingScreen());
             }
         }
         while (TOGGLE_LIGHT_OVERLAY.consumeClick()) {
             if (minecraft.player != null) {
                 boolean enabled = LightOverlayState.toggle();
-                minecraft.gui.hud.setOverlayMessage(Component.translatable(enabled
+                minecraft.gui.setOverlayMessage(Component.translatable(enabled
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
             }
         }
@@ -70,7 +70,7 @@ public final class AutoTorchClient {
         // 长按破坏方块会连续触发事件，只在 START 阶段记录一次 A 点。
         if (start) {
             SelectionState.setFirst(pos);
-            Minecraft.getInstance().gui.hud.setOverlayMessage(
+            Minecraft.getInstance().gui.setOverlayMessage(
                     Component.translatable(SelectionState.shape() == AreaShape.SPHERE
                                     ? "message.autotorch.selected_center" : "message.autotorch.selected_a",
                             formatPosition(pos)), false
@@ -91,14 +91,14 @@ public final class AutoTorchClient {
             AreaZone draft = SelectionState.draft(pos);
             long maxRadiusSquared = (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
             if (draft.radiusSquared() > maxRadiusSquared) {
-                Minecraft.getInstance().gui.hud.setOverlayMessage(
+                Minecraft.getInstance().gui.setOverlayMessage(
                         Component.translatable("message.autotorch.sphere_radius_too_large",
                                 AreaZone.MAX_SPHERE_RADIUS).withStyle(ChatFormatting.RED), false
                 );
                 return true;
             }
         }
-        Minecraft.getInstance().gui.hud.setOverlayMessage(
+        Minecraft.getInstance().gui.setOverlayMessage(
                 Component.translatable(SelectionState.shape() == AreaShape.SPHERE
                                 ? "message.autotorch.selected_radius" : "message.autotorch.selected_b",
                         formatPosition(pos)), false

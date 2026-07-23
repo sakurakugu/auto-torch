@@ -2,7 +2,7 @@
 
 [English](README_EN.md) | 简体中文
 
-适用于 Minecraft 26.1.2~26.2 / NeoForge、Forge 和 Fabric 的自动插火把和光照显示模组。
+适用于 Minecraft 1.21.11~26.2 / NeoForge、Forge 和 Fabric 的自动插火把和光照显示模组。
 
 ![icon](./common/src/main/resources/autotorch.png)
 
@@ -54,10 +54,10 @@ NeoForge 和 Forge 会在首次加载后自动生成两类配置文件：
 
 ## 构建
 
-需要 Java 25：
+需要 Java 21：
 
 ```powershell
-$env:JAVA_HOME='你的 Java 25 安装目录'
+$env:JAVA_HOME='你的 Java 21 安装目录'
 .\gradlew.bat build
 ```
 

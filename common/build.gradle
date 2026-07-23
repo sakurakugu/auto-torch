@@ -1,5 +1,5 @@
 plugins {
-    id 'net.fabricmc.fabric-loom'
+    id 'net.fabricmc.fabric-loom-remap'
 }
 
 base {
@@ -8,6 +8,7 @@ base {
 
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.officialMojangMappings()
     compileOnly "net.fabricmc:fabric-loader:${fabric_loader_version}"
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'

@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md)
 
-An automatic torch placement and light level overlay mod for Minecraft 26.1.2~26.2 on NeoForge, Forge, and Fabric.
+An automatic torch placement and light level overlay mod for Minecraft 1.21.11~26.2 on NeoForge, Forge, and Fabric.
 
 ![Icon](./common/src/main/resources/autotorch.png)
 
@@ -54,10 +54,10 @@ NeoForge and Forge automatically create two types of configuration files after t
 
 ## Building
 
-Java 25 is required:
+Java 21 is required:
 
 ```powershell
-$env:JAVA_HOME='path to your Java 25 installation'
+$env:JAVA_HOME='path to your Java 21 installation'
 .\gradlew.bat build
 ```
 
