@@ -27,7 +27,7 @@ processResources {
             mod_license: mod_license
     ]
     inputs.properties values
-    filteringCharset 'UTF-8'
+    filteringCharset = 'UTF-8'
     filesMatching('fabric.mod.json') {
         expand values
     }

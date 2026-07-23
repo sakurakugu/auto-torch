@@ -40,7 +40,7 @@ final class LightingTask {
     private final int configuredSpacing;
     private final boolean consumeTorches;
     private final boolean undergroundOnly;
-    private final List<AreaZone> exclusions;
+    private final AreaZoneIndex exclusions;
     private final Random random;
     private final Map<Long, List<BlockPos>> placedByCell = new HashMap<>();
 
@@ -73,7 +73,7 @@ final class LightingTask {
         this.configuredSpacing = configuredSpacing;
         this.consumeTorches = consumeTorches;
         this.undergroundOnly = undergroundOnly;
-        this.exclusions = exclusions.stream().filter(selection::intersects).toList();
+        this.exclusions = new AreaZoneIndex(exclusions.stream().filter(selection::intersects).toList());
 
         // 使用稳定种子生成伪随机遍历，使结果可复现，同时避免总从选区同一角开始。
         long seed = level.getSeed() ^ playerId.getMostSignificantBits() ^ playerId.getLeastSignificantBits()
@@ -108,6 +108,9 @@ final class LightingTask {
 
             BlockPos feet = positionAt(scanIndex++);
             scannedThisTick++;
+            if (!insideSelection(feet)) {
+                continue;
+            }
             if (!isChunkLoaded(feet)) {
                 skippedUnloaded++;
                 continue;
@@ -243,7 +246,7 @@ final class LightingTask {
     }
 
     private boolean isExcluded(BlockPos pos) {
-        return exclusions.stream().anyMatch(exclusion -> exclusion.contains(pos));
+        return exclusions.contains(pos);
     }
 
     private int currentSpacing() {
