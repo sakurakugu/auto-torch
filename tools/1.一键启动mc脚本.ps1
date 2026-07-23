@@ -1,15 +1,28 @@
 param(
-    [Parameter(Position = 0)]
-    [string]$Action = "--neoforge"
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$Arguments
 )
 
-$task = switch ($Action) {
-    "--build" { "build"; break }
-    "--neoforge"  { "neoforge"; break }
-    "--forge" { "forge"; break }
-    "--fabric" { "fabric"; break }
-    default {
-        throw "不支持的操作 '$Action'。请使用 --build、--neoforge、--forge 或 --fabric。"
+$task = "neoforge"
+$javaPath = "C:\Software\Deps\Java\jdk-25.0.3"
+
+for ($index = 0; $index -lt $Arguments.Count; $index++) {
+    switch ($Arguments[$index]) {
+        "--build" { $task = "build" }
+        "--neoforge" { $task = "neoforge" }
+        "--forge" { $task = "forge" }
+        "--fabric" { $task = "fabric" }
+        "--path" {
+            if ($index + 1 -ge $Arguments.Count) {
+                throw "参数 --path 缺少 Java 路径。"
+            }
+
+            $index++
+            $javaPath = $Arguments[$index]
+        }
+        default {
+            throw "不支持的参数 '$($Arguments[$index])'。请使用 --build、--neoforge、--forge、--fabric 或 --path。"
+        }
     }
 }
 
@@ -18,7 +31,11 @@ git config core.hooksPath .githooks
 
 # 设置环境变量
 Set-Location "$PSScriptRoot\.."
-$env:JAVA_HOME="C:\Software\Deps\Java\jdk-25.0.3"
+$javaHome = [System.IO.Path]::GetFullPath($javaPath)
+if (-not (Test-Path -LiteralPath "$javaHome\bin\java.exe" -PathType Leaf)) {
+    throw "指定的 Java 路径无效：'$javaPath'。未找到 bin\java.exe。"
+}
+$env:JAVA_HOME=$javaHome
 $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 if ($task -eq "build") {

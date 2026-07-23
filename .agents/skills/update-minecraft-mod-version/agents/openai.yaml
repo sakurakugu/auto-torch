@@ -1,0 +1,4 @@
+interface:
+  display_name: "Minecraft 模组版本升级"
+  short_description: "升级 Minecraft 与 Fabric、Forge、NeoForge 依赖并完成兼容验证"
+  default_prompt: "使用 $update-minecraft-mod-version 来将此 multi-loader Minecraft 模组升级到请求的游戏版本并验证所有目标。"
