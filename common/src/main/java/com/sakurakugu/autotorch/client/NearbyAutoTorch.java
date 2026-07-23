@@ -44,7 +44,7 @@ public final class NearbyAutoTorch {
                 || minecraft.level == null
                 || minecraft.player == null
                 || minecraft.gameMode == null
-                || minecraft.screen != null
+                || minecraft.gui.screen() != null
                 || minecraft.player.isSpectator()
                 || !minecraft.player.isAlive()) {
             return;

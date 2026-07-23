@@ -46,7 +46,7 @@ public final class ExclusionListScreen extends Screen {
                         ? SelectionState.beginEditingLightingZone()
                         : SelectionState.beginEditingExclusion(exclusionIndex);
                 if (editing) {
-                    minecraft.setScreen(new LightingScreen());
+                    minecraft.gui.setScreen(new LightingScreen());
                 }
             }).tooltip(Tooltip.create(Component.translatable(lightingEntry
                     ? "screen.autotorch.edit_lighting.tooltip" : "screen.autotorch.edit_exclusion.tooltip")))
@@ -139,7 +139,7 @@ public final class ExclusionListScreen extends Screen {
 
     @Override
     public void onClose() {
-        minecraft.setScreen(new LightingScreen());
+        minecraft.gui.setScreen(new LightingScreen());
     }
 
     @Override

@@ -6,7 +6,6 @@ import java.util.Arrays;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
 
@@ -49,11 +48,6 @@ public final class LightOverlayRenderer {
     public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
         renderGeometry(camera, poseStack, (stack, renderer) -> collector.submitCustomGeometry(
                 stack, RenderTypes.linesTranslucent(), renderer::render));
-    }
-
-    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource.BufferSource buffers) {
-        renderGeometry(camera, poseStack,
-                (stack, renderer) -> renderer.render(stack.last(), buffers.getBuffer(RenderTypes.linesTranslucent())));
     }
 
     private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {

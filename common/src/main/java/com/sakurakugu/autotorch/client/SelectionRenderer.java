@@ -12,7 +12,6 @@ import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
@@ -96,11 +95,6 @@ public final class SelectionRenderer {
     public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
         renderGeometry(camera, poseStack,
                 (stack, renderType, renderer) -> collector.submitCustomGeometry(stack, renderType, renderer::render));
-    }
-
-    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource.BufferSource buffers) {
-        renderGeometry(camera, poseStack,
-                (stack, renderType, renderer) -> renderer.render(stack.last(), buffers.getBuffer(renderType)));
     }
 
     private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {

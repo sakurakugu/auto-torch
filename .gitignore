@@ -47,3 +47,8 @@ other/
 
 ### Python ###
 *.pyc
+
+### 日志 ###
+logs/
+log/
+*.log

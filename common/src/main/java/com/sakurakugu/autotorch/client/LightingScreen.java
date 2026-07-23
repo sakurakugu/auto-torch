@@ -133,7 +133,7 @@ public final class LightingScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.manage_exclusions"), button -> {
             saveSelection();
             saveTaskDefaults();
-            minecraft.setScreen(new ExclusionListScreen());
+            minecraft.gui.setScreen(new ExclusionListScreen());
         }).bounds(left + 248, 136, 62, 20).build());
 
         int configuredMaxTorches = effectiveDefaultMaxTorches();
