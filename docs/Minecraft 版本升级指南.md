@@ -98,7 +98,7 @@ rg -n '<旧 Minecraft 版本>' -g '!build/**' -g '!.gradle/**'
 
 - `common` 单元测试全部通过。
 - Fabric、Forge、NeoForge 均成功编译和打包。
-- 根 `build/` 中存在三端目标版本 JAR。
+- 根 `build/v<模组版本>/` 中存在三端目标版本 JAR。
 - `fabric.mod.json`、`mods.toml`、`neoforge.mods.toml` 内嵌版本正确。
 - 没有旧版本、已删除 API 或临时日志残留。
 

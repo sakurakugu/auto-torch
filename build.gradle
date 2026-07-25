@@ -29,9 +29,9 @@ subprojects {
 
 def copyBuildArtifacts = tasks.register('copyBuildArtifacts', Copy) {
     group = 'build'
-    description = 'Copies and renames the publishable jars into the root build directory.'
+    description = 'Copies and renames the publishable jars into a versioned root build directory.'
     dependsOn ':neoforge:build', ':forge:build', ':fabric:build'
-    into layout.buildDirectory
+    into layout.buildDirectory.dir("v${mod_version}")
 
     from(project(':neoforge').layout.buildDirectory.dir('libs')) {
         include "${mod_id}-${minecraft_version}-neoforge-${mod_version}.jar"
