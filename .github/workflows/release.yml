@@ -22,6 +22,7 @@ jobs:
     outputs:
       release_version: ${{ steps.release.outputs.release_version }}
       targets: ${{ steps.targets.outputs.targets }}
+      minecraft_range: ${{ steps.targets.outputs.minecraft_range }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -71,7 +72,16 @@ jobs:
             refs/remotes/origin/mc/)
 
           test "$(jq 'length' <<< "$targets")" -gt 0 || { echo 'No remote mc/* branches found'; exit 1; }
+          minecraft_min="$(jq -r '.[0].minecraft' <<< "$targets")"
+          minecraft_max="$(jq -r '.[-1].minecraft' <<< "$targets")"
+          if test "$minecraft_min" = "$minecraft_max"; then
+            minecraft_range="$minecraft_min"
+          else
+            minecraft_range="$minecraft_min~$minecraft_max"
+          fi
+
           echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "minecraft_range=$minecraft_range" >> "$GITHUB_OUTPUT"
           echo "Release targets: $targets"
 
   # 按 prepare 生成的矩阵并行构建所有 Minecraft 版本。
@@ -171,20 +181,12 @@ jobs:
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
-          TARGETS: ${{ needs.prepare.outputs.targets }}
+          MINECRAFT_RANGE: ${{ needs.prepare.outputs.minecraft_range }}
         run: |
           # 仓库中的发行说明优先级更高，便于特殊版本手工编写。
           if test -s RELEASE_NOTES.md; then
             cp RELEASE_NOTES.md release-notes.md
             exit 0
-          fi
-
-          minecraft_min="$(jq -r '.[0].minecraft' <<< "$TARGETS")"
-          minecraft_max="$(jq -r '.[-1].minecraft' <<< "$TARGETS")"
-          if test "$minecraft_min" = "$minecraft_max"; then
-            minecraft_range="$minecraft_min"
-          else
-            minecraft_range="$minecraft_min~$minecraft_max"
           fi
 
           # 当前标签的父提交可能没有更早标签，首次发布时收集全部历史。
@@ -220,7 +222,7 @@ jobs:
 
           {
             printf '## Auto Torch v%s\n\n' "$RELEASE_VERSION"
-            printf '适用于 **Minecraft %s / NeoForge、Forge、Fabric**。\n\n' "$minecraft_range"
+            printf '适用于 **Minecraft %s / NeoForge、Forge、Fabric**。\n\n' "$MINECRAFT_RANGE"
 
             # 固定章节顺序，没有内容的类型不输出。
             for type in 新增 修复 优化 性能 适配 更新 重构 删除 回退 文档 构建 集成 测试 样式 杂项 合并 其他; do
@@ -240,7 +242,7 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_NAME: Auto Torch v${{ needs.prepare.outputs.release_version }}
+          RELEASE_NAME: ${{ github.ref_name }} for mc${{ needs.prepare.outputs.minecraft_range }}
         run: |
           # 支持任务重跑：Release 已存在时不重复创建。
           if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
