@@ -115,3 +115,5 @@ rg -n '<旧 Minecraft 版本>' -g '!build/**' -g '!.gradle/**'
 升级报告至少列出：目标 Minecraft 版本、三套加载器/API 版本、主要兼容修改、构建和测试结果、JAR 路径，以及尚未执行的游戏内测试。未运行客户端冒烟测试时，应明确写出该限制。
 
 > 最后记得新增分支 `mc/<目标版本>`，提交改动并推送到远程仓库。
+
+跨 Minecraft 版本的 GitHub、Modrinth 和 CurseForge 发布流程参阅[自动发布指南](自动发布指南.md)。
