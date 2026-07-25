@@ -38,6 +38,7 @@ final class LightingTask {
     private final long permutationStep;
     private final int maxTorches;
     private final int configuredSpacing;
+    private final int lightThreshold;
     private final boolean consumeTorches;
     private final boolean undergroundOnly;
     private final AreaZoneIndex exclusions;
@@ -58,6 +59,7 @@ final class LightingTask {
             BlockPos scanMax,
             int maxTorches,
             int configuredSpacing,
+            int lightThreshold,
             boolean consumeTorches,
             boolean undergroundOnly,
             List<AreaZone> exclusions,
@@ -72,6 +74,7 @@ final class LightingTask {
         this.volume = (long) sizeX * sizeY * sizeZ;
         this.maxTorches = maxTorches;
         this.configuredSpacing = configuredSpacing;
+        this.lightThreshold = lightThreshold;
         this.consumeTorches = consumeTorches;
         this.undergroundOnly = undergroundOnly;
         this.exclusions = new AreaZoneIndex(exclusions.stream().filter(selection::intersects).toList());
@@ -202,7 +205,8 @@ final class LightingTask {
         if (isExcluded(feet) || !level.getBlockState(feet).isAir() || !level.getBlockState(feet.above()).isAir()) {
             return false;
         }
-        if (!level.getFluidState(feet).isEmpty() || level.getBrightness(LightLayer.BLOCK, feet) > 0) {
+        if (!level.getFluidState(feet).isEmpty()
+                || level.getBrightness(LightLayer.BLOCK, feet) > lightThreshold) {
             return false;
         }
         if (undergroundOnly && level.getBrightness(LightLayer.SKY, feet) > 0) {

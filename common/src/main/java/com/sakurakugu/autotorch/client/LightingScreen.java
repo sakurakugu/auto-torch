@@ -30,7 +30,6 @@ public final class LightingScreen extends Screen {
     private final EditBox[] second = new EditBox[3];
     private final EditBox[] dimensions = new EditBox[3];
     private EditBox maxTorches;
-    private EditBox minSpacing;
     private Button shapeButton;
     private Button convertShapeButton;
     private Button sphereDisplayButton;
@@ -137,9 +136,10 @@ public final class LightingScreen extends Screen {
         }).bounds(left + 248, 136, 62, 20).build());
 
         int configuredMaxTorches = effectiveDefaultMaxTorches();
-        maxTorches = limitBox(left + 80, 160, 60,
+        maxTorches = limitBox(left + 70, 160, 42,
                 configuredMaxTorches == 0 ? "∞" : Integer.toString(configuredMaxTorches));
-        minSpacing = integerBox(left + 250, 160, 60, Integer.toString(effectiveDefaultMinSpacing()));
+        addRenderableWidget(new MinSpacingSlider(left + 120, 160, 100, 20));
+        addRenderableWidget(new AreaLightThresholdSlider(left + 224, 160, 86, 20));
 
         consumeButton = addRenderableWidget(Button.builder(consumeMessage(), button -> {
             consumeTorches = !consumeTorches;
@@ -575,12 +575,12 @@ public final class LightingScreen extends Screen {
                 return;
             }
             int max = readLimit(maxTorches);
-            int spacing = readPositive(minSpacing,
-                    ServerConfigState.minSpacing(), ServerConfigState.maxSpacing());
+            int spacing = effectiveDefaultMinSpacing();
+            int lightThreshold = ClientConfig.defaultTaskLightThreshold();
             ClientConfig.setDefaultMaxTorches(max);
             ClientConfig.setDefaultMinSpacing(spacing);
             PlatformNetworking.sendToServer(new StartLightingPayload(
-                    selection, max, spacing, consumeTorches,
+                    selection, max, spacing, lightThreshold, consumeTorches,
                     undergroundOnly, SelectionState.exclusions()
             ));
             onClose();
@@ -619,8 +619,6 @@ public final class LightingScreen extends Screen {
     private void saveTaskDefaults() {
         try {
             ClientConfig.setDefaultMaxTorches(readLimit(maxTorches));
-            ClientConfig.setDefaultMinSpacing(readPositive(minSpacing,
-                    ServerConfigState.minSpacing(), ServerConfigState.maxSpacing()));
         } catch (IllegalArgumentException ignored) {
             // Keep the last valid defaults when closing a screen with incomplete input.
         }
@@ -913,7 +911,6 @@ public final class LightingScreen extends Screen {
             graphics.text(font, Component.translatable("screen.autotorch.height_label"), left + 206, 94 - offset, 0xFF70A0FF);
         }
         graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 166 - offset, 0xFFFFFFFF);
-        graphics.text(font, Component.translatable("screen.autotorch.min_spacing"), left + 155, 166 - offset, 0xFFFFFFFF);
         int informationY = 232 - offset;
         if (!error.getString().isEmpty()) {
             graphics.centeredText(font, error, width / 2, informationY, 0xFFFF6060);
@@ -1006,6 +1003,65 @@ public final class LightingScreen extends Screen {
             return (double) (threshold - ConfigDefinitions.NEARBY_AUTO_TORCH_LIGHT_THRESHOLD.minValue())
                     / (ConfigDefinitions.NEARBY_AUTO_TORCH_LIGHT_THRESHOLD.maxValue()
                     - ConfigDefinitions.NEARBY_AUTO_TORCH_LIGHT_THRESHOLD.minValue());
+        }
+    }
+
+    private static final class MinSpacingSlider extends AbstractSliderButton {
+        private MinSpacingSlider(int x, int y, int width, int height) {
+            super(x, y, width, height, Component.empty(), toSliderValue(effectiveDefaultMinSpacing()));
+            setTooltip(Tooltip.create(Component.translatable("screen.autotorch.min_spacing.tooltip")));
+            updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(Component.translatable("screen.autotorch.min_spacing", spacing()));
+        }
+
+        @Override
+        protected void applyValue() {
+            ClientConfig.setDefaultMinSpacing(spacing());
+        }
+
+        private int spacing() {
+            int steps = ServerConfigState.maxSpacing() - ServerConfigState.minSpacing();
+            return ServerConfigState.minSpacing() + (int) Math.round(value * steps);
+        }
+
+        private static double toSliderValue(int spacing) {
+            int steps = ServerConfigState.maxSpacing() - ServerConfigState.minSpacing();
+            return steps == 0 ? 0.0 : (double) (spacing - ServerConfigState.minSpacing()) / steps;
+        }
+    }
+
+    private static final class AreaLightThresholdSlider extends AbstractSliderButton {
+        private AreaLightThresholdSlider(int x, int y, int width, int height) {
+            super(x, y, width, height, Component.empty(), toSliderValue(ClientConfig.defaultTaskLightThreshold()));
+            setTooltip(Tooltip.create(Component.translatable("screen.autotorch.area_light_threshold.tooltip")));
+            updateMessage();
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(Component.translatable("screen.autotorch.area_light_threshold", threshold()));
+        }
+
+        @Override
+        protected void applyValue() {
+            ClientConfig.setDefaultTaskLightThreshold(threshold());
+        }
+
+        private int threshold() {
+            int steps = ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.maxValue()
+                    - ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.minValue();
+            return ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.minValue()
+                    + (int) Math.round(value * steps);
+        }
+
+        private static double toSliderValue(int threshold) {
+            return (double) (threshold - ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.minValue())
+                    / (ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.maxValue()
+                    - ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.minValue());
         }
     }
 }
