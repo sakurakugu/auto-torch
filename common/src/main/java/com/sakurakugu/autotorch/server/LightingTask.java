@@ -54,6 +54,8 @@ final class LightingTask {
     LightingTask(
             ServerLevel level,
             AreaZone selection,
+            BlockPos scanMin,
+            BlockPos scanMax,
             int maxTorches,
             int configuredSpacing,
             boolean consumeTorches,
@@ -63,11 +65,10 @@ final class LightingTask {
     ) {
         this.level = level;
         this.selection = selection;
-        this.min = selection.min();
-        BlockPos max = selection.max();
-        this.sizeX = max.getX() - min.getX() + 1;
-        this.sizeY = max.getY() - min.getY() + 1;
-        this.sizeZ = max.getZ() - min.getZ() + 1;
+        this.min = scanMin.immutable();
+        this.sizeX = scanMax.getX() - min.getX() + 1;
+        this.sizeY = scanMax.getY() - min.getY() + 1;
+        this.sizeZ = scanMax.getZ() - min.getZ() + 1;
         this.volume = (long) sizeX * sizeY * sizeZ;
         this.maxTorches = maxTorches;
         this.configuredSpacing = configuredSpacing;
@@ -77,7 +78,7 @@ final class LightingTask {
 
         // 使用稳定种子生成伪随机遍历，使结果可复现，同时避免总从选区同一角开始。
         long seed = level.getSeed() ^ playerId.getMostSignificantBits() ^ playerId.getLeastSignificantBits()
-                ^ min.asLong() ^ Long.rotateLeft(max.asLong(), 23);
+                ^ min.asLong() ^ Long.rotateLeft(scanMax.asLong(), 23);
         this.random = new Random(seed);
         this.permutationStart = Math.floorMod(random.nextLong(), volume);
         this.permutationStep = chooseCoprimeStep(volume, random);
@@ -238,7 +239,7 @@ final class LightingTask {
     }
 
     private boolean insideSelection(BlockPos pos) {
-        return selection.contains(pos);
+        return pos.getY() >= min.getY() && pos.getY() < min.getY() + sizeY && selection.contains(pos);
     }
 
     private boolean isChunkLoaded(BlockPos pos) {
