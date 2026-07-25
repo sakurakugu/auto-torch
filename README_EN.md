@@ -163,6 +163,7 @@ woodenAxeSelectionEnabled = true
 ### Forge / NeoForge Server Configuration
 
 File: `<world directory>/serverconfig/autotorch-server.toml`
+Single-player location: `config/autotorch-server.toml`
 
 ```toml
 [limits]
