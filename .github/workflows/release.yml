@@ -271,6 +271,7 @@ jobs:
       - name: Download release notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: gh release view "$GITHUB_REF_NAME" --json body --jq '.body' > release-notes.md
 
       # 使用固定提交而不是浮动标签，避免第三方 Action 更新导致发布行为意外变化。
@@ -333,5 +334,6 @@ jobs:
       - name: Upload Minecraft ${{ matrix.target.minecraft }} GitHub assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         # --clobber 允许任务重跑时覆盖同名附件。
         run: gh release upload "$GITHUB_REF_NAME" release/*.jar --clobber
