@@ -23,6 +23,7 @@ public final class ConfigDefinitions {
     public static final BooleanValue SELECTION_OVERLAY_SMOOTH_SPHERES = bool("selectionOverlay.smoothSpheres", false);
     public static final IntValue TASK_DEFAULT_MAX_TORCHES = integer("lightingTaskDefaults.maxTorches", 0, 0, HARD_MAX_TORCHES);
     public static final IntValue TASK_DEFAULT_MIN_SPACING = integer("lightingTaskDefaults.minSpacing", 8, 3, 12);
+    public static final IntValue TASK_DEFAULT_LIGHT_THRESHOLD = integer("lightingTaskDefaults.lightThreshold", 0, 0, 15);
     public static final BooleanValue TASK_DEFAULT_UNDERGROUND_ONLY = bool("lightingTaskDefaults.undergroundOnly", true);
     public static final BooleanValue TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES = bool("lightingTaskDefaults.creativeConsumeTorches", false);
     public static final BooleanValue TASK_DEFAULT_SURVIVAL_CONSUMES_TORCHES = bool("lightingTaskDefaults.survivalConsumeTorches", true);
@@ -50,7 +51,7 @@ public final class ConfigDefinitions {
             LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED,
             SELECTION_OVERLAY_ENABLED, SELECTION_OVERLAY_LINES_ONLY,
             SELECTION_OVERLAY_SMOOTH_SPHERES, TASK_DEFAULT_MAX_TORCHES,
-            TASK_DEFAULT_MIN_SPACING, TASK_DEFAULT_UNDERGROUND_ONLY,
+            TASK_DEFAULT_MIN_SPACING, TASK_DEFAULT_LIGHT_THRESHOLD, TASK_DEFAULT_UNDERGROUND_ONLY,
             TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES, TASK_DEFAULT_SURVIVAL_CONSUMES_TORCHES,
             TASK_DEFAULT_WOODEN_AXE_SELECTION_ENABLED
     );
