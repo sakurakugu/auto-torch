@@ -1,0 +1,335 @@
+name: Release
+
+# 推送 v 开头的标签（例如 v1.2.0）时触发发布流程。
+on:
+  push:
+    tags:
+      - 'v*'
+
+# 创建 GitHub Release 和上传附件需要仓库内容写权限。
+permissions:
+  contents: write
+
+# 同一个 Git 引用只允许一个发布任务运行，且不取消已经开始的任务。
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # 校验发布配置，并根据远程 mc/* 分支生成后续任务使用的动态矩阵。
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      release_version: ${{ steps.release.outputs.release_version }}
+      targets: ${{ steps.targets.outputs.targets }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Validate publishing configuration
+        env:
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+        run: |
+          test -n "$MODRINTH_PROJECT_ID" || { echo 'Missing repository variable MODRINTH_PROJECT_ID'; exit 1; }
+          test -n "$CURSEFORGE_PROJECT_ID" || { echo 'Missing repository variable CURSEFORGE_PROJECT_ID'; exit 1; }
+          test -n "$MODRINTH_TOKEN" || { echo 'Missing repository secret MODRINTH_TOKEN'; exit 1; }
+          test -n "$CURSEFORGE_TOKEN" || { echo 'Missing repository secret CURSEFORGE_TOKEN'; exit 1; }
+
+      - name: Read release version
+        id: release
+        shell: bash
+        run: |
+          # 去掉标签开头的 v，得到 gradle.properties 中应使用的模组版本。
+          release_version="${GITHUB_REF_NAME#v}"
+          test -n "$release_version" || { echo 'Release version is missing'; exit 1; }
+          test "$GITHUB_REF_NAME" = "v$release_version" || { echo "Invalid release tag: $GITHUB_REF_NAME"; exit 1; }
+          echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
+
+      - name: Discover Minecraft branches
+        id: targets
+        shell: bash
+        run: |
+          # 每个 origin/mc/<版本> 分支对应一个 Minecraft 发布目标。
+          targets='[]'
+          while read -r ref sha; do
+            branch="${ref#origin/}"
+            minecraft="${branch#mc/}"
+            targets="$(jq -c \
+              --arg branch "$branch" \
+              --arg minecraft "$minecraft" \
+              --arg sha "$sha" \
+              '. + [{branch: $branch, minecraft: $minecraft, sha: $sha}]' <<< "$targets")"
+          done < <(git for-each-ref \
+            --sort=version:refname \
+            --format='%(refname:short) %(objectname)' \
+            refs/remotes/origin/mc/)
+
+          test "$(jq 'length' <<< "$targets")" -gt 0 || { echo 'No remote mc/* branches found'; exit 1; }
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "Release targets: $targets"
+
+  # 按 prepare 生成的矩阵并行构建所有 Minecraft 版本。
+  build:
+    needs: prepare
+    strategy:
+      # 一个 Minecraft 版本构建失败时，仍让其他版本继续完成。
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.prepare.outputs.targets) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ${{ matrix.target.branch }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.target.sha }}
+          fetch-depth: 0
+
+      - name: Setup JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Validate branch versions
+        id: versions
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+          EXPECTED_MINECRAFT_VERSION: ${{ matrix.target.minecraft }}
+        run: |
+          # 分支名、标签版本和 gradle.properties 必须互相匹配，防止错误发布。
+          mod_id="$(sed -n 's/^mod_id=//p' gradle.properties | tr -d '\r')"
+          mod_version="$(sed -n 's/^mod_version=//p' gradle.properties | tr -d '\r')"
+          minecraft_version="$(sed -n 's/^minecraft_version=//p' gradle.properties | tr -d '\r')"
+
+          test -n "$mod_id" || { echo 'mod_id is missing'; exit 1; }
+          test "$mod_version" = "$RELEASE_VERSION" || {
+            echo "${{ matrix.target.branch }} has mod_version=$mod_version, expected $RELEASE_VERSION"
+            exit 1
+          }
+          test "$minecraft_version" = "$EXPECTED_MINECRAFT_VERSION" || {
+            echo "${{ matrix.target.branch }} has minecraft_version=$minecraft_version, expected $EXPECTED_MINECRAFT_VERSION"
+            exit 1
+          }
+
+          echo "mod_id=$mod_id" >> "$GITHUB_OUTPUT"
+          echo "mod_version=$mod_version" >> "$GITHUB_OUTPUT"
+          echo "minecraft_version=$minecraft_version" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test ${{ matrix.target.branch }}
+        run: ./gradlew clean build --no-parallel --max-workers=1 --console=plain
+
+      - name: Collect release artifacts
+        shell: bash
+        env:
+          MOD_ID: ${{ steps.versions.outputs.mod_id }}
+          MOD_VERSION: ${{ steps.versions.outputs.mod_version }}
+          MINECRAFT_VERSION: ${{ steps.versions.outputs.minecraft_version }}
+        run: |
+          mkdir release
+          # 统一三个加载器的文件名，供发布阶段按约定路径读取。
+          for loader in fabric forge neoforge; do
+            source_file="$loader/build/libs/$MOD_ID-$MINECRAFT_VERSION-$loader-$MOD_VERSION.jar"
+            target_file="release/$MOD_ID-v$MOD_VERSION-mc$MINECRAFT_VERSION-$loader.jar"
+            test -f "$source_file" || { echo "Missing artifact: $source_file"; exit 1; }
+            cp "$source_file" "$target_file"
+          done
+
+      - name: Store ${{ matrix.target.branch }} artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          # 不同 Minecraft 版本使用独立名称，避免矩阵任务间产物冲突。
+          name: release-mc-${{ matrix.target.minecraft }}
+          path: release/*.jar
+          if-no-files-found: error
+          retention-days: 1
+
+  # 所有版本构建成功后，只创建一次 GitHub Release。
+  create-release:
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          # 生成上一个版本到当前标签之间的完整变更日志。
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Generate release notes
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+          TARGETS: ${{ needs.prepare.outputs.targets }}
+        run: |
+          # 仓库中的发行说明优先级更高，便于特殊版本手工编写。
+          if test -s RELEASE_NOTES.md; then
+            cp RELEASE_NOTES.md release-notes.md
+            exit 0
+          fi
+
+          minecraft_min="$(jq -r '.[0].minecraft' <<< "$TARGETS")"
+          minecraft_max="$(jq -r '.[-1].minecraft' <<< "$TARGETS")"
+          if test "$minecraft_min" = "$minecraft_max"; then
+            minecraft_range="$minecraft_min"
+          else
+            minecraft_range="$minecraft_min~$minecraft_max"
+          fi
+
+          # 当前标签的父提交可能没有更早标签，首次发布时收集全部历史。
+          previous_tag="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          if test -n "$previous_tag"; then
+            commit_range="$previous_tag..$GITHUB_REF_NAME"
+          else
+            commit_range="$GITHUB_REF_NAME"
+          fi
+
+          # 与本地提交钩子共用类型映射，避免两处规则不一致。
+          . .githooks/commit-types.sh
+
+          declare -A sections=()
+          while IFS= read -r subject; do
+            type="${subject%%:*}"
+            body="${subject#*:}"
+            body="${body# }"
+
+            if normalized_type="$(normalize_commit_type "$type")"; then
+              type="$normalized_type"
+            fi
+
+            if test "$type" = "发布"; then
+              # 纯版本发布提交不属于用户可见变更。
+              continue
+            elif is_release_note_commit_type "$type"; then
+              sections["$type"]+="- $body"$'\n'
+            else
+              sections["其他"]+="- $subject"$'\n'
+            fi
+          done < <(git log "$commit_range" --pretty=format:%s)
+
+          {
+            printf '## Auto Torch v%s\n\n' "$RELEASE_VERSION"
+            printf '适用于 **Minecraft %s / NeoForge、Forge、Fabric**。\n\n' "$minecraft_range"
+
+            # 固定章节顺序，没有内容的类型不输出。
+            for type in 新增 修复 优化 性能 适配 更新 重构 删除 回退 文档 构建 集成 测试 样式 杂项 合并 其他; do
+              if test -n "${sections[$type]:-}"; then
+                printf '### %s\n\n%s\n' "$type" "${sections[$type]}"
+              fi
+            done
+
+            if test -n "$previous_tag"; then
+              printf '**完整变更**：%s/%s/compare/%s...%s\n' \
+                "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$previous_tag" "$GITHUB_REF_NAME"
+            fi
+          } > release-notes.md
+
+          cat release-notes.md
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NAME: Auto Torch v${{ needs.prepare.outputs.release_version }}
+        run: |
+          # 支持任务重跑：Release 已存在时不重复创建。
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "$RELEASE_NAME" --notes-file release-notes.md
+          fi
+
+  # 将每个 Minecraft 版本的三个加载器产物发布到平台，并上传到 GitHub Release。
+  publish:
+    needs:
+      - prepare
+      - build
+      - create-release
+    strategy:
+      # 单个版本发布失败时，不中止其他版本的发布任务。
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.prepare.outputs.targets) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Minecraft ${{ matrix.target.minecraft }} artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-mc-${{ matrix.target.minecraft }}
+          path: release
+
+      - name: Download release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release view "$GITHUB_REF_NAME" --json body --jq '.body' > release-notes.md
+
+      # 使用固定提交而不是浮动标签，避免第三方 Action 更新导致发布行为意外变化。
+      - name: Publish Fabric for Minecraft ${{ matrix.target.minecraft }}
+        uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: release/autotorch-v${{ needs.prepare.outputs.release_version }}-mc${{ matrix.target.minecraft }}-fabric.jar
+          name: Auto Torch v${{ needs.prepare.outputs.release_version }} for Minecraft ${{ matrix.target.minecraft }} (Fabric)
+          version: ${{ needs.prepare.outputs.release_version }}+mc${{ matrix.target.minecraft }}.fabric
+          version-type: release
+          changelog-file: release-notes.md
+          loaders: fabric
+          game-versions: ${{ matrix.target.minecraft }}
+          game-version-filter: none
+          environment: client | server?
+          java: Java 25
+          dependencies: fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
+
+      # Forge 和 NeoForge 不依赖 Fabric API，因此不声明额外依赖。
+      - name: Publish Forge for Minecraft ${{ matrix.target.minecraft }}
+        uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: release/autotorch-v${{ needs.prepare.outputs.release_version }}-mc${{ matrix.target.minecraft }}-forge.jar
+          name: Auto Torch v${{ needs.prepare.outputs.release_version }} for Minecraft ${{ matrix.target.minecraft }} (Forge)
+          version: ${{ needs.prepare.outputs.release_version }}+mc${{ matrix.target.minecraft }}.forge
+          version-type: release
+          changelog-file: release-notes.md
+          loaders: forge
+          game-versions: ${{ matrix.target.minecraft }}
+          game-version-filter: none
+          environment: client | server?
+          java: Java 25
+
+      - name: Publish NeoForge for Minecraft ${{ matrix.target.minecraft }}
+        uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: release/autotorch-v${{ needs.prepare.outputs.release_version }}-mc${{ matrix.target.minecraft }}-neoforge.jar
+          name: Auto Torch v${{ needs.prepare.outputs.release_version }} for Minecraft ${{ matrix.target.minecraft }} (NeoForge)
+          version: ${{ needs.prepare.outputs.release_version }}+mc${{ matrix.target.minecraft }}.neoforge
+          version-type: release
+          changelog-file: release-notes.md
+          loaders: neoforge
+          game-versions: ${{ matrix.target.minecraft }}
+          game-version-filter: none
+          environment: client | server?
+          java: Java 25
+
+      - name: Upload Minecraft ${{ matrix.target.minecraft }} GitHub assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # --clobber 允许任务重跑时覆盖同名附件。
+        run: gh release upload "$GITHUB_REF_NAME" release/*.jar --clobber
