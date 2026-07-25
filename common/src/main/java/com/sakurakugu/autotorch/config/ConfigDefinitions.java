@@ -7,7 +7,7 @@ import com.sakurakugu.autotorch.network.StartLightingPayload;
 
 /** Loader-neutral catalog of configuration keys, defaults, and numeric bounds. */
 public final class ConfigDefinitions {
-    public static final int HARD_MAX_BOX_AXIS_LENGTH = 257;
+    public static final int HARD_MAX_BOX_AXIS_LENGTH = 321;
     public static final int HARD_MAX_TORCHES = 4096;
 
     public static final BooleanValue NEARBY_AUTO_TORCH_ENABLED = bool("nearbyAutoTorch.enabled", false);
