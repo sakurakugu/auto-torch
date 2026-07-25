@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.sakurakugu.autotorch.AutoTorchRules;
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
@@ -74,6 +75,11 @@ public final class LightingTaskManager {
             player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
             return;
         }
+        if (payload.lightThreshold() < ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.minValue()
+                || payload.lightThreshold() > ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.maxValue()) {
+            player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
+            return;
+        }
         if (payload.exclusions().size() > ServerConfig.maxExclusions()
                 || payload.exclusions().stream().anyMatch(zone -> !isValidZone(zone))) {
             player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
@@ -86,12 +92,13 @@ public final class LightingTaskManager {
 
         int maxTorches = payload.maxTorches();
         int minSpacing = payload.minSpacing();
+        int lightThreshold = payload.lightThreshold();
         boolean consumeTorches = AutoTorchRules.consumesInventoryTorches(
                 player.isCreative(), payload.consumeTorches(), ServerConfig.survivalConsumesTorches(),
                 player.level().getServer().isSingleplayerOwner(player.getGameProfile()));
 
         LightingTask task = new LightingTask(
-                player.serverLevel(), selection, scanMin, scanMax, maxTorches, minSpacing,
+                player.serverLevel(), selection, scanMin, scanMax, maxTorches, minSpacing, lightThreshold,
                 consumeTorches, payload.undergroundOnly(),
                 payload.exclusions(), player.getUUID()
         );

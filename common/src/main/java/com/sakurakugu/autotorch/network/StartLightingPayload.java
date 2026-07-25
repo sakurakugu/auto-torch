@@ -15,6 +15,7 @@ public record StartLightingPayload(
         AreaZone selection,
         int maxTorches,
         int minSpacing,
+        int lightThreshold,
         boolean consumeTorches,
         boolean undergroundOnly,
         List<AreaZone> exclusions
@@ -32,6 +33,7 @@ public record StartLightingPayload(
                 readZone(buffer),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
+                buffer.readVarInt(),
                 buffer.readBoolean(),
                 buffer.readBoolean(),
                 readExclusions(buffer)
@@ -47,6 +49,7 @@ public record StartLightingPayload(
         writeZone(buffer, selection);
         buffer.writeVarInt(maxTorches);
         buffer.writeVarInt(minSpacing);
+        buffer.writeVarInt(lightThreshold);
         buffer.writeBoolean(consumeTorches);
         buffer.writeBoolean(undergroundOnly);
         buffer.writeVarInt(exclusions.size());

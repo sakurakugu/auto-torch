@@ -33,6 +33,13 @@ class ConfigDefinitionsTest {
                 .forEach(ConfigDefinitionsTest::assertDefaultWithinRange);
     }
 
+    @Test
+    void areaLightThresholdKeepsLegacyDefaultAndFullLightRange() {
+        assertEquals(0, ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.defaultValue());
+        assertEquals(0, ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.minValue());
+        assertEquals(15, ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.maxValue());
+    }
+
     private static void assertDefaultWithinRange(ConfigDefinitions.IntValue definition) {
         assertTrue(definition.defaultValue() >= definition.minValue(), definition.key());
         assertTrue(definition.defaultValue() <= definition.maxValue(), definition.key());

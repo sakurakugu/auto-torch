@@ -40,7 +40,7 @@ Digging out a perimeter is tedious, and placing torches by hand makes it easy to
 - Nearby automatic torch placement:
   Searches for valid positions within two blocks of the player and uses vanilla right-click interaction to place torches from the player's inventory. A torch is placed only when the light level is below the configured threshold, with an option to include sky light in the calculation.
 - Area automatic torch placement:
-  Select points A and B to define a cuboid (opposite corners) or sphere (center/radius), with wooden axe selection support. Set the selection as the lighting area (green) or an exclusion area (red), then click "Start Task." One lighting area and multiple exclusion areas are supported. (Lighting a maximum-size area of ordinary natural terrain generally takes about half an inventory, or roughly 1,000 torches, with the default settings.)
+  Select points A and B to define a cuboid (opposite corners) or sphere (center/radius), with wooden axe selection support. Set the selection as the lighting area (green) or an exclusion area (red), adjust the block-light threshold, then click "Start Task." One lighting area and multiple exclusion areas are supported. (Lighting a maximum-size area of ordinary natural terrain generally takes about half an inventory, or roughly 1,000 torches, with the default settings.)
 - All features are available in the settings panel shown above.
 
 ## Configuration
@@ -101,9 +101,9 @@ On Windows, you can also run `tools\1.一键启动mc脚本.ps1`.
 - Points A and B can be entered in the panel, set to the current position, or selected by left- and right-clicking with a wooden axe. Wooden axe selection can be disabled; while enabled, it intercepts those interactions to prevent accidental block breaking.
 - A cuboid uses A and B as opposite corners. A sphere uses A as its center and the straight-line distance from A to B as its radius. The panel can convert between an inscribed sphere and a circumscribed cube.
 - Each player can configure one green lighting area and multiple red exclusion areas. Selections can be rendered as translucent faces or outlines, and smooth sphere rendering is also available.
-- Tasks process only positions with a block light level of 0, air at both foot and head level, and a safe block to stand on below. When "Underground Only" is enabled, positions with sky light are also skipped.
+- The task block-light maximum can be set from 0 to 15. Tasks process positions at or below that value with air at both foot and head level and a safe block to stand on below. The default is `0`, which preserves the block-light-0-only behavior. When "Underground Only" is enabled, positions with sky light are also skipped.
 - The mod first tries to place a torch beneath each dark position. If that is not possible, it randomly searches nearby for a valid placement position. Only loaded chunks are processed; the mod never force-loads chunks.
-- Scanning runs in two passes. The first uses the configured minimum spacing, while the second uses tighter spacing to fill positions that remain dark. Scan and placement work are rate-limited per tick, and tasks from multiple players take turns receiving the available budget.
+- Scanning runs in two passes. The first uses the configured minimum spacing, while the second uses tighter spacing to fill positions that remain dark. Spacing is the three-dimensional straight-line distance between torch block coordinates placed by the current task; existing torches in the area are not included. At spacing `8`, two aligned torches have 7 blocks between them. Scan and placement work are rate-limited per tick, and tasks from multiple players take turns receiving the available budget.
 - A maximum torch count can be set per task; `0` means unlimited. Inventory consumption can be configured separately for Survival and Creative mode. The server validates all task settings, and its Survival consumption rule takes precedence in multiplayer.
 - Each player can have only one active task. Starting a new task replaces the old one, and reopening the panel allows the active task to be canceled.
 
@@ -149,6 +149,8 @@ smoothSpheres = false
 maxTorches = 0
 # Default minimum spacing between torches. Range: 3-12 blocks.
 minSpacing = 8
+# Process positions whose block light is at or below this value. Range: 0-15; 0 means block light 0 only.
+lightThreshold = 0
 # Whether to process only positions without sky light by default.
 undergroundOnly = true
 # Whether Creative mode consumes torches from the inventory by default.
@@ -222,6 +224,7 @@ selectionOverlay.linesOnly=false
 selectionOverlay.smoothSpheres=false
 lightingTaskDefaults.maxTorches=0
 lightingTaskDefaults.minSpacing=8
+lightingTaskDefaults.lightThreshold=0
 lightingTaskDefaults.undergroundOnly=true
 lightingTaskDefaults.creativeConsumeTorches=false
 lightingTaskDefaults.survivalConsumeTorches=true

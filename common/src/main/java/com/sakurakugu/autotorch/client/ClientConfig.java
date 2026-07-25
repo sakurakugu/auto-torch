@@ -43,6 +43,8 @@ public final class ClientConfig {
     public static void setDefaultMaxTorches(int value) { setInt(TASK_DEFAULT_MAX_TORCHES, value); }
     public static int defaultMinSpacing() { return integer(TASK_DEFAULT_MIN_SPACING); }
     public static void setDefaultMinSpacing(int value) { setInt(TASK_DEFAULT_MIN_SPACING, value); }
+    public static int defaultTaskLightThreshold() { return integer(TASK_DEFAULT_LIGHT_THRESHOLD); }
+    public static void setDefaultTaskLightThreshold(int value) { setInt(TASK_DEFAULT_LIGHT_THRESHOLD, value); }
     public static boolean isDefaultUndergroundOnly() { return bool(TASK_DEFAULT_UNDERGROUND_ONLY); }
     public static void setDefaultUndergroundOnly(boolean value) { setBool(TASK_DEFAULT_UNDERGROUND_ONLY, value); }
     public static boolean creativeConsumesTorches() { return bool(TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES); }
