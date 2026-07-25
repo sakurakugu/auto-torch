@@ -93,7 +93,7 @@
   "message.autotorch.server_busy": "The server has reached its concurrent Auto Torch task limit.",
   "message.autotorch.no_build_permission": "You do not currently have build permission.",
   "message.autotorch.area_too_large": "Area too large: box axes are limited to %s blocks and sphere radius to %s blocks.",
-  "message.autotorch.outside_world": "The area is outside this dimension's buildable bounds.",
+  "message.autotorch.outside_world": "The area does not overlap this dimension's buildable height or exceeds the world border.",
   "message.autotorch.started": "Auto Torch started and will scan %s blocks in batches.",
   "message.autotorch.progress": "Auto Torch [%s] %s%% | %s torches placed",
   "message.autotorch.cancelled": "Auto Torch task cancelled.",

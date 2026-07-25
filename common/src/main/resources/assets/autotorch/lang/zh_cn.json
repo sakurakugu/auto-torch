@@ -93,7 +93,7 @@
   "message.autotorch.server_busy": "服务器上的自动插火把任务已达到并发上限。",
   "message.autotorch.no_build_permission": "你当前没有建造权限。",
   "message.autotorch.area_too_large": "选区过大：区间每条边最多 %s 格，球形半径最多 %s 格。",
-  "message.autotorch.outside_world": "选区超出了当前维度的可建造范围。",
+  "message.autotorch.outside_world": "选区与当前维度的可建造范围没有重叠，或超出了世界边界。",
   "message.autotorch.started": "自动插火把任务已开始，将分批扫描 %s 个方块。",
   "message.autotorch.progress": "自动插火把 [%s] %s%% | 已放置 %s 个火把",
   "message.autotorch.cancelled": "自动插火把任务已取消。",
