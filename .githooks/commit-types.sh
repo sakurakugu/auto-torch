@@ -8,7 +8,7 @@ normalize_commit_type() {
         docs|文档) printf '%s\n' "文档" ;;
         refactor|重构) printf '%s\n' "重构" ;;
         chore|杂项) printf '%s\n' "杂项" ;;
-        style|样式) printf '%s\n' "样式" ;;
+        style|格式|样式) printf '%s\n' "样式" ;;
         perf|性能) printf '%s\n' "性能" ;;
         test|测试) printf '%s\n' "测试" ;;
         ci|集成) printf '%s\n' "集成" ;;
