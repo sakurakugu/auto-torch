@@ -1,10 +1,20 @@
 name: Release
 
-# 推送 v 开头的标签（例如 v1.2.0）时触发发布流程。
+# 推送 v 开头的标签时执行完整发布，也可手动向已有版本补发单个 Minecraft 版本。
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "已有发布标签，例如 v1.4.3"
+        required: true
+        type: string
+      minecraft_version:
+        description: "需要补发的 Minecraft 版本，例如 26.3"
+        required: true
+        type: string
 
 # 创建 GitHub Release 和上传附件需要仓库内容写权限。
 permissions:
@@ -12,7 +22,7 @@ permissions:
 
 # 同一个 Git 引用只允许一个发布任务运行，且不取消已经开始的任务。
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.release_tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -20,6 +30,7 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
+      release_tag: ${{ steps.release.outputs.release_tag }}
       release_version: ${{ steps.release.outputs.release_version }}
       targets: ${{ steps.targets.outputs.targets }}
       minecraft_range: ${{ steps.targets.outputs.minecraft_range }}
@@ -45,39 +56,69 @@ jobs:
       - name: Read release version
         id: release
         shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           # 去掉标签开头的 v，得到 gradle.properties 中应使用的模组版本。
-          release_version="${GITHUB_REF_NAME#v}"
+          release_version="${RELEASE_TAG#v}"
           test -n "$release_version" || { echo 'Release version is missing'; exit 1; }
-          test "$GITHUB_REF_NAME" = "v$release_version" || { echo "Invalid release tag: $GITHUB_REF_NAME"; exit 1; }
+          test "$RELEASE_TAG" = "v$release_version" || { echo "Invalid release tag: $RELEASE_TAG"; exit 1; }
+          git rev-parse --verify --quiet "refs/tags/$RELEASE_TAG" >/dev/null || {
+            echo "Release tag does not exist: $RELEASE_TAG"
+            exit 1
+          }
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "release_version=$release_version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate existing release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+        run: gh release view "$RELEASE_TAG" >/dev/null
 
       - name: Discover Minecraft branches
         id: targets
         shell: bash
+        env:
+          REQUESTED_MINECRAFT_VERSION: ${{ inputs.minecraft_version }}
         run: |
           # 每个 origin/mc/<版本> 分支对应一个 Minecraft 发布目标。
-          targets='[]'
+          all_targets='[]'
           while read -r ref sha; do
             branch="${ref#origin/}"
             minecraft="${branch#mc/}"
-            targets="$(jq -c \
+            all_targets="$(jq -c \
               --arg branch "$branch" \
               --arg minecraft "$minecraft" \
               --arg sha "$sha" \
-              '. + [{branch: $branch, minecraft: $minecraft, sha: $sha}]' <<< "$targets")"
+              '. + [{branch: $branch, minecraft: $minecraft, sha: $sha}]' <<< "$all_targets")"
           done < <(git for-each-ref \
             --sort=version:refname \
             --format='%(refname:short) %(objectname)' \
             refs/remotes/origin/mc/)
 
-          test "$(jq 'length' <<< "$targets")" -gt 0 || { echo 'No remote mc/* branches found'; exit 1; }
-          minecraft_min="$(jq -r '.[0].minecraft' <<< "$targets")"
-          minecraft_max="$(jq -r '.[-1].minecraft' <<< "$targets")"
+          test "$(jq 'length' <<< "$all_targets")" -gt 0 || { echo 'No remote mc/* branches found'; exit 1; }
+          minecraft_min="$(jq -r '.[0].minecraft' <<< "$all_targets")"
+          minecraft_max="$(jq -r '.[-1].minecraft' <<< "$all_targets")"
           if test "$minecraft_min" = "$minecraft_max"; then
             minecraft_range="$minecraft_min"
           else
             minecraft_range="$minecraft_min~$minecraft_max"
+          fi
+
+          if test -n "$REQUESTED_MINECRAFT_VERSION"; then
+            # 手动补发只构建指定版本，但标题范围仍根据所有远程版本计算。
+            targets="$(jq -c \
+              --arg minecraft "$REQUESTED_MINECRAFT_VERSION" \
+              '[.[] | select(.minecraft == $minecraft)]' <<< "$all_targets")"
+            test "$(jq 'length' <<< "$targets")" -eq 1 || {
+              echo "Remote branch does not exist: mc/$REQUESTED_MINECRAFT_VERSION"
+              exit 1
+            }
+          else
+            targets="$all_targets"
           fi
 
           echo "targets=$targets" >> "$GITHUB_OUTPUT"
@@ -174,12 +215,14 @@ jobs:
         uses: actions/checkout@v5
         with:
           # 生成上一个版本到当前标签之间的完整变更日志。
+          ref: ${{ needs.prepare.outputs.release_tag }}
           fetch-depth: 0
           fetch-tags: true
 
       - name: Generate release notes
         shell: bash
         env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
           MINECRAFT_RANGE: ${{ needs.prepare.outputs.minecraft_range }}
         run: |
@@ -190,11 +233,11 @@ jobs:
           fi
 
           # 当前标签的父提交可能没有更早标签，首次发布时收集全部历史。
-          previous_tag="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          previous_tag="$(git describe --tags --abbrev=0 "${RELEASE_TAG}^" 2>/dev/null || true)"
           if test -n "$previous_tag"; then
-            commit_range="$previous_tag..$GITHUB_REF_NAME"
+            commit_range="$previous_tag..$RELEASE_TAG"
           else
-            commit_range="$GITHUB_REF_NAME"
+            commit_range="$RELEASE_TAG"
           fi
 
           # 与本地提交钩子共用类型映射，避免两处规则不一致。
@@ -233,7 +276,7 @@ jobs:
 
             if test -n "$previous_tag"; then
               printf '**完整变更**：%s/%s/compare/%s...%s\n' \
-                "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$previous_tag" "$GITHUB_REF_NAME"
+                "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$previous_tag" "$RELEASE_TAG"
             fi
           } > release-notes.md
 
@@ -242,11 +285,14 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_NAME: ${{ github.ref_name }} for mc${{ needs.prepare.outputs.minecraft_range }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+          RELEASE_NAME: ${{ needs.prepare.outputs.release_tag }} for mc${{ needs.prepare.outputs.minecraft_range }}
         run: |
-          # 支持任务重跑：Release 已存在时不重复创建。
-          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release create "$GITHUB_REF_NAME" --verify-tag --title "$RELEASE_NAME" --notes-file release-notes.md
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            # 补发版本或重跑任务时更新版本范围和发行说明。
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_NAME" --notes-file release-notes.md
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_NAME" --notes-file release-notes.md
           fi
 
   # 将每个 Minecraft 版本的三个加载器产物发布到平台，并上传到 GitHub Release。
@@ -272,7 +318,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-        run: gh release view "$GITHUB_REF_NAME" --json body --jq '.body' > release-notes.md
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+        run: gh release view "$RELEASE_TAG" --json body --jq '.body' > release-notes.md
+
+      - name: Upload Minecraft ${{ matrix.target.minecraft }} GitHub assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+        # --clobber 允许任务重跑时覆盖同名附件。
+        run: gh release upload "$RELEASE_TAG" release/*.jar --clobber
 
       # 使用固定提交而不是浮动标签，避免第三方 Action 更新导致发布行为意外变化。
       - name: Publish Fabric for Minecraft ${{ matrix.target.minecraft }}
@@ -330,10 +385,3 @@ jobs:
           game-version-filter: none
           environment: client | server?
           java: Java 25
-
-      - name: Upload Minecraft ${{ matrix.target.minecraft }} GitHub assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        # --clobber 允许任务重跑时覆盖同名附件。
-        run: gh release upload "$GITHUB_REF_NAME" release/*.jar --clobber
