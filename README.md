@@ -29,7 +29,7 @@
 
 - 默认按 `G` 打开选区面板，按 `F7` 开关光照显示，支持修改按键绑定。
 - 光照显示功能：
-  支持 `X` 标记和数字显示方块光照等级，显示范围：1~64格（优化过性能）。
+  支持 `X` 标记和数字显示方块光照等级，显示范围：1~64 格（优化过性能）。
   | 颜色 | 含义 |
   | ---- | ---- |
   | 红色 | 任何时间刷怪 |
@@ -109,7 +109,7 @@ $env:JAVA_HOME='你的 Java 25 安装目录'
 
 ## 配置文件
 
-配置文件中的开关布尔值使用 `true`/`false`（不要双引号）。
+配置文件中的开关布尔值使用 `true`/`false`（不要加双引号）。
 
 ### Forge / NeoForge 客户端配置
 
@@ -163,6 +163,7 @@ woodenAxeSelectionEnabled = true
 ### Forge / NeoForge 服务端配置
 
 文件位置：`<世界目录>/serverconfig/autotorch-server.toml`
+单人位置：`config/autotorch-server.toml`
 
 ```toml
 [limits]
