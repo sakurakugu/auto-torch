@@ -49,10 +49,19 @@ public final class LightingTaskManager {
                     ServerConfig.maxBoxAxisLength(), ServerConfig.maxSphereRadius()));
             return;
         }
-        if (!player.level().isInWorldBounds(min) || !player.level().isInWorldBounds(max)) {
+        int scanMinY = Math.max(min.getY(), player.level().getMinY());
+        int scanMaxY = Math.min(max.getY(), player.level().getMaxY() - 1);
+        if (scanMinY > scanMaxY) {
             player.sendSystemMessage(Component.translatable("message.autotorch.outside_world"));
             return;
         }
+        BlockPos scanMin = new BlockPos(min.getX(), scanMinY, min.getZ());
+        BlockPos scanMax = new BlockPos(max.getX(), scanMaxY, max.getZ());
+        if (!player.level().isInWorldBounds(scanMin) || !player.level().isInWorldBounds(scanMax)) {
+            player.sendSystemMessage(Component.translatable("message.autotorch.outside_world"));
+            return;
+        }
+        long scanVolume = sizeX * ((long) scanMaxY - scanMinY + 1L) * sizeZ;
 
         if (payload.maxTorches() < 0
                 || payload.maxTorches() > ServerConfig.maxTorchesPerTask()
@@ -82,13 +91,13 @@ public final class LightingTaskManager {
                 player.level().getServer().isSingleplayerOwner(player.nameAndId()));
 
         LightingTask task = new LightingTask(
-                player.level(), selection, maxTorches, minSpacing,
+                player.level(), selection, scanMin, scanMax, maxTorches, minSpacing,
                 consumeTorches, payload.undergroundOnly(),
                 payload.exclusions(), player.getUUID()
         );
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
         TASKS.put(player.getUUID(), task);
-        player.sendSystemMessage(Component.translatable("message.autotorch.started", volume));
+        player.sendSystemMessage(Component.translatable("message.autotorch.started", scanVolume));
         task.showInitialProgress(player);
     }
 
