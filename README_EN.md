@@ -256,3 +256,7 @@ performance.randomPlacementAttempts=32
 - The mod does not force-load chunks; unloaded chunks encountered during scanning are skipped. (With a render distance of at least 8 chunks, the relevant area will generally be loaded.)
 - The spawnability check uses conservative rules suitable for common vanilla hostile mobs and does not include special handling for other mods.
 - Land-claim plugins are not supported. Placement uses vanilla `/setblock` behavior.
+
+## Other
+
+A Bedrock Edition port was started, but Bedrock proved less developer-friendly than Java Edition for custom rendering, UI configuration, and related features, so the port has been canceled. Anyone interested is welcome to create their own port.
