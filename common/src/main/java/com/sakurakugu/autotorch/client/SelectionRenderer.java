@@ -20,10 +20,10 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.opengl.GL11;
 
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
 public final class SelectionRenderer {
+    private static final int DEPTH_LEQUAL = 0x0203;
     private static final RenderType FACE_RENDER_TYPE = new RenderType(
             "autotorch_selection_faces",
             DefaultVertexFormat.POSITION_COLOR,
@@ -36,7 +36,7 @@ public final class SelectionRenderer {
                 RenderSystem.enableBlend();
                 RenderSystem.defaultBlendFunc();
                 RenderSystem.enableDepthTest();
-                RenderSystem.depthFunc(GL11.GL_LEQUAL);
+                RenderSystem.depthFunc(DEPTH_LEQUAL);
                 RenderSystem.disableCull();
                 RenderSystem.depthMask(false);
                 // 将贴合方块的选区面略微拉近，避免移动时与方块表面发生深度闪烁。

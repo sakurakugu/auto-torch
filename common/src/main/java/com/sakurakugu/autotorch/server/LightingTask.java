@@ -13,6 +13,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -167,16 +169,16 @@ final class LightingTask {
                 scanIndex * PROGRESS_BAR_LENGTH / volume);
         Component bar;
         if (pass == 0) {
-            bar = Component.literal("|".repeat(passFilled)).withStyle(ChatFormatting.GRAY)
-                    .append(Component.literal("|".repeat(PROGRESS_BAR_LENGTH - passFilled))
+            bar = new TextComponent("|".repeat(passFilled)).withStyle(ChatFormatting.GRAY)
+                    .append(new TextComponent("|".repeat(PROGRESS_BAR_LENGTH - passFilled))
                             .withStyle(ChatFormatting.DARK_GRAY));
         } else {
             // 第二轮从左向右用绿色覆盖第一轮已经铺满的灰色进度条。
-            bar = Component.literal("|".repeat(passFilled)).withStyle(ChatFormatting.GREEN)
-                    .append(Component.literal("|".repeat(PROGRESS_BAR_LENGTH - passFilled))
+            bar = new TextComponent("|".repeat(passFilled)).withStyle(ChatFormatting.GREEN)
+                    .append(new TextComponent("|".repeat(PROGRESS_BAR_LENGTH - passFilled))
                             .withStyle(ChatFormatting.GRAY));
         }
-        player.sendSystemMessage(Component.translatable("message.autotorch.progress", bar, percent, placed), true);
+        player.displayClientMessage(new TranslatableComponent("message.autotorch.progress", bar, percent, placed), true);
     }
 
     private static TickResult finish(
@@ -186,8 +188,8 @@ final class LightingTask {
             int placedThisTick,
             Object... messageArguments
     ) {
-        player.sendSystemMessage(Component.empty(), true);
-        player.sendSystemMessage(Component.translatable(messageKey, messageArguments));
+        player.displayClientMessage(TextComponent.EMPTY, true);
+        player.displayClientMessage(new TranslatableComponent(messageKey, messageArguments), false);
         return new TickResult(true, scannedThisTick, placedThisTick);
     }
 

@@ -1,7 +1,5 @@
 package com.sakurakugu.autotorch.client;
 
-import org.lwjgl.glfw.GLFW;
-
 import com.mojang.blaze3d.platform.InputConstants;
 
 import com.sakurakugu.autotorch.network.AreaShape;
@@ -14,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
@@ -25,13 +24,13 @@ public final class AutoTorchClient {
     public static final KeyMapping OPEN_SCREEN = new KeyMapping(
             "key.autotorch.open_screen",
             InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_G,
+            InputConstants.KEY_G,
             CATEGORY
     );
     public static final KeyMapping TOGGLE_LIGHT_OVERLAY = new KeyMapping(
             "key.autotorch.toggle_light_overlay",
             InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_F7,
+            InputConstants.KEY_F7,
             CATEGORY
     );
 
@@ -51,7 +50,7 @@ public final class AutoTorchClient {
         while (TOGGLE_LIGHT_OVERLAY.consumeClick()) {
             if (minecraft.player != null) {
                 boolean enabled = LightOverlayState.toggle();
-                minecraft.gui.setOverlayMessage(Component.translatable(enabled
+                minecraft.gui.setOverlayMessage(new TranslatableComponent(enabled
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
             }
         }
@@ -67,7 +66,7 @@ public final class AutoTorchClient {
         if (start) {
             SelectionState.setFirst(pos);
             Minecraft.getInstance().gui.setOverlayMessage(
-                    Component.translatable(SelectionState.shape() == AreaShape.SPHERE
+                    new TranslatableComponent(SelectionState.shape() == AreaShape.SPHERE
                                     ? "message.autotorch.selected_center" : "message.autotorch.selected_a",
                             formatPosition(pos)), false
             );
@@ -88,14 +87,14 @@ public final class AutoTorchClient {
             long maxRadiusSquared = (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
             if (draft.radiusSquared() > maxRadiusSquared) {
                 Minecraft.getInstance().gui.setOverlayMessage(
-                        Component.translatable("message.autotorch.sphere_radius_too_large",
+                        new TranslatableComponent("message.autotorch.sphere_radius_too_large",
                                 AreaZone.MAX_SPHERE_RADIUS).withStyle(ChatFormatting.RED), false
                 );
                 return true;
             }
         }
         Minecraft.getInstance().gui.setOverlayMessage(
-                Component.translatable(SelectionState.shape() == AreaShape.SPHERE
+                new TranslatableComponent(SelectionState.shape() == AreaShape.SPHERE
                                 ? "message.autotorch.selected_radius" : "message.autotorch.selected_b",
                         formatPosition(pos)), false
         );

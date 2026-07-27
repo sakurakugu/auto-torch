@@ -19,7 +19,7 @@ public record StartLightingPayload(
         List<AreaZone> exclusions
 ) implements AutoTorchPayload {
     public static final int MAX_EXCLUSIONS = 32;
-    public static final ResourceLocation ID = ResourceLocation.tryBuild(AutoTorch.MOD_ID, "start_lighting");
+    public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID + ":start_lighting");
 
     public static StartLightingPayload decode(FriendlyByteBuf buffer) {
         return new StartLightingPayload(

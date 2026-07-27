@@ -17,6 +17,8 @@ minecraft {
         configureEach {
             workingDir = layout.projectDirectory.dir('run')
             systemProperty 'eventbus.api.strictRuntimeChecks', 'true'
+            // Forge 1.18.2 的旧版启动器需要通过反射调用 BootstrapLauncher。
+            jvmArgs '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED'
         }
         register('client')
         register('server') { args '--nogui' }

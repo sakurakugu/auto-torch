@@ -12,6 +12,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TranslatableComponent;
 
 /** 列出照明范围和所有排除区，并提供分页、原位修改和单条删除。 */
 public final class ExclusionListScreen extends Screen {
@@ -22,7 +23,7 @@ public final class ExclusionListScreen extends Screen {
     private int page;
 
     public ExclusionListScreen() {
-        super(Component.translatable("screen.autotorch.exclusions_title"));
+        super(new TranslatableComponent("screen.autotorch.exclusions_title"));
     }
 
     @Override
@@ -44,7 +45,7 @@ public final class ExclusionListScreen extends Screen {
             int selectedIndex = index;
             boolean lightingEntry = lightingZone != null && index == 0;
             Button editButton = addRenderableWidget(new Button(left + panelWidth - 108, y, 50, 20,
-                    Component.translatable(lightingEntry
+                    new TranslatableComponent(lightingEntry
                             ? "screen.autotorch.edit_lighting" : "screen.autotorch.edit_exclusion"), button -> {
                 int exclusionIndex = selectedIndex - (SelectionState.lightingZone() == null ? 0 : 1);
                 boolean editing = lightingEntry
@@ -54,10 +55,10 @@ public final class ExclusionListScreen extends Screen {
                     minecraft.setScreen(new LightingScreen());
                 }
             }));
-            tooltips.put(editButton, Component.translatable(lightingEntry
+            tooltips.put(editButton, new TranslatableComponent(lightingEntry
                     ? "screen.autotorch.edit_lighting.tooltip" : "screen.autotorch.edit_exclusion.tooltip"));
             addRenderableWidget(new ColoredButton(left + panelWidth - 54, y, 54, 20,
-                    Component.translatable("screen.autotorch.delete_zone"), button -> {
+                    new TranslatableComponent("screen.autotorch.delete_zone"), button -> {
                         if (lightingEntry) {
                             SelectionState.removeLightingZone();
                         } else {
@@ -69,21 +70,26 @@ public final class ExclusionListScreen extends Screen {
         }
 
         Button previous = addRenderableWidget(new Button(left, 184, 80, 20,
-                Component.translatable("screen.autotorch.previous_page"), button -> {
+                new TranslatableComponent("screen.autotorch.previous_page"), button -> {
             page--;
             rebuildWidgets();
         }));
         previous.active = page > 0;
 
         addRenderableWidget(new Button(width / 2 - 50, 184, 100, 20,
-                Component.translatable("screen.autotorch.back"), button -> onClose()));
+                new TranslatableComponent("screen.autotorch.back"), button -> onClose()));
 
         Button next = addRenderableWidget(new Button(left + panelWidth - 80, 184, 80, 20,
-                Component.translatable("screen.autotorch.next_page"), button -> {
+                new TranslatableComponent("screen.autotorch.next_page"), button -> {
             page++;
             rebuildWidgets();
         }));
         next.active = page < maxPage;
+    }
+
+    private void rebuildWidgets() {
+        clearWidgets();
+        init();
     }
 
     @Override
@@ -99,7 +105,7 @@ public final class ExclusionListScreen extends Screen {
 
         drawCenteredString(poseStack, font, title, width / 2, 12, 0xFFFFFFFF);
         if (total == 0) {
-            drawCenteredString(poseStack, font, Component.translatable("screen.autotorch.no_zone"),
+            drawCenteredString(poseStack, font, new TranslatableComponent("screen.autotorch.no_zone"),
                     width / 2, 82, 0xFFA0A0A0);
         }
         for (int index = firstIndex; index < lastIndex; index++) {
@@ -116,7 +122,7 @@ public final class ExclusionListScreen extends Screen {
             drawString(poseStack, font, description, left + 4, y,
                     lightingEntry ? LIGHTING_TEXT_COLOR : EXCLUSION_TEXT_COLOR);
         }
-        drawCenteredString(poseStack, font, Component.translatable("screen.autotorch.page_summary",
+        drawCenteredString(poseStack, font, new TranslatableComponent("screen.autotorch.page_summary",
                 page + 1, maxPage(total) + 1, lightingZone == null ? 0 : 1, exclusions.size()),
                 width / 2, 212, 0xFFA0A0A0);
         for (Map.Entry<AbstractWidget, Component> entry : tooltips.entrySet()) {
@@ -129,17 +135,17 @@ public final class ExclusionListScreen extends Screen {
 
     private static Component describeLighting(AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
-            return Component.translatable("screen.autotorch.lighting_sphere_row", format(zone.first()), zone.radius());
+            return new TranslatableComponent("screen.autotorch.lighting_sphere_row", format(zone.first()), zone.radius());
         }
-        return Component.translatable("screen.autotorch.lighting_box_row", format(zone.first()), format(zone.second()));
+        return new TranslatableComponent("screen.autotorch.lighting_box_row", format(zone.first()), format(zone.second()));
     }
 
     private static Component describeExclusion(int index, AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
-            return Component.translatable("screen.autotorch.exclusion_sphere_row",
+            return new TranslatableComponent("screen.autotorch.exclusion_sphere_row",
                     index + 1, format(zone.first()), zone.radius());
         }
-        return Component.translatable("screen.autotorch.exclusion_box_row",
+        return new TranslatableComponent("screen.autotorch.exclusion_box_row",
                 index + 1, format(zone.first()), format(zone.second()));
     }
 

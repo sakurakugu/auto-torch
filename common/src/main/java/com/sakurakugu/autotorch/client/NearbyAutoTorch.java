@@ -141,7 +141,7 @@ public final class NearbyAutoTorch {
         BlockPos support = target.below();
         BlockHitResult hit = new BlockHitResult(
                 Vec3.atCenterOf(support).add(0.0, 0.5, 0.0), Direction.UP, support, false);
-        InteractionResult result = minecraft.gameMode.useItemOn(player, torch.hand(), hit);
+        InteractionResult result = minecraft.gameMode.useItemOn(player, minecraft.level, torch.hand(), hit);
         if (result.shouldSwing()) {
             player.swing(torch.hand());
         }

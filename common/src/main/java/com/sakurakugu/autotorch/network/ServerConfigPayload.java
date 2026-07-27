@@ -17,7 +17,7 @@ public record ServerConfigPayload(
         int minSpacing,
         int maxSpacing
 ) implements AutoTorchPayload {
-    public static final ResourceLocation ID = ResourceLocation.tryBuild(AutoTorch.MOD_ID, "server_config");
+    public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID + ":server_config");
 
     public static ServerConfigPayload decode(FriendlyByteBuf buffer) {
         return new ServerConfigPayload(

@@ -14,15 +14,18 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.minecraftforge.server.ServerLifecycleHooks;
 
 @Mod(AutoTorch.MOD_ID)
 public final class AutoTorchForge {
-    public AutoTorchForge(FMLJavaModLoadingContext context) {
+    public AutoTorchForge() {
+        FMLJavaModLoadingContext context = FMLJavaModLoadingContext.get();
         ServerConfig.install(ForgeConfigs.SERVER);
-        context.registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
+        ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
         ForgeNetworking.initialize();
 
         MinecraftForge.EVENT_BUS.addListener(this::onServerTick);
@@ -38,7 +41,7 @@ public final class AutoTorchForge {
 
     private void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
-            LightingTaskManager.onServerTick(event.getServer());
+            LightingTaskManager.onServerTick(ServerLifecycleHooks.getCurrentServer());
         }
     }
 

@@ -16,16 +16,18 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.client.ClientRegistry;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import org.lwjgl.opengl.GL11;
 
 final class AutoTorchForgeClient {
+    private static final int DEPTH_LEQUAL = 0x0203;
     private static final RenderType LIGHT_OVERLAY_LINES = new RenderType(
             "autotorch_light_overlay_lines",
             DefaultVertexFormat.POSITION_COLOR_NORMAL,
@@ -42,7 +44,7 @@ final class AutoTorchForgeClient {
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
         ClientConfig.install(ForgeConfigs.CLIENT);
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
-        context.registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
 
         context.getModEventBus().addListener(this::registerKeys);
         MinecraftForge.EVENT_BUS.addListener(this::onRender);
@@ -55,9 +57,11 @@ final class AutoTorchForgeClient {
         new AutoTorchForgeClient(context);
     }
 
-    private void registerKeys(RegisterKeyMappingsEvent event) {
-        event.register(AutoTorchClient.OPEN_SCREEN);
-        event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+    private void registerKeys(FMLClientSetupEvent event) {
+        event.enqueueWork(() -> {
+            ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
+            ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        });
     }
 
     private void onTick(TickEvent.ClientTickEvent event) {
@@ -74,7 +78,7 @@ final class AutoTorchForgeClient {
         if (event.getEntity().getLevel() instanceof ClientLevel clientLevel
                 && client.onLeftClick(clientLevel, event.getItemStack(), event.getPos(),
                 start)) {
-            // 1.19.2 的事件没有 START 阶段，取消破坏后还会在长按期间重复触发。
+            // 1.18.2 的事件没有 START 阶段，取消破坏后还会在长按期间重复触发。
             selectionClickPos = event.getPos().immutable();
             event.setCanceled(true);
         }
@@ -124,7 +128,7 @@ final class AutoTorchForgeClient {
                 GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA
         );
         RenderSystem.enableDepthTest();
-        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+        RenderSystem.depthFunc(DEPTH_LEQUAL);
         RenderSystem.disableCull();
 
         PoseStack modelView = RenderSystem.getModelViewStack();
@@ -154,7 +158,7 @@ final class AutoTorchForgeClient {
 
         RenderSystem.enableCull();
         RenderSystem.disableDepthTest();
-        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+        RenderSystem.depthFunc(DEPTH_LEQUAL);
         RenderSystem.disableBlend();
         RenderSystem.defaultBlendFunc();
     }

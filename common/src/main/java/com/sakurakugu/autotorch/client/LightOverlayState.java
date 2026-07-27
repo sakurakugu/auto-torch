@@ -244,7 +244,7 @@ public final class LightOverlayState {
                 && blockLight <= 7
                 && feet.getY() > 50
                 && feet.getY() < 70
-                && level.getBiome(feet).is(BiomeTags.ALLOWS_SURFACE_SLIME_SPAWNS)
+                && level.getBiome(feet).is(Biomes.SWAMP)
                 && NaturalSpawner.isSpawnPositionOk(
                         SpawnPlacements.Type.ON_GROUND, level, feet, EntityType.SLIME);
     }
@@ -265,7 +265,7 @@ public final class LightOverlayState {
 
         Holder<Biome> biome = level.getBiome(pos);
         return biomeAllowsDrowned(biome)
-                && (biome.is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
+                && (biome.is(Biomes.RIVER)
                 || pos.getY() < level.getSeaLevel() - 5);
     }
 
@@ -276,7 +276,7 @@ public final class LightOverlayState {
         // 1.21.11及其以下的的生物群系网络编解码不会向客户端同步怪物生成表。
         return drownedInSpawnList
                 || biome.is(BiomeTags.IS_OCEAN)
-                || biome.is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
+                || biome.is(Biomes.RIVER)
                 || biome.is(Biomes.DRIPSTONE_CAVES);
     }
 
