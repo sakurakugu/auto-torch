@@ -43,15 +43,6 @@ Digging out a perimeter is tedious, and placing torches by hand makes it easy to
   Select points A and B to define a cuboid (opposite corners) or sphere (center/radius), with wooden axe selection support. Set the selection as the lighting area (green) or an exclusion area (red), adjust the block-light threshold, then click "Start Task." One lighting area and multiple exclusion areas are supported. (Lighting a maximum-size area of ordinary natural terrain generally takes about half an inventory, or roughly 1,000 torches, with the default settings.)
 - All features are available in the settings panel shown above.
 
-## Configuration
-
-NeoForge and Forge automatically create two types of configuration files after the first launch:
-
-> Fabric does not have the configuration library used for this, so its files are not generated automatically and must be added manually.
-
-- `config/autotorch-client.toml`: Stores client preferences for nearby automatic torch placement, the light level overlay, selection rendering, and task panel defaults.
-- `<world directory>/serverconfig/autotorch-server.toml`: Stores server limits for selection dimensions, torch counts, exclusion areas, concurrent tasks, and per-task and server-wide work budgets per tick.
-
 ## Building
 
 Java 21 is required:
@@ -109,9 +100,10 @@ On Windows, you can also run `tools\1.一键启动mc脚本.ps1`.
 
 ## Configuration Files
 
+Two types of configuration files are generated automatically after the first launch.
 Boolean options in configuration files use `true` or `false` without quotation marks.
 
-### Forge / NeoForge Client Configuration
+### Client Configuration
 
 File: `config/autotorch-client.toml`
 
@@ -162,7 +154,7 @@ survivalConsumeTorches = true
 woodenAxeSelectionEnabled = true
 ```
 
-### Forge / NeoForge Server Configuration
+### Server Configuration
 
 File: `<world directory>/serverconfig/autotorch-server.toml`
 Single-player location: `config/autotorch-server.toml`
@@ -203,52 +195,6 @@ randomPlacementAttempts = 32
 ```
 
 Lowering `scanBudgetPerTaskTick` and `globalScanBudgetPerTick` reduces the per-tick load caused by scanning but increases task duration. The same tradeoff applies to placement budgets. Server-wide budgets are hard limits, and the budget each task actually receives is also divided according to the number of tasks running concurrently.
-
-### Fabric Configuration
-
-Fabric uses the Java properties format. Its files are located at `config/autotorch-client.properties` and `config/autotorch-server.properties`. The files are not fully generated on first launch. Changing client options through the panel writes the client file, while the server file must be created manually. Any omitted keys use the defaults shown above.
-
-Complete default client configuration:
-
-```properties
-nearbyAutoTorch.enabled=false
-nearbyAutoTorch.lightThreshold=4
-nearbyAutoTorch.includeSkyLight=true
-lightOverlay.enabled=false
-lightOverlay.horizontalRange=16
-lightOverlay.showNumbers=false
-lightOverlay.detectSwampSlimes=false
-lightOverlay.detectDrowned=false
-selectionOverlay.enabled=true
-selectionOverlay.linesOnly=false
-selectionOverlay.smoothSpheres=false
-lightingTaskDefaults.maxTorches=0
-lightingTaskDefaults.minSpacing=8
-lightingTaskDefaults.lightThreshold=0
-lightingTaskDefaults.undergroundOnly=true
-lightingTaskDefaults.creativeConsumeTorches=false
-lightingTaskDefaults.survivalConsumeTorches=true
-lightingTaskDefaults.woodenAxeSelectionEnabled=true
-```
-
-Complete default server configuration:
-
-```properties
-limits.maxBoxAxisLength=321
-limits.maxSphereRadius=160
-limits.maxExclusions=32
-limits.maxTorchesPerTask=4096
-limits.allowUnlimitedTorches=true
-limits.minSpacing=3
-limits.maxSpacing=12
-limits.maxConcurrentTasks=64
-gameplay.survivalConsumesTorches=true
-performance.scanBudgetPerTaskTick=12000
-performance.placeBudgetPerTaskTick=8
-performance.globalScanBudgetPerTick=24000
-performance.globalPlaceBudgetPerTick=16
-performance.randomPlacementAttempts=32
-```
 
 ## Limits and Safety
 
