@@ -156,10 +156,10 @@ public final class LightOverlayRenderer {
         float nx = x2 - x1;
         float ny = y2 - y1;
         float nz = z2 - z1;
-        buffer.vertex(pose, x1, y1, z1)
-                .color(color).normal(pose, nx, ny, nz).endVertex();
-        buffer.vertex(pose, x2, y2, z2)
-                .color(color).normal(pose, nx, ny, nz).endVertex();
+        buffer.vertex(pose.pose(), x1, y1, z1)
+                .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
+        buffer.vertex(pose.pose(), x2, y2, z2)
+                .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
     }
 
     private record RenderData(

@@ -3,9 +3,7 @@ package com.sakurakugu.autotorch.network;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.server.ServerConfig;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
 /** 服务端在玩家登录后同步会影响客户端显示的权威配置。 */
@@ -18,15 +16,11 @@ public record ServerConfigPayload(
         boolean allowsUnlimitedTorches,
         int minSpacing,
         int maxSpacing
-) implements CustomPacketPayload {
-    public static final Type<ServerConfigPayload> TYPE = new Type<>(
-            ResourceLocation.tryBuild(AutoTorch.MOD_ID, "server_config")
-    );
-    public static final StreamCodec<RegistryFriendlyByteBuf, ServerConfigPayload> STREAM_CODEC =
-            CustomPacketPayload.codec(ServerConfigPayload::write, ServerConfigPayload::new);
+) implements AutoTorchPayload {
+    public static final ResourceLocation ID = ResourceLocation.tryBuild(AutoTorch.MOD_ID, "server_config");
 
-    private ServerConfigPayload(RegistryFriendlyByteBuf buffer) {
-        this(
+    public static ServerConfigPayload decode(FriendlyByteBuf buffer) {
+        return new ServerConfigPayload(
                 buffer.readBoolean(),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
@@ -38,7 +32,8 @@ public record ServerConfigPayload(
         );
     }
 
-    private void write(RegistryFriendlyByteBuf buffer) {
+    @Override
+    public void write(FriendlyByteBuf buffer) {
         buffer.writeBoolean(survivalConsumesTorches);
         buffer.writeVarInt(maxBoxAxisLength);
         buffer.writeVarInt(maxSphereRadius);
@@ -76,7 +71,7 @@ public record ServerConfigPayload(
     }
 
     @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
+    public ResourceLocation id() {
+        return ID;
     }
 }

@@ -15,8 +15,9 @@ import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.SpawnPlacementTypes;
+import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.biome.Biome;
@@ -223,7 +224,8 @@ public final class LightOverlayState {
         if (!Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)) {
             return null;
         }
-        if (!SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityType.ZOMBIE)) {
+        if (!NaturalSpawner.isSpawnPositionOk(
+                SpawnPlacements.Type.ON_GROUND, level, feet, EntityType.ZOMBIE)) {
             return null;
         }
         int blockLight = level.getBrightness(LightLayer.BLOCK, feet);
@@ -243,7 +245,8 @@ public final class LightOverlayState {
                 && feet.getY() > 50
                 && feet.getY() < 70
                 && level.getBiome(feet).is(BiomeTags.ALLOWS_SURFACE_SLIME_SPAWNS)
-                && SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityType.SLIME);
+                && NaturalSpawner.isSpawnPositionOk(
+                        SpawnPlacements.Type.ON_GROUND, level, feet, EntityType.SLIME);
     }
 
     private static boolean isDrownedRisk(ClientLevel level, BlockPos pos) {
@@ -255,7 +258,8 @@ public final class LightOverlayState {
         if (level.getBrightness(LightLayer.BLOCK, pos) != 0
                 || !level.getFluidState(pos).is(FluidTags.WATER)
                 || !level.getFluidState(pos.below()).is(FluidTags.WATER)
-                || !SpawnPlacementTypes.IN_WATER.isSpawnPositionOk(level, pos, EntityType.DROWNED)) {
+                || !NaturalSpawner.isSpawnPositionOk(
+                        SpawnPlacements.Type.IN_WATER, level, pos, EntityType.DROWNED)) {
             return false;
         }
 

@@ -1,6 +1,5 @@
 package com.sakurakugu.autotorch.forge;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
@@ -42,8 +41,10 @@ final class AutoTorchForgeClient {
         event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
     }
 
-    private void onTick(TickEvent.ClientTickEvent.Post event) {
-        client.tick();
+    private void onTick(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) {
+            client.tick();
+        }
     }
 
     private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
@@ -72,7 +73,7 @@ final class AutoTorchForgeClient {
         SelectionRenderer.extract(event.getCamera().getBlockPosition());
         LightOverlayRenderer.extract();
 
-        PoseStack poseStack = new PoseStack();
+        var poseStack = event.getPoseStack();
         var buffers = minecraft.renderBuffers().bufferSource();
         SelectionRenderer.render(camera, poseStack, buffers);
         LightOverlayRenderer.render(camera, poseStack, buffers);

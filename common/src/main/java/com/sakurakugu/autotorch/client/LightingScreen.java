@@ -844,8 +844,8 @@ public final class LightingScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
+        if (super.mouseScrolled(mouseX, mouseY, scrollY)) {
             return true;
         }
         if (maxScrollOffset() == 0 || scrollY == 0.0) {

@@ -3,13 +3,12 @@ param(
     [string[]]$Arguments
 )
 
-$task = "neoforge"
+$task = "forge"
 $javaPath = "C:\Software\Deps\Java\jdk-21"
 
 for ($index = 0; $index -lt $Arguments.Count; $index++) {
     switch ($Arguments[$index]) {
         "--build" { $task = "build" }
-        "--neoforge" { $task = "neoforge" }
         "--forge" { $task = "forge" }
         "--fabric" { $task = "fabric" }
         "--path" {
@@ -21,7 +20,7 @@ for ($index = 0; $index -lt $Arguments.Count; $index++) {
             $javaPath = $Arguments[$index]
         }
         default {
-            throw "不支持的参数 '$($Arguments[$index])'。请使用 --build、--neoforge、--forge、--fabric 或 --path。"
+            throw "不支持的参数 '$($Arguments[$index])'。请使用 --build、--forge、--fabric 或 --path。"
         }
     }
 }

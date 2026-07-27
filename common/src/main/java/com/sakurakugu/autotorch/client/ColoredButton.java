@@ -22,7 +22,8 @@ final class ColoredButton extends Button {
         if (!active) {
             color = 0xCC555555;
         }
-        graphics.fill(getX() + 1, getY() + 1, getRight() - 1, getBottom() - 1, color);
+        graphics.fill(getX() + 1, getY() + 1,
+                getX() + getWidth() - 1, getY() + getHeight() - 1, color);
         graphics.renderOutline(getX(), getY(), getWidth(), getHeight(), isHoveredOrFocused() ? 0xFFFFFFFF : 0xFFB0B0B0);
         graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(), getX() + getWidth() / 2, getY() + 6,
                 active ? 0xFFFFFFFF : 0xFFA0A0A0);

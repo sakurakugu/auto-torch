@@ -1,6 +1,5 @@
 package com.sakurakugu.autotorch.fabric;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
@@ -17,6 +16,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -34,9 +34,16 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             clientConfig.close();
             AutoTorchFabric.closeServerConfig();
         });
-        PlatformNetworking.installSender(ClientPlayNetworking::send);
-        ClientPlayNetworking.registerGlobalReceiver(ServerConfigPayload.TYPE, (payload, context) ->
-                ServerConfigState.update(payload));
+        PlatformNetworking.installSender(payload -> {
+            var buffer = PacketByteBufs.create();
+            payload.write(buffer);
+            ClientPlayNetworking.send(payload.id(), buffer);
+        });
+        ClientPlayNetworking.registerGlobalReceiver(ServerConfigPayload.ID,
+                (minecraft, handler, buffer, sender) -> {
+                    ServerConfigPayload payload = ServerConfigPayload.decode(buffer);
+                    minecraft.execute(() -> ServerConfigState.update(payload));
+                });
 
         AutoTorchClient client = new AutoTorchClient();
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
@@ -62,9 +69,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             var camera = context.camera().getPosition();
             SelectionRenderer.extract(context.camera().getBlockPosition());
             LightOverlayRenderer.extract();
-            // 1.20.6 在此阶段不提供矩阵栈，需要显式应用视图旋转并使用相机相对坐标。
-            PoseStack poseStack = new PoseStack();
-            poseStack.mulPose(context.positionMatrix());
+            var poseStack = context.matrixStack();
             var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
             SelectionRenderer.render(camera, poseStack, buffers);
             LightOverlayRenderer.render(camera, poseStack, buffers);

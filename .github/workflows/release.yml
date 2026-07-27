@@ -141,10 +141,10 @@ jobs:
           ref: ${{ matrix.target.sha }}
           fetch-depth: 0
 
-      - name: Setup JDK 25
+      - name: Setup JDK
         uses: actions/setup-java@v5
         with:
-          java-version: "25"
+          java-version: ${{ matrix.target.minecraft == '1.20.1' && '21' || '25' }}
           distribution: "temurin"
 
       - name: Setup Gradle
@@ -187,8 +187,9 @@ jobs:
           MINECRAFT_VERSION: ${{ steps.versions.outputs.minecraft_version }}
         run: |
           mkdir release
-          # 统一三个加载器的文件名，供发布阶段按约定路径读取。
+          # 根据当前分支实际包含的加载器收集产物。
           for loader in fabric forge neoforge; do
+            test -d "$loader" || continue
             source_file="$loader/build/libs/$MOD_ID-$MINECRAFT_VERSION-$loader-$MOD_VERSION.jar"
             target_file="release/$MOD_ID-v$MOD_VERSION-mc$MINECRAFT_VERSION-$loader.jar"
             test -f "$source_file" || { echo "Missing artifact: $source_file"; exit 1; }
@@ -265,7 +266,7 @@ jobs:
 
           {
             printf '## Auto Torch v%s\n\n' "$RELEASE_VERSION"
-            printf '适用于 **Minecraft %s / NeoForge、Forge、Fabric**。\n\n' "$MINECRAFT_RANGE"
+            printf '适用于 **Minecraft %s / Forge、Fabric，部分版本支持 NeoForge**。\n\n' "$MINECRAFT_RANGE"
 
             # 固定章节顺序，没有内容的类型不输出。
             for type in 新增 修复 优化 性能 适配 更新 重构 删除 回退 文档 构建 集成 测试 样式 杂项 合并 其他; do
@@ -295,7 +296,7 @@ jobs:
             gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_NAME" --notes-file release-notes.md
           fi
 
-  # 将每个 Minecraft 版本的三个加载器产物发布到平台，并上传到 GitHub Release。
+  # 将每个 Minecraft 版本已构建的加载器产物发布到平台，并上传到 GitHub Release。
   publish:
     needs:
       - prepare
@@ -346,7 +347,7 @@ jobs:
           game-versions: ${{ matrix.target.minecraft }}
           game-version-filter: none
           environment: client | server?
-          java: Java 25
+          java: ${{ matrix.target.minecraft == '1.20.1' && 'Java 17' || 'Java 25' }}
           dependencies: fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
 
       # Forge 和 NeoForge 不依赖 Fabric API，因此不声明额外依赖。
@@ -366,9 +367,10 @@ jobs:
           game-versions: ${{ matrix.target.minecraft }}
           game-version-filter: none
           environment: client | server?
-          java: Java 25
+          java: ${{ matrix.target.minecraft == '1.20.1' && 'Java 17' || 'Java 25' }}
 
       - name: Publish NeoForge for Minecraft ${{ matrix.target.minecraft }}
+        if: matrix.target.minecraft != '1.20.1'
         uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3
         with:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}

@@ -39,8 +39,13 @@ public final class SelectionRenderer {
                 RenderSystem.depthFunc(GL11.GL_LEQUAL);
                 RenderSystem.disableCull();
                 RenderSystem.depthMask(false);
+                // 将贴合方块的选区面略微拉近，避免移动时与方块表面发生深度闪烁。
+                RenderSystem.polygonOffset(-1.0F, -10.0F);
+                RenderSystem.enablePolygonOffset();
             },
             () -> {
+                RenderSystem.polygonOffset(0.0F, 0.0F);
+                RenderSystem.disablePolygonOffset();
                 RenderSystem.depthMask(true);
                 RenderSystem.enableCull();
                 RenderSystem.disableBlend();
@@ -171,7 +176,7 @@ public final class SelectionRenderer {
                 }
             } else {
                 renderBoxLines(pose, buffer,
-                        AABB.encapsulatingFullBlocks(zone.min(), zone.max()), lineColor, width);
+                        fullBlockBounds(zone), lineColor, width);
             }
         } else if (zone.shape() == AreaShape.SPHERE) {
             if (data.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY) {
@@ -181,8 +186,15 @@ public final class SelectionRenderer {
                 renderSphereFaces(pose, buffer, zone, faceColor);
             }
         } else {
-            renderBoxFaces(pose, buffer, AABB.encapsulatingFullBlocks(zone.min(), zone.max()), faceColor);
+            renderBoxFaces(pose, buffer, fullBlockBounds(zone), faceColor);
         }
+    }
+
+    private static AABB fullBlockBounds(AreaZone zone) {
+        return new AABB(
+                zone.min().getX(), zone.min().getY(), zone.min().getZ(),
+                zone.max().getX() + 1, zone.max().getY() + 1, zone.max().getZ() + 1
+        );
     }
 
     private static void renderBoxLines(PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color, float width) {
@@ -443,7 +455,7 @@ public final class SelectionRenderer {
             int latitude, int longitude, int color
     ) {
         double horizontal = SPHERE_LATITUDE_COS[latitude] * radius;
-        buffer.vertex(pose,
+        buffer.vertex(pose.pose(),
                 (float) (cx + SPHERE_LONGITUDE_COS[longitude] * horizontal),
                 (float) (cy + SPHERE_LATITUDE_SIN[latitude] * radius),
                 (float) (cz + SPHERE_LONGITUDE_SIN[longitude] * horizontal)).color(color).endVertex();
@@ -455,10 +467,10 @@ public final class SelectionRenderer {
             double x3, double y3, double z3, double x4, double y4, double z4, int color
     ) {
         // 选区面使用独立四边形且不写深度，保证水面等透明内容仍能正常渲染。
-        buffer.vertex(pose, (float) x1, (float) y1, (float) z1).color(color).endVertex();
-        buffer.vertex(pose, (float) x2, (float) y2, (float) z2).color(color).endVertex();
-        buffer.vertex(pose, (float) x3, (float) y3, (float) z3).color(color).endVertex();
-        buffer.vertex(pose, (float) x4, (float) y4, (float) z4).color(color).endVertex();
+        buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1).color(color).endVertex();
+        buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2).color(color).endVertex();
+        buffer.vertex(pose.pose(), (float) x3, (float) y3, (float) z3).color(color).endVertex();
+        buffer.vertex(pose.pose(), (float) x4, (float) y4, (float) z4).color(color).endVertex();
     }
 
     private static void line(
@@ -481,10 +493,10 @@ public final class SelectionRenderer {
             ny /= length;
             nz /= length;
         }
-        buffer.vertex(pose, (float) x1, (float) y1, (float) z1)
-                .color(color).normal(pose, nx, ny, nz).endVertex();
-        buffer.vertex(pose, (float) x2, (float) y2, (float) z2)
-                .color(color).normal(pose, nx, ny, nz).endVertex();
+        buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1)
+                .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
+        buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2)
+                .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
     }
 
     private record RenderData(

@@ -291,7 +291,12 @@ final class LightingTask {
     }
 
     private static boolean hasTorch(ServerPlayer player) {
-        return player.getInventory().contains(stack -> stack.is(Items.TORCH));
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            if (player.getInventory().getItem(slot).is(Items.TORCH)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void consumeTorch(ServerPlayer player) {

@@ -1,29 +1,23 @@
 package com.sakurakugu.autotorch.network;
 
 import com.sakurakugu.autotorch.AutoTorch;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
 /** 客户端请求取消自己当前照明任务的无数据载荷。 */
-public record CancelLightingPayload() implements CustomPacketPayload {
-    public static final Type<CancelLightingPayload> TYPE = new Type<>(
-            ResourceLocation.tryBuild(AutoTorch.MOD_ID, "cancel_lighting")
-    );
+public record CancelLightingPayload() implements AutoTorchPayload {
+    public static final ResourceLocation ID = ResourceLocation.tryBuild(AutoTorch.MOD_ID, "cancel_lighting");
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, CancelLightingPayload> STREAM_CODEC =
-            CustomPacketPayload.codec(CancelLightingPayload::write, CancelLightingPayload::new);
-
-    private CancelLightingPayload(RegistryFriendlyByteBuf ignored) {
-        this();
-    }
-
-    private void write(RegistryFriendlyByteBuf ignored) {
+    public static CancelLightingPayload decode(FriendlyByteBuf ignored) {
+        return new CancelLightingPayload();
     }
 
     @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
+    public void write(FriendlyByteBuf ignored) {
+    }
+
+    @Override
+    public ResourceLocation id() {
+        return ID;
     }
 }

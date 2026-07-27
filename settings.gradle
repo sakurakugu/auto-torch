@@ -11,4 +11,4 @@ plugins {
 }
 
 rootProject.name = 'auto-torch'
-include 'common', 'neoforge', 'forge', 'fabric'
+include 'common', 'forge', 'fabric'

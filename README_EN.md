@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md)
 
-An automatic torch placement and light level overlay mod for Minecraft 1.20.6~26.2 on NeoForge, Forge, and Fabric.
+An automatic torch placement and light level overlay mod for Minecraft 1.20.1~26.2 on Forge and Fabric.
 
 ![Icon](./common/src/main/resources/autotorch.png)
 
@@ -45,7 +45,7 @@ Digging out a perimeter is tedious, and placing torches by hand makes it easy to
 
 ## Building
 
-Java 21 is required:
+Building requires Java 21; the generated mod runs on Java 17:
 
 ```powershell
 $env:JAVA_HOME='path to your Java 21 installation'
@@ -59,7 +59,6 @@ The generated JARs are automatically copied to the root `build` directory and re
 Run a development client with:
 
 ```powershell
-.\gradlew.bat :neoforge:runClient
 .\gradlew.bat :forge:runClient
 .\gradlew.bat :fabric:runClient
 ```

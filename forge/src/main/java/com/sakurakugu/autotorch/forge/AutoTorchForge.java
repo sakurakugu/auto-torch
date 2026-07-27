@@ -36,8 +36,10 @@ public final class AutoTorchForge {
         }
     }
 
-    private void onServerTick(TickEvent.ServerTickEvent.Post event) {
-        LightingTaskManager.onServerTick(event.getServer());
+    private void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) {
+            LightingTaskManager.onServerTick(event.getServer());
+        }
     }
 
     private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {

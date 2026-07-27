@@ -5,9 +5,7 @@ import java.util.List;
 
 import com.sakurakugu.autotorch.AutoTorch;
 import io.netty.handler.codec.DecoderException;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
 /** 客户端提交的照明任务配置；服务端收到后仍需进行完整的边界校验。 */
@@ -19,17 +17,12 @@ public record StartLightingPayload(
         boolean consumeTorches,
         boolean undergroundOnly,
         List<AreaZone> exclusions
-) implements CustomPacketPayload {
+) implements AutoTorchPayload {
     public static final int MAX_EXCLUSIONS = 32;
-    public static final Type<StartLightingPayload> TYPE = new Type<>(
-            ResourceLocation.tryBuild(AutoTorch.MOD_ID, "start_lighting")
-    );
+    public static final ResourceLocation ID = ResourceLocation.tryBuild(AutoTorch.MOD_ID, "start_lighting");
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, StartLightingPayload> STREAM_CODEC =
-            CustomPacketPayload.codec(StartLightingPayload::write, StartLightingPayload::new);
-
-    private StartLightingPayload(RegistryFriendlyByteBuf buffer) {
-        this(
+    public static StartLightingPayload decode(FriendlyByteBuf buffer) {
+        return new StartLightingPayload(
                 readZone(buffer),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
@@ -45,7 +38,8 @@ public record StartLightingPayload(
         exclusions = List.copyOf(exclusions);
     }
 
-    private void write(RegistryFriendlyByteBuf buffer) {
+    @Override
+    public void write(FriendlyByteBuf buffer) {
         writeZone(buffer, selection);
         buffer.writeVarInt(maxTorches);
         buffer.writeVarInt(minSpacing);
@@ -58,13 +52,13 @@ public record StartLightingPayload(
         }
     }
 
-    private static void writeZone(RegistryFriendlyByteBuf buffer, AreaZone zone) {
+    private static void writeZone(FriendlyByteBuf buffer, AreaZone zone) {
         buffer.writeByte(zone.shape().ordinal());
         buffer.writeBlockPos(zone.first());
         buffer.writeBlockPos(zone.second());
     }
 
-    private static AreaZone readZone(RegistryFriendlyByteBuf buffer) {
+    private static AreaZone readZone(FriendlyByteBuf buffer) {
         int shapeId = buffer.readUnsignedByte();
         AreaShape[] shapes = AreaShape.values();
         if (shapeId >= shapes.length) {
@@ -73,7 +67,7 @@ public record StartLightingPayload(
         return new AreaZone(shapes[shapeId], buffer.readBlockPos(), buffer.readBlockPos());
     }
 
-    private static List<AreaZone> readExclusions(RegistryFriendlyByteBuf buffer) {
+    private static List<AreaZone> readExclusions(FriendlyByteBuf buffer) {
         int count = buffer.readVarInt();
         // 在分配列表前限制数量，防止恶意数据包造成过量内存分配。
         if (count < 0 || count > MAX_EXCLUSIONS) {
@@ -87,7 +81,7 @@ public record StartLightingPayload(
     }
 
     @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
+    public ResourceLocation id() {
+        return ID;
     }
 }
