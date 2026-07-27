@@ -43,15 +43,6 @@
   选取 A/B 两点，定义长方体（对角线）或球体（球心/半径），支持木斧选择。然后设置为照明范围（绿色）或排除区（红色），调整方块光阈值并点击“开始任务”即可。支持一个照明范围和多个排除区。（一般默认最大区间的自然地形在半个背包1000根火把左右）
 - 全部的功能都在上图中的设置面板中
 
-## 配置
-
-NeoForge 和 Forge 会在首次加载后自动生成两类配置文件：
-
-> Fabric 没这库，它不会自动生成，要手动添加
-
-- `config/autotorch-client.toml`：保存附近自动插火把、光照显示、选区显示及任务面板默认值等客户端偏好。
-- `<世界目录>/serverconfig/autotorch-server.toml`：保存选区尺寸、火把数量、排除区、并发任务，以及单任务和全服每 tick 工作预算等服务端限制。
-
 ## 构建
 
 需要 Java 25：
@@ -109,9 +100,10 @@ $env:JAVA_HOME='你的 Java 25 安装目录'
 
 ## 配置文件
 
+首次加载后会自动生成两类配置文件。
 配置文件中的开关布尔值使用 `true`/`false`（不要加双引号）。
 
-### Forge / NeoForge 客户端配置
+### 客户端配置
 
 文件位置：`config/autotorch-client.toml`
 
@@ -162,7 +154,7 @@ survivalConsumeTorches = true
 woodenAxeSelectionEnabled = true
 ```
 
-### Forge / NeoForge 服务端配置
+### 服务端配置
 
 文件位置：`<世界目录>/serverconfig/autotorch-server.toml`
 单人位置：`config/autotorch-server.toml`
@@ -203,52 +195,6 @@ randomPlacementAttempts = 32
 ```
 
 降低 `scanBudgetPerTaskTick` 和 `globalScanBudgetPerTick` 可以减少扫描造成的单 tick 压力，但会延长任务时间；放置预算同理。全服预算是硬上限，单任务实际获得的预算还会根据同时运行的任务数分配。
-
-### Fabric 配置
-
-Fabric 使用 Java properties 格式，文件位于 `config/autotorch-client.properties` 和 `config/autotorch-server.properties`。文件不会在首次启动时完整生成；通过面板修改客户端选项后会写入客户端文件，服务端文件需要手动创建。未填写的键使用上述默认值。
-
-客户端文件的完整默认内容：
-
-```properties
-nearbyAutoTorch.enabled=false
-nearbyAutoTorch.lightThreshold=4
-nearbyAutoTorch.includeSkyLight=true
-lightOverlay.enabled=false
-lightOverlay.horizontalRange=16
-lightOverlay.showNumbers=false
-lightOverlay.detectSwampSlimes=false
-lightOverlay.detectDrowned=false
-selectionOverlay.enabled=true
-selectionOverlay.linesOnly=false
-selectionOverlay.smoothSpheres=false
-lightingTaskDefaults.maxTorches=0
-lightingTaskDefaults.minSpacing=8
-lightingTaskDefaults.lightThreshold=0
-lightingTaskDefaults.undergroundOnly=true
-lightingTaskDefaults.creativeConsumeTorches=false
-lightingTaskDefaults.survivalConsumeTorches=true
-lightingTaskDefaults.woodenAxeSelectionEnabled=true
-```
-
-服务端文件的完整默认内容：
-
-```properties
-limits.maxBoxAxisLength=321
-limits.maxSphereRadius=160
-limits.maxExclusions=32
-limits.maxTorchesPerTask=4096
-limits.allowUnlimitedTorches=true
-limits.minSpacing=3
-limits.maxSpacing=12
-limits.maxConcurrentTasks=64
-gameplay.survivalConsumesTorches=true
-performance.scanBudgetPerTaskTick=12000
-performance.placeBudgetPerTaskTick=8
-performance.globalScanBudgetPerTick=24000
-performance.globalPlaceBudgetPerTick=16
-performance.randomPlacementAttempts=32
-```
 
 ## 限制与安全
 
