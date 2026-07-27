@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 /** 客户端请求取消自己当前照明任务的无数据载荷。 */
 public record CancelLightingPayload() implements CustomPacketPayload {
     public static final Type<CancelLightingPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(AutoTorch.MOD_ID, "cancel_lighting")
+            ResourceLocation.tryBuild(AutoTorch.MOD_ID, "cancel_lighting")
     );
 
     public static final StreamCodec<RegistryFriendlyByteBuf, CancelLightingPayload> STREAM_CODEC =

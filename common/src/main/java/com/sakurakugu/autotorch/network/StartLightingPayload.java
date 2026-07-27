@@ -22,7 +22,7 @@ public record StartLightingPayload(
 ) implements CustomPacketPayload {
     public static final int MAX_EXCLUSIONS = 32;
     public static final Type<StartLightingPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(AutoTorch.MOD_ID, "start_lighting")
+            ResourceLocation.tryBuild(AutoTorch.MOD_ID, "start_lighting")
     );
 
     public static final StreamCodec<RegistryFriendlyByteBuf, StartLightingPayload> STREAM_CODEC =

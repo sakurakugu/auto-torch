@@ -16,7 +16,7 @@ import net.minecraftforge.network.PacketDistributor;
 
 final class ForgeNetworking {
     private static final Channel<CustomPacketPayload> CHANNEL = ChannelBuilder
-            .named(ResourceLocation.fromNamespaceAndPath(AutoTorch.MOD_ID, "main"))
+            .named(ResourceLocation.tryBuild(AutoTorch.MOD_ID, "main"))
             .networkProtocolVersion(5)
             .payloadChannel()
             .play()

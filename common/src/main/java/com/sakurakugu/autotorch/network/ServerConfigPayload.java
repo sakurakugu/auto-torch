@@ -20,7 +20,7 @@ public record ServerConfigPayload(
         int maxSpacing
 ) implements CustomPacketPayload {
     public static final Type<ServerConfigPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(AutoTorch.MOD_ID, "server_config")
+            ResourceLocation.tryBuild(AutoTorch.MOD_ID, "server_config")
     );
     public static final StreamCodec<RegistryFriendlyByteBuf, ServerConfigPayload> STREAM_CODEC =
             CustomPacketPayload.codec(ServerConfigPayload::write, ServerConfigPayload::new);

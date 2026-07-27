@@ -71,6 +71,6 @@ public final class AutoTorchNeoForgeClient {
         SelectionRenderer.render(camera, event.getPoseStack(), buffers);
         LightOverlayRenderer.render(camera, event.getPoseStack(), buffers);
         buffers.endBatch(RenderType.lines());
-        buffers.endBatch(RenderType.debugStructureQuads());
+        buffers.endBatch(SelectionRenderer.faceRenderType());
     }
 }

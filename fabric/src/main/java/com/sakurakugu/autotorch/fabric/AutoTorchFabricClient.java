@@ -18,7 +18,9 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.InteractionResult;
 
 public final class AutoTorchFabricClient implements ClientModInitializer {
@@ -60,10 +62,15 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             var camera = context.camera().getPosition();
             SelectionRenderer.extract(context.camera().getBlockPosition());
             LightOverlayRenderer.extract();
-            // 1.21.1 在此阶段不提供矩阵栈，世界坐标只需要减去相机位置。
+            // 1.20.6 在此阶段不提供矩阵栈，需要显式应用视图旋转并使用相机相对坐标。
             PoseStack poseStack = new PoseStack();
-            SelectionRenderer.render(camera, poseStack, context.consumers());
-            LightOverlayRenderer.render(camera, poseStack, context.consumers());
+            poseStack.mulPose(context.positionMatrix());
+            var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+            SelectionRenderer.render(camera, poseStack, buffers);
+            LightOverlayRenderer.render(camera, poseStack, buffers);
+            // 自定义几何必须在当前相机模型视图仍有效时提交，不能留到共享缓冲区稍后冲刷。
+            buffers.endBatch(RenderType.lines());
+            buffers.endBatch(SelectionRenderer.faceRenderType());
         });
     }
 }

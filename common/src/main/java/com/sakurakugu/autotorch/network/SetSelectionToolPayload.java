@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 /** 将客户端的木斧选区交互开关同步给服务端。 */
 public record SetSelectionToolPayload(boolean enabled) implements CustomPacketPayload {
     public static final Type<SetSelectionToolPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(AutoTorch.MOD_ID, "set_selection_tool")
+            ResourceLocation.tryBuild(AutoTorch.MOD_ID, "set_selection_tool")
     );
     public static final StreamCodec<RegistryFriendlyByteBuf, SetSelectionToolPayload> STREAM_CODEC =
             CustomPacketPayload.codec(SetSelectionToolPayload::write, SetSelectionToolPayload::new);

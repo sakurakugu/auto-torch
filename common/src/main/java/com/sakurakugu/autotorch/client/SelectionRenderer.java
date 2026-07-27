@@ -5,20 +5,47 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.VertexFormat;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.lwjgl.opengl.GL11;
 
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
 public final class SelectionRenderer {
+    private static final RenderType FACE_RENDER_TYPE = new RenderType(
+            "autotorch_selection_faces",
+            DefaultVertexFormat.POSITION_COLOR,
+            VertexFormat.Mode.QUADS,
+            1536,
+            false,
+            true,
+            () -> {
+                RenderSystem.setShader(GameRenderer::getPositionColorShader);
+                RenderSystem.enableBlend();
+                RenderSystem.defaultBlendFunc();
+                RenderSystem.enableDepthTest();
+                RenderSystem.depthFunc(GL11.GL_LEQUAL);
+                RenderSystem.disableCull();
+                RenderSystem.depthMask(false);
+            },
+            () -> {
+                RenderSystem.depthMask(true);
+                RenderSystem.enableCull();
+                RenderSystem.disableBlend();
+            }
+    ) {};
     private static final int DRAFT_LINE_COLOR = 0xD070A0FF;
     private static final int SELECTION_LINE_COLOR = 0xD050FF70;
     private static final int EXCLUSION_LINE_COLOR = 0xD0FF5050;
@@ -104,7 +131,7 @@ public final class SelectionRenderer {
         poseStack.pushPose();
         poseStack.translate(-camera.x(), -camera.y(), -camera.z());
         RenderType renderType = data.displayMode() == SelectionState.DisplayMode.LINES
-                ? RenderType.lines() : RenderType.debugStructureQuads();
+                ? RenderType.lines() : FACE_RENDER_TYPE;
         sink.submit(poseStack, renderType, (pose, buffer) -> renderZones(pose, buffer, data));
         poseStack.popPose();
     }
@@ -416,10 +443,10 @@ public final class SelectionRenderer {
             int latitude, int longitude, int color
     ) {
         double horizontal = SPHERE_LATITUDE_COS[latitude] * radius;
-        buffer.addVertex(pose,
+        buffer.vertex(pose,
                 (float) (cx + SPHERE_LONGITUDE_COS[longitude] * horizontal),
                 (float) (cy + SPHERE_LATITUDE_SIN[latitude] * radius),
-                (float) (cz + SPHERE_LONGITUDE_SIN[longitude] * horizontal)).setColor(color);
+                (float) (cz + SPHERE_LONGITUDE_SIN[longitude] * horizontal)).color(color).endVertex();
     }
 
     private static void quad(
@@ -427,11 +454,11 @@ public final class SelectionRenderer {
             double x1, double y1, double z1, double x2, double y2, double z2,
             double x3, double y3, double z3, double x4, double y4, double z4, int color
     ) {
-        // debugStructureQuads 禁用背面剔除且不写入深度，避免遮挡后续渲染的水面。
-        buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(color);
-        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(color);
-        buffer.addVertex(pose, (float) x3, (float) y3, (float) z3).setColor(color);
-        buffer.addVertex(pose, (float) x4, (float) y4, (float) z4).setColor(color);
+        // 选区面使用独立四边形且不写深度，保证水面等透明内容仍能正常渲染。
+        buffer.vertex(pose, (float) x1, (float) y1, (float) z1).color(color).endVertex();
+        buffer.vertex(pose, (float) x2, (float) y2, (float) z2).color(color).endVertex();
+        buffer.vertex(pose, (float) x3, (float) y3, (float) z3).color(color).endVertex();
+        buffer.vertex(pose, (float) x4, (float) y4, (float) z4).color(color).endVertex();
     }
 
     private static void line(
@@ -454,10 +481,10 @@ public final class SelectionRenderer {
             ny /= length;
             nz /= length;
         }
-        buffer.addVertex(pose, (float) x1, (float) y1, (float) z1)
-                .setColor(color).setNormal(pose, nx, ny, nz);
-        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2)
-                .setColor(color).setNormal(pose, nx, ny, nz);
+        buffer.vertex(pose, (float) x1, (float) y1, (float) z1)
+                .color(color).normal(pose, nx, ny, nz).endVertex();
+        buffer.vertex(pose, (float) x2, (float) y2, (float) z2)
+                .color(color).normal(pose, nx, ny, nz).endVertex();
     }
 
     private record RenderData(
@@ -468,6 +495,10 @@ public final class SelectionRenderer {
             SelectionState.SphereDisplayMode sphereDisplayMode,
             Map<Long, BlockySphereMesh> blockySphereMeshes
     ) {
+    }
+
+    public static RenderType faceRenderType() {
+        return FACE_RENDER_TYPE;
     }
 
     @FunctionalInterface
