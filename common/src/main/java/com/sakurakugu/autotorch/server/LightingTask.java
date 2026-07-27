@@ -88,7 +88,7 @@ final class LightingTask {
     }
 
     TickResult tick(ServerPlayer player, int scanBudget, int placeBudget) {
-        if (player.level() != level) {
+        if (player.getLevel() != level) {
             return finish(player, "message.autotorch.wrong_dimension", 0, 0);
         }
         if (maxTorches > 0 && placed >= maxTorches) {

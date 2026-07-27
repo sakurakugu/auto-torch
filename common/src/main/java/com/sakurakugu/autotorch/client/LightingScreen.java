@@ -6,8 +6,8 @@ import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
@@ -893,40 +893,45 @@ public final class LightingScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.enableScissor(0, VIEWPORT_MARGIN, width, height - VIEWPORT_MARGIN);
-        super.render(graphics, mouseX, mouseY, partialTick);
+    public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
+        enableScissor(0, VIEWPORT_MARGIN, width, height - VIEWPORT_MARGIN);
+        super.render(poseStack, mouseX, mouseY, partialTick);
         int left = panelLeft();
         int offset = scrollOffset;
-        graphics.drawCenteredString(font, title, width / 2, 6 - offset, 0xFFFFFFFF);
+        drawCenteredString(poseStack, font, title, width / 2, 6 - offset, 0xFFFFFFFF);
         boolean sphere = SelectionState.shape() == AreaShape.SPHERE;
-        graphics.drawString(font, sphere ? "C" : "A", left + 5, 50 - offset, 0xFF70A0FF);
-        graphics.drawString(font, sphere ? "R" : "B", left + 5, 72 - offset, 0xFF70A0FF);
+        drawString(poseStack, font, sphere ? "C" : "A", left + 5, 50 - offset, 0xFF70A0FF);
+        drawString(poseStack, font, sphere ? "R" : "B", left + 5, 72 - offset, 0xFF70A0FF);
         if (sphere) {
-            graphics.drawString(font, Component.translatable("screen.autotorch.radius_label"), left + 2, 94 - offset, 0xFF70A0FF);
+            drawString(poseStack, font, Component.translatable("screen.autotorch.radius_label"),
+                    left + 2, 94 - offset, 0xFF70A0FF);
         } else {
-            graphics.drawString(font, Component.translatable("screen.autotorch.length_label"), left + 2, 94 - offset, 0xFF70A0FF);
-            graphics.drawString(font, Component.translatable("screen.autotorch.width_label"), left + 104, 94 - offset, 0xFF70A0FF);
-            graphics.drawString(font, Component.translatable("screen.autotorch.height_label"), left + 206, 94 - offset, 0xFF70A0FF);
+            drawString(poseStack, font, Component.translatable("screen.autotorch.length_label"),
+                    left + 2, 94 - offset, 0xFF70A0FF);
+            drawString(poseStack, font, Component.translatable("screen.autotorch.width_label"),
+                    left + 104, 94 - offset, 0xFF70A0FF);
+            drawString(poseStack, font, Component.translatable("screen.autotorch.height_label"),
+                    left + 206, 94 - offset, 0xFF70A0FF);
         }
-        graphics.drawString(font, Component.translatable("screen.autotorch.max_torches"), left, 166 - offset, 0xFFFFFFFF);
+        drawString(poseStack, font, Component.translatable("screen.autotorch.max_torches"),
+                left, 166 - offset, 0xFFFFFFFF);
         int informationY = 232 - offset;
         if (!error.getString().isEmpty()) {
-            graphics.drawCenteredString(font, error, width / 2, informationY, 0xFFFF6060);
+            drawCenteredString(poseStack, font, error, width / 2, informationY, 0xFFFF6060);
         } else if (!rangeMessage.getString().isEmpty()) {
-            graphics.drawCenteredString(font, rangeMessage, width / 2, informationY, 0xFFFFC060);
+            drawCenteredString(poseStack, font, rangeMessage, width / 2, informationY, 0xFFFFC060);
         } else {
-            graphics.drawString(font, Component.translatable("screen.autotorch.zone_summary",
+            drawString(poseStack, font, Component.translatable("screen.autotorch.zone_summary",
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()),
                     left, informationY, 0xFFA0A0A0);
         }
-        graphics.fill(left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
-        graphics.drawCenteredString(font, Component.translatable("screen.autotorch.light_overlay_title"),
+        fill(poseStack, left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
+        drawCenteredString(poseStack, font, Component.translatable("screen.autotorch.light_overlay_title"),
                 width / 2, 246 - offset, 0xFFFFFFFF);
-        graphics.fill(left, 310 - offset, left + 310, 311 - offset, 0xFF606060);
-        graphics.drawCenteredString(font, Component.translatable("screen.autotorch.nearby_auto_torch_title"),
+        fill(poseStack, left, 310 - offset, left + 310, 311 - offset, 0xFF606060);
+        drawCenteredString(poseStack, font, Component.translatable("screen.autotorch.nearby_auto_torch_title"),
                 width / 2, 314 - offset, 0xFFFFFFFF);
-        graphics.disableScissor();
+        disableScissor();
 
         if (maxScrollOffset() > 0) {
             int x = scrollbarX();
@@ -934,8 +939,9 @@ public final class LightingScreen extends Screen {
             int thumbColor = mouseX >= x && mouseX < x + SCROLLBAR_WIDTH
                     && mouseY >= VIEWPORT_MARGIN && mouseY < height - VIEWPORT_MARGIN
                     ? 0xFFE0E0E0 : 0xFFB0B0B0;
-            graphics.fill(x, VIEWPORT_MARGIN, x + SCROLLBAR_WIDTH, height - VIEWPORT_MARGIN, 0x80000000);
-            graphics.fill(x, y, x + SCROLLBAR_WIDTH, y + scrollbarHeight(), thumbColor);
+            fill(poseStack, x, VIEWPORT_MARGIN, x + SCROLLBAR_WIDTH,
+                    height - VIEWPORT_MARGIN, 0x80000000);
+            fill(poseStack, x, y, x + SCROLLBAR_WIDTH, y + scrollbarHeight(), thumbColor);
         }
     }
 

@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.client.gui.GuiGraphics;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
@@ -80,8 +80,8 @@ public final class ExclusionListScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
+    public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
+        super.render(poseStack, mouseX, mouseY, partialTick);
         AreaZone lightingZone = SelectionState.lightingZone();
         List<AreaZone> exclusions = SelectionState.exclusions();
         int total = exclusions.size() + (lightingZone == null ? 0 : 1);
@@ -90,9 +90,10 @@ public final class ExclusionListScreen extends Screen {
         int firstIndex = page * PAGE_SIZE;
         int lastIndex = Math.min(firstIndex + PAGE_SIZE, total);
 
-        graphics.drawCenteredString(font, title, width / 2, 12, 0xFFFFFFFF);
+        drawCenteredString(poseStack, font, title, width / 2, 12, 0xFFFFFFFF);
         if (total == 0) {
-            graphics.drawCenteredString(font, Component.translatable("screen.autotorch.no_zone"), width / 2, 82, 0xFFA0A0A0);
+            drawCenteredString(poseStack, font, Component.translatable("screen.autotorch.no_zone"),
+                    width / 2, 82, 0xFFA0A0A0);
         }
         for (int index = firstIndex; index < lastIndex; index++) {
             int y = 40 + (index - firstIndex) * 24;
@@ -105,10 +106,10 @@ public final class ExclusionListScreen extends Screen {
             if (font.width(description) > availableWidth) {
                 description = font.plainSubstrByWidth(description, Math.max(0, availableWidth - font.width("..."))) + "...";
             }
-            graphics.drawString(font, description, left + 4, y,
+            drawString(poseStack, font, description, left + 4, y,
                     lightingEntry ? LIGHTING_TEXT_COLOR : EXCLUSION_TEXT_COLOR);
         }
-        graphics.drawCenteredString(font, Component.translatable("screen.autotorch.page_summary",
+        drawCenteredString(poseStack, font, Component.translatable("screen.autotorch.page_summary",
                 page + 1, maxPage(total) + 1, lightingZone == null ? 0 : 1, exclusions.size()),
                 width / 2, 212, 0xFFA0A0A0);
     }

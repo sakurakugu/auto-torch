@@ -8,6 +8,7 @@ import com.sakurakugu.autotorch.network.PlatformNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -19,6 +20,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 final class AutoTorchForgeClient {
     private final AutoTorchClient client = new AutoTorchClient();
+    private BlockPos selectionClickPos;
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
         ClientConfig.install(ForgeConfigs.CLIENT);
@@ -44,19 +46,25 @@ final class AutoTorchForgeClient {
     private void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             client.tick();
+            if (!Minecraft.getInstance().options.keyAttack.isDown()) {
+                selectionClickPos = null;
+            }
         }
     }
 
     private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
-        if (event.getEntity().level() instanceof ClientLevel clientLevel
+        boolean start = selectionClickPos == null || !selectionClickPos.equals(event.getPos());
+        if (event.getEntity().getLevel() instanceof ClientLevel clientLevel
                 && client.onLeftClick(clientLevel, event.getItemStack(), event.getPos(),
-                event.getAction() == PlayerInteractEvent.LeftClickBlock.Action.START)) {
+                start)) {
+            // 1.19.4 的事件没有 START 阶段，取消破坏后还会在长按期间重复触发。
+            selectionClickPos = event.getPos().immutable();
             event.setCanceled(true);
         }
     }
 
     private void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getEntity().level() instanceof ClientLevel clientLevel
+        if (event.getEntity().getLevel() instanceof ClientLevel clientLevel
                 && client.onRightClick(clientLevel, event.getHand(), event.getItemStack(), event.getPos())) {
             event.setCancellationResult(InteractionResult.SUCCESS);
             event.setCanceled(true);

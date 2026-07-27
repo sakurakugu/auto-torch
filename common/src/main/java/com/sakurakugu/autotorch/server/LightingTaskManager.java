@@ -50,15 +50,15 @@ public final class LightingTaskManager {
                     ServerConfig.maxBoxAxisLength(), ServerConfig.maxSphereRadius()));
             return;
         }
-        int scanMinY = Math.max(min.getY(), player.level().getMinBuildHeight());
-        int scanMaxY = Math.min(max.getY(), player.level().getMaxBuildHeight() - 1);
+        int scanMinY = Math.max(min.getY(), player.getLevel().getMinBuildHeight());
+        int scanMaxY = Math.min(max.getY(), player.getLevel().getMaxBuildHeight() - 1);
         if (scanMinY > scanMaxY) {
             player.sendSystemMessage(Component.translatable("message.autotorch.outside_world"));
             return;
         }
         BlockPos scanMin = new BlockPos(min.getX(), scanMinY, min.getZ());
         BlockPos scanMax = new BlockPos(max.getX(), scanMaxY, max.getZ());
-        if (!player.level().isInWorldBounds(scanMin) || !player.level().isInWorldBounds(scanMax)) {
+        if (!player.getLevel().isInWorldBounds(scanMin) || !player.getLevel().isInWorldBounds(scanMax)) {
             player.sendSystemMessage(Component.translatable("message.autotorch.outside_world"));
             return;
         }
@@ -95,10 +95,10 @@ public final class LightingTaskManager {
         int lightThreshold = payload.lightThreshold();
         boolean consumeTorches = AutoTorchRules.consumesInventoryTorches(
                 player.isCreative(), payload.consumeTorches(), ServerConfig.survivalConsumesTorches(),
-                player.level().getServer().isSingleplayerOwner(player.getGameProfile()));
+                player.getLevel().getServer().isSingleplayerOwner(player.getGameProfile()));
 
         LightingTask task = new LightingTask(
-                player.serverLevel(), selection, scanMin, scanMax, maxTorches, minSpacing, lightThreshold,
+                player.getLevel(), selection, scanMin, scanMax, maxTorches, minSpacing, lightThreshold,
                 consumeTorches, payload.undergroundOnly(),
                 payload.exclusions(), player.getUUID()
         );
