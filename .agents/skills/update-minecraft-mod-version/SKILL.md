@@ -9,7 +9,7 @@ description: 将此 Minecraft mod 升级到 Fabric、Forge 和 Neo Forge 上请�
 
 ## 工作流程
 
-1.  检查 `git status --short --branch`，保留所有既有改动。
+1.  检查 `git status --short --branch`，保留所有既有改动，然后查看有哪些 `main` 分支的新提交应该合并到但还未合并到 `mc/<目标版本>`的，把它合并过去。
 2.  搜索版本属性、插件版本、元数据模板、README 和 CI 中的旧版本引用。
 3.  运行 `scripts/resolve_versions.ps1 -MinecraftVersion <目标版本>` 查询官方元数据。把结果视为候选值，并核对构件确实存在。
 4.  先只更新 Minecraft、Fabric API/Loader、Forge、NeoForge 及其加载器范围。除非兼容性要求，不要顺手升级构建插件或模组版本。
