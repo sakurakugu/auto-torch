@@ -46,8 +46,14 @@ public final class LightOverlayRenderer {
     }
 
     public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource buffers) {
+        render(camera, poseStack, buffers, RenderType.lines());
+    }
+
+    public static void render(
+            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderType renderType
+    ) {
         renderGeometry(camera, poseStack, (stack, renderer) ->
-                renderer.render(stack.last(), buffers.getBuffer(RenderType.lines())));
+                renderer.render(stack.last(), buffers.getBuffer(renderType)));
     }
 
     private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {

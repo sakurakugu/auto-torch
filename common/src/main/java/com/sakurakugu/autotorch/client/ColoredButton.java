@@ -11,23 +11,26 @@ final class ColoredButton extends Button {
     private final int hoveredColor;
 
     ColoredButton(int x, int y, int width, int height, Component message, OnPress onPress, int backgroundColor, int hoveredColor) {
-        super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+        super(x, y, width, height, message, onPress);
         this.backgroundColor = backgroundColor;
         this.hoveredColor = hoveredColor;
     }
 
     @Override
-    public void renderWidget(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
+    public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         int color = isHoveredOrFocused() ? hoveredColor : backgroundColor;
         if (!active) {
             color = 0xCC555555;
         }
-        fill(poseStack, getX() + 1, getY() + 1,
-                getX() + getWidth() - 1, getY() + getHeight() - 1, color);
-        renderOutline(poseStack, getX(), getY(), getWidth(), getHeight(),
-                isHoveredOrFocused() ? 0xFFFFFFFF : 0xFFB0B0B0);
+        fill(poseStack, x + 1, y + 1,
+                x + getWidth() - 1, y + getHeight() - 1, color);
+        int outlineColor = isHoveredOrFocused() ? 0xFFFFFFFF : 0xFFB0B0B0;
+        fill(poseStack, x, y, x + getWidth(), y + 1, outlineColor);
+        fill(poseStack, x, y + getHeight() - 1, x + getWidth(), y + getHeight(), outlineColor);
+        fill(poseStack, x, y + 1, x + 1, y + getHeight() - 1, outlineColor);
+        fill(poseStack, x + getWidth() - 1, y + 1, x + getWidth(), y + getHeight() - 1, outlineColor);
         drawCenteredString(poseStack, Minecraft.getInstance().font, getMessage(),
-                getX() + getWidth() / 2, getY() + 6,
+                x + getWidth() / 2, y + 6,
                 active ? 0xFFFFFFFF : 0xFFA0A0A0);
     }
 }

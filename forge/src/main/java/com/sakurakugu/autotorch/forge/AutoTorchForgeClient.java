@@ -1,5 +1,10 @@
 package com.sakurakugu.autotorch.forge;
 
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
@@ -7,6 +12,7 @@ import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
@@ -17,8 +23,19 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import org.lwjgl.opengl.GL11;
 
 final class AutoTorchForgeClient {
+    private static final RenderType LIGHT_OVERLAY_LINES = new RenderType(
+            "autotorch_light_overlay_lines",
+            DefaultVertexFormat.POSITION_COLOR_NORMAL,
+            VertexFormat.Mode.LINES,
+            256,
+            false,
+            false,
+            AutoTorchForgeClient::setupLightOverlayRenderState,
+            AutoTorchForgeClient::clearLightOverlayRenderState
+    ) {};
     private final AutoTorchClient client = new AutoTorchClient();
     private BlockPos selectionClickPos;
 
@@ -57,7 +74,7 @@ final class AutoTorchForgeClient {
         if (event.getEntity().getLevel() instanceof ClientLevel clientLevel
                 && client.onLeftClick(clientLevel, event.getItemStack(), event.getPos(),
                 start)) {
-            // 1.19.4 的事件没有 START 阶段，取消破坏后还会在长按期间重复触发。
+            // 1.19.2 的事件没有 START 阶段，取消破坏后还会在长按期间重复触发。
             selectionClickPos = event.getPos().immutable();
             event.setCanceled(true);
         }
@@ -72,7 +89,11 @@ final class AutoTorchForgeClient {
     }
 
     private void onRender(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+        boolean shaderTransparency = Minecraft.useShaderTransparency();
+        RenderLevelStageEvent.Stage overlayStage = shaderTransparency
+                ? RenderLevelStageEvent.Stage.AFTER_PARTICLES
+                : RenderLevelStageEvent.Stage.AFTER_CUTOUT_BLOCKS;
+        if (event.getStage() != overlayStage) {
             return;
         }
         Minecraft minecraft = Minecraft.getInstance();
@@ -84,8 +105,57 @@ final class AutoTorchForgeClient {
         var poseStack = event.getPoseStack();
         var buffers = minecraft.renderBuffers().bufferSource();
         SelectionRenderer.render(camera, poseStack, buffers);
-        LightOverlayRenderer.render(camera, poseStack, buffers);
+        RenderType lightRenderType = shaderTransparency ? LIGHT_OVERLAY_LINES : RenderType.lines();
+        LightOverlayRenderer.render(camera, poseStack, buffers, lightRenderType);
         buffers.endBatch(RenderType.lines());
         buffers.endBatch(SelectionRenderer.faceRenderType());
+        if (shaderTransparency) {
+            buffers.endBatch(LIGHT_OVERLAY_LINES);
+        }
+    }
+
+    private static void setupLightOverlayRenderState() {
+        RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+        RenderSystem.enableBlend();
+        RenderSystem.blendFuncSeparate(
+                GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ONE,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA
+        );
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+        RenderSystem.disableCull();
+
+        PoseStack modelView = RenderSystem.getModelViewStack();
+        modelView.pushPose();
+        modelView.scale(0.99975586F, 0.99975586F, 0.99975586F);
+        RenderSystem.applyModelViewMatrix();
+
+        // Fabulous 会分别合成水体和粒子；标记必须进入较后的粒子目标才不会被水面覆盖。
+        if (Minecraft.useShaderTransparency()) {
+            Minecraft.getInstance().levelRenderer.getParticlesTarget().bindWrite(false);
+        }
+        RenderSystem.lineWidth(Math.max(
+                2.5F,
+                (float) Minecraft.getInstance().getWindow().getWidth() / 1920.0F * 2.5F
+        ));
+    }
+
+    private static void clearLightOverlayRenderState() {
+        RenderSystem.lineWidth(1.0F);
+        if (Minecraft.useShaderTransparency()) {
+            Minecraft.getInstance().getMainRenderTarget().bindWrite(false);
+        }
+
+        PoseStack modelView = RenderSystem.getModelViewStack();
+        modelView.popPose();
+        RenderSystem.applyModelViewMatrix();
+
+        RenderSystem.enableCull();
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+        RenderSystem.disableBlend();
+        RenderSystem.defaultBlendFunc();
     }
 }
