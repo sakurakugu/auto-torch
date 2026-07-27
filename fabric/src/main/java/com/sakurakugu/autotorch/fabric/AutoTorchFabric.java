@@ -1,5 +1,6 @@
 package com.sakurakugu.autotorch.fabric;
 
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
@@ -8,6 +9,7 @@ import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -20,10 +22,15 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 
 public final class AutoTorchFabric implements ModInitializer {
+    private static TomlConfigBackend serverConfig;
+
     @Override
     public void onInitialize() {
-        ServerConfig.install(new PropertiesConfigBackend(
-                FabricLoader.getInstance().getConfigDir().resolve("autotorch-server.properties")));
+        serverConfig = new TomlConfigBackend(
+                FabricLoader.getInstance().getConfigDir().resolve("autotorch-server.toml"),
+                ConfigDefinitions.SERVER);
+        ServerConfig.install(serverConfig);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> closeServerConfig());
 
         PayloadTypeRegistry.serverboundPlay().register(StartLightingPayload.TYPE, StartLightingPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(CancelLightingPayload.TYPE, CancelLightingPayload.STREAM_CODEC);
@@ -51,5 +58,11 @@ public final class AutoTorchFabric implements ModInitializer {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 ServerPlayNetworking.send(handler.getPlayer(),
                         ServerConfigPayload.current()));
+    }
+
+    static void closeServerConfig() {
+        if (serverConfig != null) {
+            serverConfig.close();
+        }
     }
 }

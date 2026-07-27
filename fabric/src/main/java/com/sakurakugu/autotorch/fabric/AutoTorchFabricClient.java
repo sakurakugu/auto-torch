@@ -5,9 +5,11 @@ import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.client.ServerConfigState;
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -22,8 +24,14 @@ import net.minecraft.world.InteractionResult;
 public final class AutoTorchFabricClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        ClientConfig.install(new PropertiesConfigBackend(
-                FabricLoader.getInstance().getConfigDir().resolve("autotorch-client.properties")));
+        TomlConfigBackend clientConfig = new TomlConfigBackend(
+                FabricLoader.getInstance().getConfigDir().resolve("autotorch-client.toml"),
+                ConfigDefinitions.CLIENT);
+        ClientConfig.install(clientConfig);
+        ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> {
+            clientConfig.close();
+            AutoTorchFabric.closeServerConfig();
+        });
         PlatformNetworking.installSender(ClientPlayNetworking::send);
         ClientPlayNetworking.registerGlobalReceiver(ServerConfigPayload.TYPE, (payload, context) ->
                 ServerConfigState.update(payload));
