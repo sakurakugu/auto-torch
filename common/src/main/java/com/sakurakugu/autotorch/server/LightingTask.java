@@ -9,21 +9,20 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.SectionPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.world.WorldServer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.ItemStack;
+import net.minecraft.world.EnumLightType;
+import net.minecraft.block.Block;
+import net.minecraft.block.state.BlockFaceShape;
+import net.minecraft.init.Blocks;
+import net.minecraft.block.state.IBlockState;
 
 /** 单个玩家的增量照明任务，通过每刻预算避免大选区阻塞服务端线程。 */
 final class LightingTask {
@@ -31,7 +30,7 @@ final class LightingTask {
     private static final int PROGRESS_BAR_LENGTH = 20;
     private static final int UPDATE_ALL = 3;
 
-    private final ServerLevel level;
+    private final WorldServer level;
     private final AreaZone selection;
     private final BlockPos min;
     private final int sizeX;
@@ -57,7 +56,7 @@ final class LightingTask {
     private int ticksUntilProgressUpdate = PROGRESS_UPDATE_INTERVAL_TICKS;
 
     LightingTask(
-            ServerLevel level,
+            WorldServer level,
             AreaZone selection,
             BlockPos scanMin,
             BlockPos scanMax,
@@ -71,7 +70,7 @@ final class LightingTask {
     ) {
         this.level = level;
         this.selection = selection;
-        this.min = scanMin.immutable();
+        this.min = scanMin.toImmutable();
         this.sizeX = scanMax.getX() - min.getX() + 1;
         this.sizeY = scanMax.getY() - min.getY() + 1;
         this.sizeZ = scanMax.getZ() - min.getZ() + 1;
@@ -86,14 +85,14 @@ final class LightingTask {
 
         // 使用稳定种子生成伪随机遍历，使结果可复现，同时避免总从选区同一角开始。
         long seed = level.getSeed() ^ playerId.getMostSignificantBits() ^ playerId.getLeastSignificantBits()
-                ^ min.asLong() ^ Long.rotateLeft(scanMax.asLong(), 23);
+                ^ min.toLong() ^ Long.rotateLeft(scanMax.toLong(), 23);
         this.random = new Random(seed);
         this.permutationStart = Math.floorMod(random.nextLong(), volume);
         this.permutationStep = chooseCoprimeStep(volume, random);
     }
 
-    TickResult tick(ServerPlayer player, int scanBudget, int placeBudget) {
-        if (player.getLevel() != level) {
+    TickResult tick(EntityPlayerMP player, int scanBudget, int placeBudget) {
+        if (player.getServerWorld() != level) {
             return finish(player, "message.autotorch.wrong_dimension", 0, 0);
         }
         if (maxTorches > 0 && placed >= maxTorches) {
@@ -135,7 +134,7 @@ final class LightingTask {
             if (consumeTorches && !hasTorch(player)) {
                 return finish(player, "message.autotorch.out_of_torches", scannedThisTick, placedThisTick, placed);
             }
-            if (!level.setBlock(torchPos, Blocks.TORCH.defaultBlockState(), UPDATE_ALL)) {
+            if (!level.setBlockState(torchPos, Blocks.TORCH.getDefaultState(), UPDATE_ALL)) {
                 continue;
             }
             if (consumeTorches) {
@@ -152,11 +151,11 @@ final class LightingTask {
         return new TickResult(false, scannedThisTick, placedThisTick);
     }
 
-    void showInitialProgress(ServerPlayer player) {
+    void showInitialProgress(EntityPlayerMP player) {
         sendProgress(player);
     }
 
-    void tickProgress(ServerPlayer player) {
+    void tickProgress(EntityPlayerMP player) {
         if (--ticksUntilProgressUpdate > 0) {
             return;
         }
@@ -164,35 +163,35 @@ final class LightingTask {
         sendProgress(player);
     }
 
-    private void sendProgress(ServerPlayer player) {
+    private void sendProgress(EntityPlayerMP player) {
         long scanned = (long) pass * volume + scanIndex;
         long total = volume * 2L;
         int percent = (int) Math.min(100L, scanned * 100L / total);
         int passFilled = (int) Math.min(PROGRESS_BAR_LENGTH,
                 scanIndex * PROGRESS_BAR_LENGTH / volume);
-        Component bar;
+        ITextComponent bar;
         if (pass == 0) {
-            bar = new TextComponent(progressBar(passFilled)).withStyle(ChatFormatting.GRAY)
-                    .append(new TextComponent(progressBar(PROGRESS_BAR_LENGTH - passFilled))
-                            .withStyle(ChatFormatting.DARK_GRAY));
+            bar = new TextComponentString(progressBar(passFilled)).applyTextStyle(TextFormatting.GRAY)
+                    .appendSibling(new TextComponentString(progressBar(PROGRESS_BAR_LENGTH - passFilled))
+                            .applyTextStyle(TextFormatting.DARK_GRAY));
         } else {
             // 第二轮从左向右用绿色覆盖第一轮已经铺满的灰色进度条。
-            bar = new TextComponent(progressBar(passFilled)).withStyle(ChatFormatting.GREEN)
-                    .append(new TextComponent(progressBar(PROGRESS_BAR_LENGTH - passFilled))
-                            .withStyle(ChatFormatting.GRAY));
+            bar = new TextComponentString(progressBar(passFilled)).applyTextStyle(TextFormatting.GREEN)
+                    .appendSibling(new TextComponentString(progressBar(PROGRESS_BAR_LENGTH - passFilled))
+                            .applyTextStyle(TextFormatting.GRAY));
         }
-        player.displayClientMessage(new TranslatableComponent("message.autotorch.progress", bar, percent, placed), true);
+        player.sendStatusMessage(new TextComponentTranslation("message.autotorch.progress", bar, percent, placed), true);
     }
 
     private static TickResult finish(
-            ServerPlayer player,
+            EntityPlayerMP player,
             String messageKey,
             int scannedThisTick,
             int placedThisTick,
             Object... messageArguments
     ) {
-        player.displayClientMessage(new TextComponent(""), true);
-        player.displayClientMessage(new TranslatableComponent(messageKey, messageArguments), false);
+        player.sendStatusMessage(new TextComponentString(""), true);
+        player.sendStatusMessage(new TextComponentTranslation(messageKey, messageArguments), false);
         return new TickResult(true, scannedThisTick, placedThisTick);
     }
 
@@ -203,47 +202,49 @@ final class LightingTask {
         linear /= sizeX;
         int z = (int) (linear % sizeZ);
         int y = (int) (linear / sizeZ);
-        return min.offset(x, y, z);
+        return min.add(x, y, z);
     }
 
     private boolean isPotentialSpawnPosition(BlockPos feet) {
-        if (isExcluded(feet) || !level.getBlockState(feet).isAir() || !level.getBlockState(feet.above()).isAir()) {
+        if (isExcluded(feet) || !level.getBlockState(feet).isAir(level, feet)
+                || !level.getBlockState(feet.up()).isAir(level, feet.up())) {
             return false;
         }
         if (!level.getFluidState(feet).isEmpty()
-                || level.getBrightness(LightLayer.BLOCK, feet) > lightThreshold) {
+                || level.getLightFor(EnumLightType.BLOCK, feet) > lightThreshold) {
             return false;
         }
-        if (undergroundOnly && level.getBrightness(LightLayer.SKY, feet) > 0) {
+        if (undergroundOnly && level.getLightFor(EnumLightType.SKY, feet) > 0) {
             return false;
         }
 
-        BlockPos floorPos = feet.below();
-        BlockState floor = level.getBlockState(floorPos);
-        return Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP);
+        BlockPos floorPos = feet.down();
+        IBlockState floor = level.getBlockState(floorPos);
+        return floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) == BlockFaceShape.SOLID;
     }
 
-    private BlockPos findTorchPosition(ServerPlayer player, BlockPos darkPosition) {
+    private BlockPos findTorchPosition(EntityPlayerMP player, BlockPos darkPosition) {
         // 优先尝试暗点脚下；失败后在附近随机寻找可放置且玩家有权限的位置。
         for (int attempt = 0; attempt < ServerConfig.randomPlacementAttempts(); attempt++) {
             int radius = attempt == 0 ? 0 : 4;
             int dx = radius == 0 ? 0 : random.nextInt(radius * 2 + 1) - radius;
             int dz = radius == 0 ? 0 : random.nextInt(radius * 2 + 1) - radius;
             int dy = radius == 0 ? 0 : random.nextInt(5) - 2;
-            BlockPos candidate = darkPosition.offset(dx, dy, dz);
+            BlockPos candidate = darkPosition.add(dx, dy, dz);
 
             if (!insideSelection(candidate) || isExcluded(candidate) || !isChunkLoaded(candidate)) {
                 continue;
             }
-            if (!level.getBlockState(candidate).isAir() || !level.getFluidState(candidate).isEmpty()) {
+            if (!level.getBlockState(candidate).isAir(level, candidate)
+                    || !level.getFluidState(candidate).isEmpty()) {
                 continue;
             }
 
-            BlockPos floorPos = candidate.below();
-            BlockState floor = level.getBlockState(floorPos);
-            if (Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)
-                    && level.mayInteract(player, candidate)) {
-                return candidate.immutable();
+            BlockPos floorPos = candidate.down();
+            IBlockState floor = level.getBlockState(floorPos);
+            if (floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) == BlockFaceShape.SOLID
+                    && level.isBlockModifiable(player, candidate)) {
+                return candidate.toImmutable();
             }
         }
         return null;
@@ -254,8 +255,7 @@ final class LightingTask {
     }
 
     private boolean isChunkLoaded(BlockPos pos) {
-        return level.getChunkSource().hasChunk(
-                SectionPos.blockToSectionCoord(pos.getX()), SectionPos.blockToSectionCoord(pos.getZ()));
+        return level.isBlockLoaded(pos);
     }
 
     private boolean isExcluded(BlockPos pos) {
@@ -276,12 +276,12 @@ final class LightingTask {
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
                 for (int dz = -1; dz <= 1; dz++) {
-                    List<BlockPos> nearby = placedByCell.get(BlockPos.asLong(cellX + dx, cellY + dy, cellZ + dz));
+                    List<BlockPos> nearby = placedByCell.get(cellKey(cellX + dx, cellY + dy, cellZ + dz));
                     if (nearby == null) {
                         continue;
                     }
                     for (BlockPos other : nearby) {
-                        if (other.distSqr(pos) < minimumSquared) {
+                        if (other.distanceSq(pos) < minimumSquared) {
                             return false;
                         }
                     }
@@ -295,27 +295,31 @@ final class LightingTask {
         int cellX = Math.floorDiv(pos.getX(), configuredSpacing);
         int cellY = Math.floorDiv(pos.getY(), configuredSpacing);
         int cellZ = Math.floorDiv(pos.getZ(), configuredSpacing);
-        placedByCell.computeIfAbsent(BlockPos.asLong(cellX, cellY, cellZ), ignored -> new ArrayList<>()).add(pos);
+        placedByCell.computeIfAbsent(cellKey(cellX, cellY, cellZ), ignored -> new ArrayList<>()).add(pos);
     }
 
-    private static boolean hasTorch(ServerPlayer player) {
-        for (int slot = 0; slot < player.inventory.getContainerSize(); slot++) {
-            if (player.inventory.getItem(slot).getItem() == Items.TORCH) {
+    private static boolean hasTorch(EntityPlayerMP player) {
+        for (int slot = 0; slot < player.inventory.getSizeInventory(); slot++) {
+            if (player.inventory.getStackInSlot(slot).getItem() == Blocks.TORCH.asItem()) {
                 return true;
             }
         }
         return false;
     }
 
-    private static void consumeTorch(ServerPlayer player) {
-        for (int slot = 0; slot < player.inventory.getContainerSize(); slot++) {
-            ItemStack stack = player.inventory.getItem(slot);
-            if (stack.getItem() == Items.TORCH) {
+    private static void consumeTorch(EntityPlayerMP player) {
+        for (int slot = 0; slot < player.inventory.getSizeInventory(); slot++) {
+            ItemStack stack = player.inventory.getStackInSlot(slot);
+            if (stack.getItem() == Blocks.TORCH.asItem()) {
                 stack.shrink(1);
-                player.inventory.setChanged();
+                player.inventory.markDirty();
                 return;
             }
         }
+    }
+
+    private static long cellKey(int x, int y, int z) {
+        return new BlockPos(x, y, z).toLong();
     }
 
     private static long chooseCoprimeStep(long modulus, Random random) {

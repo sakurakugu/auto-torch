@@ -4,7 +4,7 @@ import java.util.Collections;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.core.BlockPos;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,7 +25,7 @@ class AreaZoneIndexTest {
     @Test
     void filtersCandidatesByExactSphereShape() {
         AreaZoneIndex index = new AreaZoneIndex(Collections.singletonList(new AreaZone(
-                AreaShape.SPHERE, BlockPos.ZERO, new BlockPos(5, 0, 0))));
+                AreaShape.SPHERE, new BlockPos(0, 0, 0), new BlockPos(5, 0, 0))));
 
         assertTrue(index.contains(new BlockPos(3, 4, 0)));
         assertFalse(index.contains(new BlockPos(5, 5, 0)));
@@ -34,6 +34,6 @@ class AreaZoneIndexTest {
 
     @Test
     void handlesEmptyIndex() {
-        assertFalse(new AreaZoneIndex(Collections.emptyList()).contains(BlockPos.ZERO));
+        assertFalse(new AreaZoneIndex(Collections.emptyList()).contains(new BlockPos(0, 0, 0)));
     }
 }

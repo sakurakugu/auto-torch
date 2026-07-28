@@ -6,8 +6,8 @@ import java.util.List;
 
 import com.sakurakugu.autotorch.AutoTorch;
 import io.netty.handler.codec.DecoderException;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.ResourceLocation;
 
 /** 客户端提交的照明任务配置；服务端收到后仍需进行完整的边界校验。 */
 public final class StartLightingPayload implements AutoTorchPayload {
@@ -43,7 +43,7 @@ public final class StartLightingPayload implements AutoTorchPayload {
     public boolean undergroundOnly() { return undergroundOnly; }
     public List<AreaZone> exclusions() { return exclusions; }
 
-    public static StartLightingPayload decode(FriendlyByteBuf buffer) {
+    public static StartLightingPayload decode(PacketBuffer buffer) {
         return new StartLightingPayload(
                 readZone(buffer),
                 buffer.readVarInt(),
@@ -56,7 +56,7 @@ public final class StartLightingPayload implements AutoTorchPayload {
     }
 
     @Override
-    public void write(FriendlyByteBuf buffer) {
+    public void write(PacketBuffer buffer) {
         writeZone(buffer, selection);
         buffer.writeVarInt(maxTorches);
         buffer.writeVarInt(minSpacing);
@@ -69,13 +69,13 @@ public final class StartLightingPayload implements AutoTorchPayload {
         }
     }
 
-    private static void writeZone(FriendlyByteBuf buffer, AreaZone zone) {
+    private static void writeZone(PacketBuffer buffer, AreaZone zone) {
         buffer.writeByte(zone.shape().ordinal());
         buffer.writeBlockPos(zone.first());
         buffer.writeBlockPos(zone.second());
     }
 
-    private static AreaZone readZone(FriendlyByteBuf buffer) {
+    private static AreaZone readZone(PacketBuffer buffer) {
         int shapeId = buffer.readUnsignedByte();
         AreaShape[] shapes = AreaShape.values();
         if (shapeId >= shapes.length) {
@@ -84,7 +84,7 @@ public final class StartLightingPayload implements AutoTorchPayload {
         return new AreaZone(shapes[shapeId], buffer.readBlockPos(), buffer.readBlockPos());
     }
 
-    private static List<AreaZone> readExclusions(FriendlyByteBuf buffer) {
+    private static List<AreaZone> readExclusions(PacketBuffer buffer) {
         int count = buffer.readVarInt();
         // 在分配列表前限制数量，防止恶意数据包造成过量内存分配。
         if (count < 0 || count > MAX_EXCLUSIONS) {

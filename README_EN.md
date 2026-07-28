@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md)
 
-An automatic torch placement and light level overlay mod for Minecraft 1.14.4~26.2 on Forge and Fabric.
+An automatic torch placement and light level overlay mod for Minecraft 1.13.2 on Forge.
 
 ![Icon](./common/src/main/resources/autotorch.png)
 
@@ -48,19 +48,18 @@ Digging out a perimeter is tedious, and placing torches by hand makes it easy to
 Building requires Java 21; the generated mod runs on Java 17:
 
 ```powershell
-$env:JAVA_HOME='path to your Java 21 installation'
+$env:JAVA_HOME='path to your Java 17 installation'
 .\gradlew.bat build
 ```
 
 The generated JARs are automatically copied to the root `build` directory and renamed to:
 
-- `build/autotorch-v<mod version>-mc<MC version>-<loader type>.jar`
+- `build/v<mod version>/autotorch-v<mod version>-mc<MC version>-forge.jar`
 
-Run a development client with:
+Run the Forge development client with:
 
 ```powershell
 .\gradlew.bat :forge:runClient
-.\gradlew.bat :fabric:runClient
 ```
 
 On Windows, you can also run `tools\1.一键启动mc脚本.ps1`.

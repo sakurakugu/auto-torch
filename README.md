@@ -2,7 +2,7 @@
 
 [English](README_EN.md) | 简体中文
 
-适用于 Minecraft 1.14.4~26.2 / Forge 和 Fabric 的自动插火把和光照显示模组。
+适用于 Minecraft 1.13.2 / Forge 的自动插火把和光照显示模组。
 
 ![icon](./common/src/main/resources/autotorch.png)
 
@@ -48,19 +48,18 @@
 构建需要 Java 21，生成的模组运行于 Java 17：
 
 ```powershell
-$env:JAVA_HOME='你的 Java 21 安装目录'
+$env:JAVA_HOME='你的 Java 17 安装目录'
 .\gradlew.bat build
 ```
 
 生成的 JAR 会自动复制到根目录的 `build` 中并重命名为：
 
-- `build/autotorch-v<模组版本>-mc<MC版本>-<加载器类型>.jar`
+- `build/v<模组版本>/autotorch-v<模组版本>-mc<MC版本>-forge.jar`
 
-运行开发客户端分别使用：
+运行 Forge 开发客户端使用：
 
 ```powershell
 .\gradlew.bat :forge:runClient
-.\gradlew.bat :fabric:runClient
 ```
 
 在 Windows 上，也可以运行 `tools\1.一键启动mc脚本.ps1`。

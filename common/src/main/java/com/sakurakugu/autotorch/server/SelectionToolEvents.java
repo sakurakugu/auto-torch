@@ -4,9 +4,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.ItemStack;
+import net.minecraft.init.Items;
 
 /** 在服务端拦截作为选区工具的木斧交互，防止误破坏或使用方块。 */
 public final class SelectionToolEvents {
@@ -15,20 +15,20 @@ public final class SelectionToolEvents {
     private SelectionToolEvents() {
     }
 
-    public static boolean handlesInteraction(ServerPlayer player, ItemStack stack) {
-        return isEnabled(player.getUUID()) && stack.getItem() == Items.WOODEN_AXE;
+    public static boolean handlesInteraction(EntityPlayerMP player, ItemStack stack) {
+        return isEnabled(player.getUniqueID()) && stack.getItem() == Items.WOODEN_AXE;
     }
 
-    public static void setEnabled(ServerPlayer player, boolean enabled) {
+    public static void setEnabled(EntityPlayerMP player, boolean enabled) {
         if (enabled) {
-            DISABLED_PLAYERS.remove(player.getUUID());
+            DISABLED_PLAYERS.remove(player.getUniqueID());
         } else {
-            DISABLED_PLAYERS.add(player.getUUID());
+            DISABLED_PLAYERS.add(player.getUniqueID());
         }
     }
 
-    public static void onLogout(ServerPlayer player) {
-        DISABLED_PLAYERS.remove(player.getUUID());
+    public static void onLogout(EntityPlayerMP player) {
+        DISABLED_PLAYERS.remove(player.getUniqueID());
     }
 
     private static boolean isEnabled(UUID playerId) {

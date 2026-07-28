@@ -7,18 +7,17 @@ import java.util.List;
 import com.sakurakugu.autotorch.AutoTorchRules;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.level.Level;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.SectionPos;
+import net.minecraft.world.World;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.LeavesBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.biome.Biome;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.EnumCreatureType;
+import net.minecraft.world.EnumLightType;
+import net.minecraft.block.BlockLeaves;
+import net.minecraft.block.state.IBlockState;
+import net.minecraft.block.state.BlockFaceShape;
+import net.minecraft.world.biome.Biome;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
@@ -33,7 +32,7 @@ public final class LightOverlayState {
             ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static int scanRange = horizontalRange;
-    private static Level level;
+    private static World level;
     private static BlockPos scanCenter;
     private static int scanIndex;
     private static int ticksSinceCompleted;
@@ -107,7 +106,7 @@ public final class LightOverlayState {
     }
 
     public static void tick(Minecraft minecraft) {
-        Level currentLevel = minecraft.level;
+        World currentLevel = minecraft.world;
         if (currentLevel != level) {
             level = currentLevel;
             clearScan();
@@ -116,7 +115,7 @@ public final class LightOverlayState {
             return;
         }
 
-        BlockPos playerPos = minecraft.player.getCommandSenderBlockPosition();
+        BlockPos playerPos = minecraft.player.getPosition();
         if (scanCenter == null) {
             beginScan(playerPos);
         }
@@ -148,7 +147,7 @@ public final class LightOverlayState {
     }
 
     private static void beginScan(BlockPos center) {
-        scanCenter = center.immutable();
+        scanCenter = center.toImmutable();
         scanRange = horizontalRange;
         scanIndex = 0;
         ticksSinceCompleted = 0;
@@ -176,7 +175,7 @@ public final class LightOverlayState {
         index /= diameter;
         int zOffset = index % diameter - scanRange;
         int yOffset = index / diameter - DOWN_RANGE;
-        pos.set(center.getX() + xOffset, center.getY() + yOffset, center.getZ() + zOffset);
+        pos.setPos(center.getX() + xOffset, center.getY() + yOffset, center.getZ() + zOffset);
     }
 
     private static int scanVolume() {
@@ -184,74 +183,73 @@ public final class LightOverlayState {
         return diameter * diameter * HEIGHT;
     }
 
-    private static Marker markerAt(Level level, BlockPos feet) {
-        if (!level.getChunkSource().hasChunk(SectionPos.blockToSectionCoord(feet.getX()),
-                SectionPos.blockToSectionCoord(feet.getZ()))) {
+    private static Marker markerAt(World level, BlockPos feet) {
+        if (!level.isBlockLoaded(feet)) {
             return null;
         }
         if (drownedDetectionEnabled && isDrownedRisk(level, feet)) {
             return marker(level, feet, RiskType.DROWNED);
         }
         if (!level.getFluidState(feet).isEmpty()
-                || !level.getFluidState(feet.above()).isEmpty()) {
+                || !level.getFluidState(feet.up()).isEmpty()) {
             return null;
         }
 
-        BlockState feetState = level.getBlockState(feet);
-        BlockState headState = level.getBlockState(feet.above());
+        IBlockState feetState = level.getBlockState(feet);
+        IBlockState headState = level.getBlockState(feet.up());
         if (!feetState.getCollisionShape(level, feet).isEmpty()
-                || !headState.getCollisionShape(level, feet.above()).isEmpty()) {
+                || !headState.getCollisionShape(level, feet.up()).isEmpty()) {
             return null;
         }
 
-        BlockPos floorPos = feet.below();
-        BlockState floor = level.getBlockState(floorPos);
-        if (floor.getBlock() instanceof LeavesBlock
-                || !Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)) {
+        BlockPos floorPos = feet.down();
+        IBlockState floor = level.getBlockState(floorPos);
+        if (floor.getBlock() instanceof BlockLeaves
+                || floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) != BlockFaceShape.SOLID) {
             return null;
         }
-        int blockLight = level.getBrightness(LightLayer.BLOCK, feet);
+        int blockLight = level.getLightFor(EnumLightType.BLOCK, feet);
         return new Marker(
-                feet.immutable(),
+                feet.toImmutable(),
                 blockLight,
-                level.getBrightness(LightLayer.SKY, feet),
+                level.getLightFor(EnumLightType.SKY, feet),
                 RiskType.NORMAL
         );
     }
 
-    private static boolean isDrownedRisk(Level level, BlockPos pos) {
+    private static boolean isDrownedRisk(World level, BlockPos pos) {
         // 每个连续且可生成怪物的水柱中，仅保留最高的完全有效位置。
-        return isDrownedSpawnPosition(level, pos) && !isDrownedSpawnPosition(level, pos.above());
+        return isDrownedSpawnPosition(level, pos) && !isDrownedSpawnPosition(level, pos.up());
     }
 
-    private static boolean isDrownedSpawnPosition(Level level, BlockPos pos) {
-        if (level.getBrightness(LightLayer.BLOCK, pos) > 7
-                || !level.getFluidState(pos).is(FluidTags.WATER)
-                || !level.getFluidState(pos.below()).is(FluidTags.WATER)
-                || level.getFluidState(pos.above()).is(FluidTags.WATER)) {
+    private static boolean isDrownedSpawnPosition(World level, BlockPos pos) {
+        if (level.getLightFor(EnumLightType.BLOCK, pos) > 7
+                || !level.getFluidState(pos).isTagged(FluidTags.WATER)
+                || !level.getFluidState(pos.down()).isTagged(FluidTags.WATER)
+                || level.getFluidState(pos.up()).isTagged(FluidTags.WATER)) {
             return false;
         }
 
         Biome biome = level.getBiome(pos);
         return biomeAllowsDrowned(biome)
-                && (biome.getBiomeCategory() == Biome.BiomeCategory.RIVER
+                && (biome.getCategory() == Biome.Category.RIVER
                 || pos.getY() < 58);
     }
 
     private static boolean biomeAllowsDrowned(Biome biome) {
-        boolean drownedInSpawnList = biome.getMobs(MobCategory.MONSTER).stream()
-                .anyMatch(entry -> entry.type == EntityType.DROWNED);
+        boolean drownedInSpawnList = biome.getSpawns(EnumCreatureType.MONSTER).stream()
+                .anyMatch(entry -> entry.entityType == EntityType.DROWNED);
         // 1.21.11及其以下的生物群系网络编解码不会向客户端同步怪物生成表。
         return drownedInSpawnList
-                || biome.getBiomeCategory() == Biome.BiomeCategory.OCEAN
-                || biome.getBiomeCategory() == Biome.BiomeCategory.RIVER;
+                || biome.getCategory() == Biome.Category.OCEAN
+                || biome.getCategory() == Biome.Category.RIVER;
     }
 
-    private static Marker marker(Level level, BlockPos pos, RiskType riskType) {
+    private static Marker marker(World level, BlockPos pos, RiskType riskType) {
         return new Marker(
-                pos.immutable(),
-                level.getBrightness(LightLayer.BLOCK, pos),
-                level.getBrightness(LightLayer.SKY, pos),
+                pos.toImmutable(),
+                level.getLightFor(EnumLightType.BLOCK, pos),
+                level.getLightFor(EnumLightType.SKY, pos),
                 riskType
         );
     }

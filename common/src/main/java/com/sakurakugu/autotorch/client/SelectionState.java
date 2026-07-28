@@ -6,12 +6,12 @@ import java.util.List;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.world.level.Level;
-import net.minecraft.core.BlockPos;
+import net.minecraft.world.World;
+import net.minecraft.util.math.BlockPos;
 
 /** 保存当前客户端世界中的临时选区；这些数据不会跨世界持久化。 */
 public final class SelectionState {
-    private static Level level;
+    private static World level;
     private static BlockPos first;
     private static BlockPos second;
     private static AreaZone lightingZone;
@@ -28,11 +28,11 @@ public final class SelectionState {
     private SelectionState() {
     }
 
-    public static void updateLevel(Level currentLevel, BlockPos currentPosition) {
+    public static void updateLevel(World currentLevel, BlockPos currentPosition) {
         if (level != currentLevel) {
             level = currentLevel;
-            first = currentPosition.immutable();
-            second = currentPosition.immutable();
+            first = currentPosition.toImmutable();
+            second = currentPosition.toImmutable();
             lightingZone = null;
             shape = AreaShape.BOX;
             displayMode = ClientConfig.usesSelectionLines() ? DisplayMode.LINES : DisplayMode.FACES;
@@ -48,7 +48,7 @@ public final class SelectionState {
 
     public static BlockPos first(BlockPos fallback) {
         if (first == null) {
-            first = fallback.immutable();
+            first = fallback.toImmutable();
             renderRevision++;
         }
         return first;
@@ -56,20 +56,20 @@ public final class SelectionState {
 
     public static BlockPos second(BlockPos fallback) {
         if (second == null) {
-            second = fallback.immutable();
+            second = fallback.toImmutable();
             renderRevision++;
         }
         return second;
     }
 
     public static void setFirst(BlockPos pos) {
-        first = pos.immutable();
+        first = pos.toImmutable();
         drafting = true;
         renderRevision++;
     }
 
     public static void setSecond(BlockPos pos) {
-        second = pos.immutable();
+        second = pos.toImmutable();
         drafting = true;
         renderRevision++;
     }

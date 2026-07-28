@@ -3,8 +3,8 @@ package com.sakurakugu.autotorch.network;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.server.ServerConfig;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.ResourceLocation;
 
 /** 服务端在玩家登录后同步会影响客户端显示的权威配置。 */
 public final class ServerConfigPayload implements AutoTorchPayload {
@@ -42,7 +42,7 @@ public final class ServerConfigPayload implements AutoTorchPayload {
     public int minSpacing() { return minSpacing; }
     public int maxSpacing() { return maxSpacing; }
 
-    public static ServerConfigPayload decode(FriendlyByteBuf buffer) {
+    public static ServerConfigPayload decode(PacketBuffer buffer) {
         return new ServerConfigPayload(
                 buffer.readBoolean(),
                 buffer.readVarInt(),
@@ -56,7 +56,7 @@ public final class ServerConfigPayload implements AutoTorchPayload {
     }
 
     @Override
-    public void write(FriendlyByteBuf buffer) {
+    public void write(PacketBuffer buffer) {
         buffer.writeBoolean(survivalConsumesTorches);
         buffer.writeVarInt(maxBoxAxisLength);
         buffer.writeVarInt(maxSphereRadius);

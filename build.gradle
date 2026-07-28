@@ -1,7 +1,6 @@
 plugins {
-    id 'net.fabricmc.fabric-loom-remap' version '1.17.16' apply false
     id 'net.minecraftforge.gradle' version '[7.0.17,8)' apply false
-    id 'net.minecraftforge.renamer' version '1.0.17' apply false
+    id 'net.minecraftforge.renamer' version '1.1.2' apply false
 }
 
 ext.minecraft_version_range = "[${minecraft_version}]"
@@ -14,7 +13,6 @@ allprojects {
 subprojects {
     repositories {
         mavenCentral()
-        maven { url = 'https://maven.fabricmc.net/' }
     }
 
     plugins.withType(JavaPlugin).configureEach {
@@ -22,7 +20,7 @@ subprojects {
 
         tasks.withType(JavaCompile).configureEach {
             options.encoding = 'UTF-8'
-            options.compilerArgs.add('-Xlint:deprecation')
+            options.compilerArgs.addAll(['-Xlint:deprecation', '-Xmaxerrs', '1000'])
         }
 
         // Java 8 启动器会错误解码开发目录中的中文路径，运行客户端时改用 JDK 17。
@@ -37,27 +35,23 @@ subprojects {
 def copyBuildArtifacts = tasks.register('copyBuildArtifacts', Copy) {
     group = 'build'
     description = 'Copies and renames the publishable jars into a versioned root build directory.'
-    dependsOn ':forge:build', ':fabric:build'
+    dependsOn ':forge:build'
     into layout.buildDirectory.dir("v${mod_version}")
 
     from(project(':forge').layout.buildDirectory.dir('libs')) {
         include "${mod_id}-${minecraft_version}-forge-${mod_version}.jar"
         rename { "${mod_id}-v${mod_version}-mc${minecraft_version}-forge.jar" }
     }
-    from(project(':fabric').layout.buildDirectory.dir('libs')) {
-        include "${mod_id}-${minecraft_version}-fabric-${mod_version}.jar"
-        rename { "${mod_id}-v${mod_version}-mc${minecraft_version}-fabric.jar" }
-    }
 }
 
 tasks.register('buildAll') {
     group = 'build'
-    description = 'Builds the publishable Forge and Fabric jars.'
+    description = 'Builds the publishable Forge jar.'
     dependsOn copyBuildArtifacts
 }
 
 tasks.register('build') {
     group = 'build'
     description = 'Builds and tests all loader targets.'
-    dependsOn ':common:test', copyBuildArtifacts
+    dependsOn ':forge:test', copyBuildArtifacts
 }

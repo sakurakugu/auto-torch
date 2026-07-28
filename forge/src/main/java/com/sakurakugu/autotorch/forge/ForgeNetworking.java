@@ -13,7 +13,6 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.network.NetworkDirection;
 import net.minecraftforge.fml.network.NetworkRegistry;
 import net.minecraftforge.fml.network.NetworkEvent;
-import net.minecraftforge.fml.network.PacketDistributor;
 import net.minecraftforge.fml.network.simple.SimpleChannel;
 
 
@@ -70,7 +69,7 @@ final class ForgeNetworking {
         CHANNEL.sendToServer(payload);
     }
 
-    static void sendToPlayer(net.minecraft.entity.player.ServerPlayerEntity player, AutoTorchPayload payload) {
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), payload);
+    static void sendToPlayer(net.minecraft.entity.player.EntityPlayerMP player, AutoTorchPayload payload) {
+        CHANNEL.sendTo(payload, player.connection.getNetworkManager(), NetworkDirection.PLAY_TO_CLIENT);
     }
 }

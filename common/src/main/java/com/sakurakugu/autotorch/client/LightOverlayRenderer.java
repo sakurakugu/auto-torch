@@ -1,14 +1,14 @@
 package com.sakurakugu.autotorch.client;
 
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
+import net.minecraft.client.renderer.BufferBuilder;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.client.renderer.Tessellator;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.Vec3d;
 import org.lwjgl.opengl.GL11;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或七段数字。 */
@@ -46,12 +46,12 @@ public final class LightOverlayRenderer {
         renderData = buildRenderData(markers, displayMode);
     }
 
-    public static void render(Vec3 camera) {
+    public static void render(Vec3d camera) {
         renderGeometry(camera, renderData, false);
     }
 
     private static void renderFiltered(
-            Vec3 camera,
+            Vec3d camera,
             Predicate<LightOverlayState.Marker> filter
     ) {
         RenderData current = renderData;
@@ -62,15 +62,15 @@ public final class LightOverlayRenderer {
     }
 
     public static void renderWaterVisible(
-            Vec3 camera, Predicate<Vec3> isVisibleTarget
+            Vec3d camera, Predicate<Vec3d> isVisibleTarget
     ) {
         renderFiltered(camera,
                 marker -> marker.riskType() == LightOverlayState.RiskType.DROWNED
                         && isVisibleTarget.test(markerTarget(marker)));
     }
 
-    private static Vec3 markerTarget(LightOverlayState.Marker marker) {
-        return new Vec3(
+    private static Vec3d markerTarget(LightOverlayState.Marker marker) {
+        return new Vec3d(
                 marker.pos().getX() + 0.5D,
                 marker.pos().getY() + SURFACE_OFFSET,
                 marker.pos().getZ() + 0.5D
@@ -95,7 +95,7 @@ public final class LightOverlayRenderer {
         GlStateManager.scalef(0.99975586F, 0.99975586F, 0.99975586F);
         GlStateManager.lineWidth(Math.max(
                 CROSS_LINE_WIDTH,
-                (float) Minecraft.getInstance().window.getWidth() / 1920.0F * CROSS_LINE_WIDTH
+                (float) Minecraft.getInstance().mainWindow.getWidth() / 1920.0F * CROSS_LINE_WIDTH
         ));
     }
 
@@ -112,8 +112,8 @@ public final class LightOverlayRenderer {
         GlStateManager.enableTexture();
     }
 
-    private static void renderGeometry(Vec3 camera, RenderData data, boolean waterVisible) {
-        if (data == null || data.lineCount() == 0 || Minecraft.getInstance().level == null) {
+    private static void renderGeometry(Vec3d camera, RenderData data, boolean waterVisible) {
+        if (data == null || data.lineCount() == 0 || Minecraft.getInstance().world == null) {
             return;
         }
         if (waterVisible) {
@@ -121,13 +121,13 @@ public final class LightOverlayRenderer {
         } else {
             setupLineRenderState(data.displayMode());
         }
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder builder = tesselator.getBuilder();
-        builder.begin(GL11.GL_LINES, DefaultVertexFormat.POSITION_COLOR);
-        builder.offset(-camera.x(), -camera.y(), -camera.z());
+        Tessellator tesselator = Tessellator.getInstance();
+        BufferBuilder builder = tesselator.getBuffer();
+        builder.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
+        builder.setTranslation(-camera.x, -camera.y, -camera.z);
         submitLines(Pose.INSTANCE, new VertexConsumer(builder), data);
-        tesselator.end();
-        builder.offset(0.0D, 0.0D, 0.0D);
+        tesselator.draw();
+        builder.setTranslation(0.0D, 0.0D, 0.0D);
         if (waterVisible) {
             clearWaterVisibleRenderState();
         } else {
@@ -353,7 +353,7 @@ public final class LightOverlayRenderer {
         }
 
         private VertexConsumer vertex(Object ignored, float x, float y, float z) {
-            builder.vertex(x, y, z);
+            builder.pos(x, y, z);
             return this;
         }
 

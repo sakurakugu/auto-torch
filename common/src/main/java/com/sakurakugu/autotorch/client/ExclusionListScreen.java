@@ -6,26 +6,23 @@ import java.util.Map;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 
 /** 列出照明范围和所有排除区，并提供分页、原位修改和单条删除。 */
 public final class ExclusionListScreen extends Screen {
     private static final int PAGE_SIZE = 6;
     private static final int LIGHTING_TEXT_COLOR = 0xFF50FF70;
     private static final int EXCLUSION_TEXT_COLOR = 0xFFFF5050;
-    private final Map<AbstractWidget, Component> tooltips = new LinkedHashMap<>();
+    private final Map<Button, ITextComponent> tooltips = new LinkedHashMap<>();
     private int page;
 
     public ExclusionListScreen() {
-        super(new TranslatableComponent("screen.autotorch.exclusions_title"));
+        super(new TextComponentTranslation("screen.autotorch.exclusions_title"));
     }
 
-    private <T extends AbstractWidget> T addRenderableWidget(T widget) {
+    private <T extends Button> T addRenderableWidget(T widget) {
         return addButton(widget);
     }
 
@@ -48,20 +45,20 @@ public final class ExclusionListScreen extends Screen {
             int selectedIndex = index;
             boolean lightingEntry = lightingZone != null && index == 0;
             Button editButton = addRenderableWidget(new Button(left + panelWidth - 108, y, 50, 20,
-                    new TranslatableComponent(lightingEntry
+                    new TextComponentTranslation(lightingEntry
                             ? "screen.autotorch.edit_lighting" : "screen.autotorch.edit_exclusion").getString(), button -> {
                 int exclusionIndex = selectedIndex - (SelectionState.lightingZone() == null ? 0 : 1);
                 boolean editing = lightingEntry
                         ? SelectionState.beginEditingLightingZone()
                         : SelectionState.beginEditingExclusion(exclusionIndex);
                 if (editing) {
-                    minecraft.setScreen(new LightingScreen());
+                    minecraft.displayGuiScreen(new LightingScreen());
                 }
             }));
-            tooltips.put(editButton, new TranslatableComponent(lightingEntry
+            tooltips.put(editButton, new TextComponentTranslation(lightingEntry
                     ? "screen.autotorch.edit_lighting.tooltip" : "screen.autotorch.edit_exclusion.tooltip"));
             addRenderableWidget(new ColoredButton(left + panelWidth - 54, y, 54, 20,
-                    new TranslatableComponent("screen.autotorch.delete_zone"), button -> {
+                    new TextComponentTranslation("screen.autotorch.delete_zone"), button -> {
                         if (lightingEntry) {
                             SelectionState.removeLightingZone();
                         } else {
@@ -73,17 +70,17 @@ public final class ExclusionListScreen extends Screen {
         }
 
         Button previous = addRenderableWidget(new Button(left, 184, 80, 20,
-                new TranslatableComponent("screen.autotorch.previous_page").getString(), button -> {
+                new TextComponentTranslation("screen.autotorch.previous_page").getString(), button -> {
             page--;
             rebuildWidgets();
         }));
         previous.active = page > 0;
 
         addRenderableWidget(new Button(width / 2 - 50, 184, 100, 20,
-                new TranslatableComponent("screen.autotorch.back").getString(), button -> onClose()));
+                new TextComponentTranslation("screen.autotorch.back").getString(), button -> onClose()));
 
         Button next = addRenderableWidget(new Button(left + panelWidth - 80, 184, 80, 20,
-                new TranslatableComponent("screen.autotorch.next_page").getString(), button -> {
+                new TextComponentTranslation("screen.autotorch.next_page").getString(), button -> {
             page++;
             rebuildWidgets();
         }));
@@ -109,7 +106,7 @@ public final class ExclusionListScreen extends Screen {
 
         drawCenteredString(font, title.getString(), width / 2, 12, 0xFFFFFFFF);
         if (total == 0) {
-            drawCenteredString(font, new TranslatableComponent("screen.autotorch.no_zone").getString(),
+            drawCenteredString(font, new TextComponentTranslation("screen.autotorch.no_zone").getString(),
                     width / 2, 82, 0xFFA0A0A0);
         }
         for (int index = firstIndex; index < lastIndex; index++) {
@@ -120,16 +117,17 @@ public final class ExclusionListScreen extends Screen {
                     ? describeLighting(lightingZone).getString()
                     : describeExclusion(exclusionIndex, exclusions.get(exclusionIndex)).getString();
             int availableWidth = panelWidth - 116;
-            if (font.width(description) > availableWidth) {
-                description = font.substrByWidth(description, Math.max(0, availableWidth - font.width("..."))) + "...";
+            if (font.getStringWidth(description) > availableWidth) {
+                description = font.trimStringToWidth(description,
+                        Math.max(0, availableWidth - font.getStringWidth("..."))) + "...";
             }
             drawString(font, description, left + 4, y,
                     lightingEntry ? LIGHTING_TEXT_COLOR : EXCLUSION_TEXT_COLOR);
         }
-        drawCenteredString(font, new TranslatableComponent("screen.autotorch.page_summary",
+        drawCenteredString(font, new TextComponentTranslation("screen.autotorch.page_summary",
                 page + 1, maxPage(total) + 1, lightingZone == null ? 0 : 1, exclusions.size()).getString(),
                 width / 2, 212, 0xFFA0A0A0);
-        for (Map.Entry<AbstractWidget, Component> entry : tooltips.entrySet()) {
+        for (Map.Entry<Button, ITextComponent> entry : tooltips.entrySet()) {
             if (entry.getKey().visible && entry.getKey().isMouseOver(mouseX, mouseY)) {
                 renderTooltip(entry.getValue().getString(), mouseX, mouseY);
                 break;
@@ -137,19 +135,19 @@ public final class ExclusionListScreen extends Screen {
         }
     }
 
-    private static Component describeLighting(AreaZone zone) {
+    private static ITextComponent describeLighting(AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
-            return new TranslatableComponent("screen.autotorch.lighting_sphere_row", format(zone.first()), zone.radius());
+            return new TextComponentTranslation("screen.autotorch.lighting_sphere_row", format(zone.first()), zone.radius());
         }
-        return new TranslatableComponent("screen.autotorch.lighting_box_row", format(zone.first()), format(zone.second()));
+        return new TextComponentTranslation("screen.autotorch.lighting_box_row", format(zone.first()), format(zone.second()));
     }
 
-    private static Component describeExclusion(int index, AreaZone zone) {
+    private static ITextComponent describeExclusion(int index, AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
-            return new TranslatableComponent("screen.autotorch.exclusion_sphere_row",
+            return new TextComponentTranslation("screen.autotorch.exclusion_sphere_row",
                     index + 1, format(zone.first()), zone.radius());
         }
-        return new TranslatableComponent("screen.autotorch.exclusion_box_row",
+        return new TextComponentTranslation("screen.autotorch.exclusion_box_row",
                 index + 1, format(zone.first()), format(zone.second()));
     }
 
@@ -163,7 +161,7 @@ public final class ExclusionListScreen extends Screen {
 
     @Override
     public void onClose() {
-        minecraft.setScreen(new LightingScreen());
+        minecraft.displayGuiScreen(new LightingScreen());
     }
 
     @Override

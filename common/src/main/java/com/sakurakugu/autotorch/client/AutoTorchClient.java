@@ -1,35 +1,31 @@
 package com.sakurakugu.autotorch.client;
 
-import com.mojang.blaze3d.platform.InputConstants;
-
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.KeyMapping;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.level.Level;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.World;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.EnumHand;
+import net.minecraft.init.Items;
+import net.minecraft.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
 
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
-    private Level selectionToolSyncedLevel;
+    private World selectionToolSyncedLevel;
     public static final String CATEGORY = "key.category.autotorch.main";
-    public static final KeyMapping OPEN_SCREEN = new KeyMapping(
+    public static final KeyBinding OPEN_SCREEN = new KeyBinding(
             "key.autotorch.open_screen",
-            InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_G,
             CATEGORY
     );
-    public static final KeyMapping TOGGLE_LIGHT_OVERLAY = new KeyMapping(
+    public static final KeyBinding TOGGLE_LIGHT_OVERLAY = new KeyBinding(
             "key.autotorch.toggle_light_overlay",
-            InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_F7,
             CATEGORY
     );
@@ -37,37 +33,37 @@ public final class AutoTorchClient {
     public void tick() {
         Minecraft minecraft = Minecraft.getInstance();
         BlockPos currentPosition = minecraft.player == null
-                ? BlockPos.ZERO : minecraft.player.getCommandSenderBlockPosition();
+                ? BlockPos.ORIGIN : minecraft.player.getPosition();
         // 切换世界或退出存档时重置选区，避免把旧维度坐标带入新世界。
-        SelectionState.updateLevel(minecraft.level, currentPosition);
+        SelectionState.updateLevel(minecraft.world, currentPosition);
         LightOverlayState.tick(minecraft);
         NearbyAutoTorch.tick(minecraft);
         syncSelectionToolSetting(minecraft);
-        while (OPEN_SCREEN.consumeClick()) {
-            if (minecraft.player != null && minecraft.screen == null) {
-                minecraft.setScreen(new LightingScreen());
+        while (OPEN_SCREEN.isPressed()) {
+            if (minecraft.player != null && minecraft.currentScreen == null) {
+                minecraft.displayGuiScreen(new LightingScreen());
             }
         }
-        while (TOGGLE_LIGHT_OVERLAY.consumeClick()) {
+        while (TOGGLE_LIGHT_OVERLAY.isPressed()) {
             if (minecraft.player != null) {
                 boolean enabled = LightOverlayState.toggle();
-                minecraft.gui.setOverlayMessage(new TranslatableComponent(enabled
+                minecraft.ingameGUI.setOverlayMessage(new TextComponentTranslation(enabled
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
             }
         }
     }
 
-    public boolean onLeftClick(Level level, ItemStack stack, BlockPos pos, boolean start) {
+    public boolean onLeftClick(World level, ItemStack stack, BlockPos pos, boolean start) {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
-                || !level.isClientSide
+                || !level.isRemote
                 || stack.getItem() != Items.WOODEN_AXE) {
             return false;
         }
         // 长按破坏方块会连续触发事件，只在 START 阶段记录一次 A 点。
         if (start) {
             SelectionState.setFirst(pos);
-            Minecraft.getInstance().gui.setOverlayMessage(
-                    new TranslatableComponent(SelectionState.shape() == AreaShape.SPHERE
+            Minecraft.getInstance().ingameGUI.setOverlayMessage(
+                    new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                                     ? "message.autotorch.selected_center" : "message.autotorch.selected_a",
                             formatPosition(pos)), false
             );
@@ -75,10 +71,10 @@ public final class AutoTorchClient {
         return true;
     }
 
-    public boolean onRightClick(Level level, InteractionHand hand, ItemStack stack, BlockPos pos) {
+    public boolean onRightClick(World level, EnumHand hand, ItemStack stack, BlockPos pos) {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
-                || !level.isClientSide
-                || hand != InteractionHand.MAIN_HAND
+                || !level.isRemote
+                || hand != EnumHand.MAIN_HAND
                 || stack.getItem() != Items.WOODEN_AXE) {
             return false;
         }
@@ -87,15 +83,15 @@ public final class AutoTorchClient {
             AreaZone draft = SelectionState.draft(pos);
             long maxRadiusSquared = (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
             if (draft.radiusSquared() > maxRadiusSquared) {
-                Minecraft.getInstance().gui.setOverlayMessage(
-                        new TranslatableComponent("message.autotorch.sphere_radius_too_large",
-                                AreaZone.MAX_SPHERE_RADIUS).withStyle(ChatFormatting.RED), false
+                Minecraft.getInstance().ingameGUI.setOverlayMessage(
+                        new TextComponentTranslation("message.autotorch.sphere_radius_too_large",
+                                AreaZone.MAX_SPHERE_RADIUS).applyTextStyle(TextFormatting.RED), false
                 );
                 return true;
             }
         }
-        Minecraft.getInstance().gui.setOverlayMessage(
-                new TranslatableComponent(SelectionState.shape() == AreaShape.SPHERE
+        Minecraft.getInstance().ingameGUI.setOverlayMessage(
+                new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                                 ? "message.autotorch.selected_radius" : "message.autotorch.selected_b",
                         formatPosition(pos)), false
         );
@@ -107,12 +103,12 @@ public final class AutoTorchClient {
     }
 
     private void syncSelectionToolSetting(Minecraft minecraft) {
-        if (minecraft.level == null) {
+        if (minecraft.world == null) {
             selectionToolSyncedLevel = null;
-        } else if (minecraft.player != null && minecraft.level != selectionToolSyncedLevel) {
+        } else if (minecraft.player != null && minecraft.world != selectionToolSyncedLevel) {
             PlatformNetworking.sendToServer(
                     new SetSelectionToolPayload(ClientConfig.isWoodenAxeSelectionEnabled()));
-            selectionToolSyncedLevel = minecraft.level;
+            selectionToolSyncedLevel = minecraft.world;
         }
     }
 }

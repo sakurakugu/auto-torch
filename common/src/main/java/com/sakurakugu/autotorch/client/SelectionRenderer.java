@@ -6,16 +6,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
+import net.minecraft.client.renderer.BufferBuilder;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import net.minecraft.client.renderer.Tessellator;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.Vec3d;
 import org.lwjgl.opengl.GL11;
 
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
@@ -95,20 +95,20 @@ public final class SelectionRenderer {
         renderRevision = SelectionState.renderRevision();
     }
 
-    public static void render(Vec3 camera) {
+    public static void render(Vec3d camera) {
         RenderData data = renderData;
         if (data == null || data.draft() == null && data.lightingZone() == null && data.exclusions().isEmpty()) {
             return;
         }
         boolean lines = data.displayMode() == SelectionState.DisplayMode.LINES;
         setupRenderState(lines);
-        Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder builder = tesselator.getBuilder();
-        builder.begin(lines ? GL11.GL_LINES : GL11.GL_QUADS, DefaultVertexFormat.POSITION_COLOR);
-        builder.offset(-camera.x(), -camera.y(), -camera.z());
+        Tessellator tesselator = Tessellator.getInstance();
+        BufferBuilder builder = tesselator.getBuffer();
+        builder.begin(lines ? GL11.GL_LINES : GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
+        builder.setTranslation(-camera.x, -camera.y, -camera.z);
         renderZones(Pose.INSTANCE, new VertexConsumer(builder), data);
-        tesselator.end();
-        builder.offset(0.0D, 0.0D, 0.0D);
+        tesselator.draw();
+        builder.setTranslation(0.0D, 0.0D, 0.0D);
         clearRenderState(lines);
     }
 
@@ -192,14 +192,14 @@ public final class SelectionRenderer {
         }
     }
 
-    private static AABB fullBlockBounds(AreaZone zone) {
-        return new AABB(
+    private static AxisAlignedBB fullBlockBounds(AreaZone zone) {
+        return new AxisAlignedBB(
                 zone.min().getX(), zone.min().getY(), zone.min().getZ(),
                 zone.max().getX() + 1, zone.max().getY() + 1, zone.max().getZ() + 1
         );
     }
 
-    private static void renderBoxLines(Pose pose, VertexConsumer buffer, AABB box, int color, float width) {
+    private static void renderBoxLines(Pose pose, VertexConsumer buffer, AxisAlignedBB box, int color, float width) {
         line(pose, buffer, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ, color, width);
         line(pose, buffer, box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ, color, width);
         line(pose, buffer, box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color, width);
@@ -214,7 +214,7 @@ public final class SelectionRenderer {
         line(pose, buffer, box.minX, box.minY, box.maxZ, box.minX, box.maxY, box.maxZ, color, width);
     }
 
-    private static void renderBoxFaces(Pose pose, VertexConsumer buffer, AABB box, int color) {
+    private static void renderBoxFaces(Pose pose, VertexConsumer buffer, AxisAlignedBB box, int color) {
         quad(pose, buffer, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ,
                 box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color);
         quad(pose, buffer, box.minX, box.maxY, box.maxZ, box.maxX, box.maxY, box.maxZ,
@@ -542,7 +542,7 @@ public final class SelectionRenderer {
         }
 
         private VertexConsumer vertex(Object ignored, float x, float y, float z) {
-            builder.vertex(x, y, z);
+            builder.pos(x, y, z);
             return this;
         }
 

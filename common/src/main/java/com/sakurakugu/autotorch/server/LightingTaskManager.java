@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import com.sakurakugu.autotorch.AutoTorchRules;
@@ -11,11 +12,11 @@ import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 
 /** 按玩家管理照明任务，并在每个服务端刻推进任务。 */
@@ -26,18 +27,18 @@ public final class LightingTaskManager {
     private LightingTaskManager() {
     }
 
-    private static void sendSystemMessage(ServerPlayer player, Component message) {
-        player.displayClientMessage(message, false);
+    private static void sendSystemMessage(EntityPlayerMP player, ITextComponent message) {
+        player.sendStatusMessage(message, false);
     }
 
-    private static void sendSystemMessage(ServerPlayer player, Component message, boolean overlay) {
-        player.displayClientMessage(message, overlay);
+    private static void sendSystemMessage(EntityPlayerMP player, ITextComponent message, boolean overlay) {
+        player.sendStatusMessage(message, overlay);
     }
 
-    public static void start(ServerPlayer player, StartLightingPayload payload) {
+    public static void start(EntityPlayerMP player, StartLightingPayload payload) {
         // 网络载荷不可信，所有会影响扫描范围和资源消耗的参数都在服务端校验。
-        if (!player.mayBuild()) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.no_build_permission"));
+        if (!player.isAllowEdit()) {
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.no_build_permission"));
             return;
         }
 
@@ -56,20 +57,20 @@ public final class LightingTaskManager {
 
         if (!isValidZone(selection) || sizeX > maxSelectionBoundAxis || sizeY > maxSelectionBoundAxis
                 || sizeZ > maxSelectionBoundAxis || volume > maxSelectionBoundVolume) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.area_too_large",
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.area_too_large",
                     ServerConfig.maxBoxAxisLength(), ServerConfig.maxSphereRadius()));
             return;
         }
         int scanMinY = Math.max(min.getY(), 0);
-        int scanMaxY = Math.min(max.getY(), player.getLevel().getMaxBuildHeight() - 1);
+        int scanMaxY = Math.min(max.getY(), player.getServerWorld().getHeight() - 1);
         if (scanMinY > scanMaxY) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.outside_world"));
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.outside_world"));
             return;
         }
         BlockPos scanMin = new BlockPos(min.getX(), scanMinY, min.getZ());
         BlockPos scanMax = new BlockPos(max.getX(), scanMaxY, max.getZ());
-        if (!player.getLevel().isInWorldBounds(scanMin) || !player.getLevel().isInWorldBounds(scanMax)) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.outside_world"));
+        if (!player.getServerWorld().isValid(scanMin) || !player.getServerWorld().isValid(scanMax)) {
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.outside_world"));
             return;
         }
         long scanVolume = sizeX * ((long) scanMaxY - scanMinY + 1L) * sizeZ;
@@ -77,26 +78,26 @@ public final class LightingTaskManager {
         if (payload.maxTorches() < 0
                 || payload.maxTorches() > ServerConfig.maxTorchesPerTask()
                 || (payload.maxTorches() == 0 && !ServerConfig.allowsUnlimitedTorches())) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.invalid_settings"));
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.invalid_settings"));
             return;
         }
         if (payload.minSpacing() < ServerConfig.minSpacing()
                 || payload.minSpacing() > ServerConfig.maxSpacing()) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.invalid_settings"));
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.invalid_settings"));
             return;
         }
         if (payload.lightThreshold() < ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.minValue()
                 || payload.lightThreshold() > ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.maxValue()) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.invalid_settings"));
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.invalid_settings"));
             return;
         }
         if (payload.exclusions().size() > ServerConfig.maxExclusions()
                 || payload.exclusions().stream().anyMatch(zone -> !isValidZone(zone))) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.invalid_settings"));
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.invalid_settings"));
             return;
         }
-        if (!TASKS.containsKey(player.getUUID()) && TASKS.size() >= ServerConfig.maxConcurrentTasks()) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.server_busy"));
+        if (!TASKS.containsKey(player.getUniqueID()) && TASKS.size() >= ServerConfig.maxConcurrentTasks()) {
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.server_busy"));
             return;
         }
 
@@ -105,16 +106,18 @@ public final class LightingTaskManager {
         int lightThreshold = payload.lightThreshold();
         boolean consumeTorches = AutoTorchRules.consumesInventoryTorches(
                 player.isCreative(), payload.consumeTorches(), ServerConfig.survivalConsumesTorches(),
-                player.getLevel().getServer().isSingleplayerOwner(player.getGameProfile()));
+                player.getServerWorld().getServer().isSinglePlayer()
+                        && Objects.equals(player.getServerWorld().getServer().getServerOwner(),
+                        player.getGameProfile().getName()));
 
         LightingTask task = new LightingTask(
-                player.getLevel(), selection, scanMin, scanMax, maxTorches, minSpacing, lightThreshold,
+                player.getServerWorld(), selection, scanMin, scanMax, maxTorches, minSpacing, lightThreshold,
                 consumeTorches, payload.undergroundOnly(),
-                payload.exclusions(), player.getUUID()
+                payload.exclusions(), player.getUniqueID()
         );
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
-        TASKS.put(player.getUUID(), task);
-        sendSystemMessage(player, new TranslatableComponent("message.autotorch.started", scanVolume));
+        TASKS.put(player.getUniqueID(), task);
+        sendSystemMessage(player, new TextComponentTranslation("message.autotorch.started", scanVolume));
         task.showInitialProgress(player);
     }
 
@@ -131,12 +134,12 @@ public final class LightingTaskManager {
                 && (long) max.getZ() - min.getZ() + 1L <= maxAxisLength;
     }
 
-    public static void cancel(ServerPlayer player) {
-        if (TASKS.remove(player.getUUID()) != null) {
-            sendSystemMessage(player, new TextComponent(""), true);
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.cancelled"));
+    public static void cancel(EntityPlayerMP player) {
+        if (TASKS.remove(player.getUniqueID()) != null) {
+            sendSystemMessage(player, new TextComponentString(""), true);
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.cancelled"));
         } else {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.no_task"));
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.no_task"));
         }
     }
 
@@ -154,7 +157,7 @@ public final class LightingTaskManager {
 
         for (UUID playerId : players) {
             LightingTask task = TASKS.get(playerId);
-            ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+            EntityPlayerMP player = server.getPlayerList().getPlayerByUUID(playerId);
             if (task != null && player != null) {
                 task.tickProgress(player);
             }
@@ -163,7 +166,7 @@ public final class LightingTaskManager {
         for (int offset = 0; offset < taskCount && scanRemaining > 0 && placeRemaining > 0; offset++) {
             UUID playerId = players.get((roundRobinStart + offset) % taskCount);
             LightingTask task = TASKS.get(playerId);
-            ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+            EntityPlayerMP player = server.getPlayerList().getPlayerByUUID(playerId);
             if (task == null || player == null) {
                 completed.add(playerId);
                 continue;

@@ -4,13 +4,12 @@ param(
 )
 
 $task = "forge"
-$javaPath = "C:\Software\Deps\Java\jdk-21"
+$javaPath = "C:\Software\Deps\Java\jdk-17"
 
 for ($index = 0; $index -lt $Arguments.Count; $index++) {
     switch ($Arguments[$index]) {
         "--build" { $task = "build" }
         "--forge" { $task = "forge" }
-        "--fabric" { $task = "fabric" }
         "--path" {
             if ($index + 1 -ge $Arguments.Count) {
                 throw "参数 --path 缺少 Java 路径。"
@@ -20,7 +19,7 @@ for ($index = 0; $index -lt $Arguments.Count; $index++) {
             $javaPath = $Arguments[$index]
         }
         default {
-            throw "不支持的参数 '$($Arguments[$index])'。请使用 --build、--forge、--fabric 或 --path。"
+            throw "不支持的参数 '$($Arguments[$index])'。请使用 --build、--forge 或 --path。"
         }
     }
 }
@@ -38,7 +37,7 @@ $env:JAVA_HOME=$javaHome
 $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 if ($task -eq "build") {
-    # 测试并构建所有加载器，产物位于根目录 build 文件夹。
+    # 测试并构建 Forge，产物位于根目录 build 文件夹。
     .\gradlew.bat build
 } else {
     # 运行对应加载器的开发客户端。
