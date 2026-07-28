@@ -106,8 +106,8 @@ public final class LightingTaskManager {
         int lightThreshold = payload.lightThreshold();
         boolean consumeTorches = AutoTorchRules.consumesInventoryTorches(
                 player.isCreative(), payload.consumeTorches(), ServerConfig.survivalConsumesTorches(),
-                player.getServerWorld().getServer().isSinglePlayer()
-                        && Objects.equals(player.getServerWorld().getServer().getServerOwner(),
+                player.getServer().isSinglePlayer()
+                        && Objects.equals(player.getServer().getServerOwner(),
                         player.getGameProfile().getName()));
 
         LightingTask task = new LightingTask(

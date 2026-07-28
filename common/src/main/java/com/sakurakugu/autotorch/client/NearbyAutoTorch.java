@@ -8,7 +8,8 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.init.Blocks;
-import net.minecraft.world.EnumLightType;
+import net.minecraft.world.EnumSkyBlock;
+import net.minecraft.item.Item;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.Vec3d;
@@ -45,7 +46,7 @@ public final class NearbyAutoTorch {
                 || minecraft.playerController == null
                 || minecraft.currentScreen != null
                 || minecraft.player.isSpectator()
-                || !minecraft.player.isAlive()) {
+                || !minecraft.player.isEntityAlive()) {
             return;
         }
         if (ticksUntilScan-- > 0) {
@@ -78,7 +79,8 @@ public final class NearbyAutoTorch {
                             || isWaitingToRetry(candidate)) {
                         continue;
                     }
-                    double distance = player.getDistanceSq(centerOf(candidate));
+                    Vec3d center = centerOf(candidate);
+                    double distance = player.getDistanceSq(center.x, center.y, center.z);
                     if (distance < bestDistance) {
                         bestDistance = distance;
                         best = candidate.toImmutable();
@@ -90,22 +92,22 @@ public final class NearbyAutoTorch {
     }
 
     private static boolean isValidTarget(World level, EntityPlayerSP player, BlockPos target) {
-        if (!level.getBlockState(target).isAir(level, target) || !level.getFluidState(target).isEmpty()) {
+        if (!level.isAirBlock(target) || level.getBlockState(target).getMaterial().isLiquid()) {
             return false;
         }
         BlockPos floorPos = target.down();
         if (level.getBlockState(floorPos).getBlockFaceShape(level, floorPos, EnumFacing.UP) != BlockFaceShape.SOLID
-                || player.getBoundingBox().intersects(new AxisAlignedBB(target))) {
+                || player.getEntityBoundingBox().intersects(new AxisAlignedBB(target))) {
             return false;
         }
-        Vec3d hitLocation = centerOf(target.down()).add(0.0, 0.5, 0.0);
-        return player.getEyePosition(1.0F).squareDistanceTo(hitLocation) <= 20.25;
+        Vec3d hitLocation = centerOf(target.down()).addVector(0.0, 0.5, 0.0);
+        return player.getPositionEyes(1.0F).squareDistanceTo(hitLocation) <= 20.25;
     }
 
     private static int measuredLight(World level, BlockPos position) {
-        int blockLight = level.getLightFor(EnumLightType.BLOCK, position);
+        int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, position);
         return ClientConfig.includesSkyLight()
-                ? Math.max(blockLight, level.getLightFor(EnumLightType.SKY, position))
+                ? Math.max(blockLight, level.getLightFor(EnumSkyBlock.SKY, position))
                 : blockLight;
     }
 
@@ -116,15 +118,15 @@ public final class NearbyAutoTorch {
     }
 
     private static TorchSource findTorch(EntityPlayerSP player) {
-        if (player.getHeldItemOffhand().getItem() == Blocks.TORCH.asItem()) {
+        if (player.getHeldItemOffhand().getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
             return new TorchSource(EnumHand.OFF_HAND, -1);
         }
         int selected = player.inventory.currentItem;
-        if (player.inventory.getStackInSlot(selected).getItem() == Blocks.TORCH.asItem()) {
+        if (player.inventory.getStackInSlot(selected).getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
             return new TorchSource(EnumHand.MAIN_HAND, selected);
         }
         for (int slot = 0; slot < 9; slot++) {
-            if (player.inventory.getStackInSlot(slot).getItem() == Blocks.TORCH.asItem()) {
+            if (player.inventory.getStackInSlot(slot).getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
                 return new TorchSource(EnumHand.MAIN_HAND, slot);
             }
         }
@@ -141,7 +143,7 @@ public final class NearbyAutoTorch {
         BlockPos support = target.down();
         EnumActionResult result = minecraft.playerController.processRightClickBlock(
                 player, minecraft.world, support, EnumFacing.UP,
-                centerOf(support).add(0.0, 0.5, 0.0), torch.hand());
+                centerOf(support).addVector(0.0, 0.5, 0.0), torch.hand());
         if (result == EnumActionResult.SUCCESS) {
             player.swingArm(torch.hand());
         }

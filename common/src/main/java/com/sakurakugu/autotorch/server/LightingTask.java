@@ -18,7 +18,9 @@ import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.WorldServer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
-import net.minecraft.world.EnumLightType;
+import net.minecraft.world.EnumSkyBlock;
+import net.minecraft.item.Item;
+import net.minecraft.util.text.Style;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.init.Blocks;
@@ -171,14 +173,14 @@ final class LightingTask {
                 scanIndex * PROGRESS_BAR_LENGTH / volume);
         ITextComponent bar;
         if (pass == 0) {
-            bar = new TextComponentString(progressBar(passFilled)).applyTextStyle(TextFormatting.GRAY)
+            bar = new TextComponentString(progressBar(passFilled)).setStyle(new Style().setColor(TextFormatting.GRAY))
                     .appendSibling(new TextComponentString(progressBar(PROGRESS_BAR_LENGTH - passFilled))
-                            .applyTextStyle(TextFormatting.DARK_GRAY));
+                            .setStyle(new Style().setColor(TextFormatting.DARK_GRAY)));
         } else {
             // 第二轮从左向右用绿色覆盖第一轮已经铺满的灰色进度条。
-            bar = new TextComponentString(progressBar(passFilled)).applyTextStyle(TextFormatting.GREEN)
+            bar = new TextComponentString(progressBar(passFilled)).setStyle(new Style().setColor(TextFormatting.GREEN))
                     .appendSibling(new TextComponentString(progressBar(PROGRESS_BAR_LENGTH - passFilled))
-                            .applyTextStyle(TextFormatting.GRAY));
+                            .setStyle(new Style().setColor(TextFormatting.GRAY)));
         }
         player.sendStatusMessage(new TextComponentTranslation("message.autotorch.progress", bar, percent, placed), true);
     }
@@ -206,15 +208,14 @@ final class LightingTask {
     }
 
     private boolean isPotentialSpawnPosition(BlockPos feet) {
-        if (isExcluded(feet) || !level.getBlockState(feet).isAir(level, feet)
-                || !level.getBlockState(feet.up()).isAir(level, feet.up())) {
+        if (isExcluded(feet) || !level.isAirBlock(feet) || !level.isAirBlock(feet.up())) {
             return false;
         }
-        if (!level.getFluidState(feet).isEmpty()
-                || level.getLightFor(EnumLightType.BLOCK, feet) > lightThreshold) {
+        if (level.getBlockState(feet).getMaterial().isLiquid()
+                || level.getLightFor(EnumSkyBlock.BLOCK, feet) > lightThreshold) {
             return false;
         }
-        if (undergroundOnly && level.getLightFor(EnumLightType.SKY, feet) > 0) {
+        if (undergroundOnly && level.getLightFor(EnumSkyBlock.SKY, feet) > 0) {
             return false;
         }
 
@@ -235,8 +236,7 @@ final class LightingTask {
             if (!insideSelection(candidate) || isExcluded(candidate) || !isChunkLoaded(candidate)) {
                 continue;
             }
-            if (!level.getBlockState(candidate).isAir(level, candidate)
-                    || !level.getFluidState(candidate).isEmpty()) {
+            if (!level.isAirBlock(candidate) || level.getBlockState(candidate).getMaterial().isLiquid()) {
                 continue;
             }
 
@@ -300,7 +300,7 @@ final class LightingTask {
 
     private static boolean hasTorch(EntityPlayerMP player) {
         for (int slot = 0; slot < player.inventory.getSizeInventory(); slot++) {
-            if (player.inventory.getStackInSlot(slot).getItem() == Blocks.TORCH.asItem()) {
+            if (player.inventory.getStackInSlot(slot).getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
                 return true;
             }
         }
@@ -310,7 +310,7 @@ final class LightingTask {
     private static void consumeTorch(EntityPlayerMP player) {
         for (int slot = 0; slot < player.inventory.getSizeInventory(); slot++) {
             ItemStack stack = player.inventory.getStackInSlot(slot);
-            if (stack.getItem() == Blocks.TORCH.asItem()) {
+            if (stack.getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
                 stack.shrink(1);
                 player.inventory.markDirty();
                 return;

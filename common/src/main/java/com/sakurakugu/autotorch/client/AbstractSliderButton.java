@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 /** 使用 1.13 按钮输入实现离散数值滑块。 */
 abstract class AbstractSliderButton extends Button {
     protected double value;
+    private boolean dragging;
 
     AbstractSliderButton(int x, int y, int width, int height, double value) {
         super(x, y, width, height, "", button -> { });
@@ -13,12 +14,21 @@ abstract class AbstractSliderButton extends Button {
 
     @Override
     public void onClick(double mouseX, double mouseY) {
+        dragging = true;
         updateFromMouse(mouseX);
     }
 
     @Override
-    protected void onDrag(double mouseX, double mouseY, double deltaX, double deltaY) {
-        updateFromMouse(mouseX);
+    protected void mouseDragged(Minecraft minecraft, int mouseX, int mouseY) {
+        // 1.12.2 绘制按钮时也会调用此方法，只有按住滑块后才更新数值。
+        if (dragging) {
+            updateFromMouse(mouseX);
+        }
+    }
+
+    @Override
+    public void mouseReleased(int mouseX, int mouseY) {
+        dragging = false;
     }
 
     @Override
@@ -37,7 +47,7 @@ abstract class AbstractSliderButton extends Button {
         int handleColor = isHovered() ? 0xFFFFFFFF : 0xFFD0D0D0;
         fill(handleCenter - 3, y + 2, handleCenter + 3, y + height - 2, 0xFF606060);
         fill(handleCenter - 2, y + 3, handleCenter + 2, y + height - 3, handleColor);
-        drawCenteredString(Minecraft.getInstance().fontRenderer, getMessage(),
+        drawCenteredString(Minecraft.getMinecraft().fontRenderer, getMessage(),
                 x + width / 2, y + (height - 8) / 2, 0xFFFFFFFF);
     }
 

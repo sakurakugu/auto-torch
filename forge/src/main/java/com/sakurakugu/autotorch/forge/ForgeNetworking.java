@@ -1,75 +1,55 @@
 package com.sakurakugu.autotorch.forge;
 
+import io.netty.buffer.ByteBuf;
 import com.sakurakugu.autotorch.AutoTorch;
-import com.sakurakugu.autotorch.network.AutoTorchPayload;
-import com.sakurakugu.autotorch.network.CancelLightingPayload;
-import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
-import com.sakurakugu.autotorch.network.StartLightingPayload;
-import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.client.ServerConfigState;
+import com.sakurakugu.autotorch.network.*;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.fml.network.NetworkDirection;
-import net.minecraftforge.fml.network.NetworkRegistry;
-import net.minecraftforge.fml.network.NetworkEvent;
-import net.minecraftforge.fml.network.simple.SimpleChannel;
+import net.minecraft.network.PacketBuffer;
+import net.minecraftforge.fml.common.network.NetworkRegistry;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
+import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
+import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
+import net.minecraftforge.fml.relauncher.Side;
 
-
+/** Forge 1.12.2 的 SimpleNetworkWrapper 适配。 */
 final class ForgeNetworking {
-    private static final String PROTOCOL_VERSION = "5";
-    private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(AutoTorch.MOD_ID + ":main"),
-            () -> PROTOCOL_VERSION,
-            PROTOCOL_VERSION::equals,
-            PROTOCOL_VERSION::equals
-    );
-
-    private ForgeNetworking() {
-    }
-
+    private static final SimpleNetworkWrapper CHANNEL = NetworkRegistry.INSTANCE.newSimpleChannel(AutoTorch.MOD_ID + ":main");
+    private ForgeNetworking() {}
     static void initialize() {
-        CHANNEL.registerMessage(0, StartLightingPayload.class,
-                StartLightingPayload::write, StartLightingPayload::decode, (payload, supplier) -> {
-                    NetworkEvent.Context context = supplier.get();
-                    context.enqueueWork(() -> {
-                        if (context.getSender() != null) LightingTaskManager.start(context.getSender(), payload);
-                    });
-                    context.setPacketHandled(true);
-                });
-        CHANNEL.registerMessage(1, CancelLightingPayload.class,
-                CancelLightingPayload::write, CancelLightingPayload::decode, (payload, supplier) -> {
-                    NetworkEvent.Context context = supplier.get();
-                    context.enqueueWork(() -> {
-                        if (context.getSender() != null) LightingTaskManager.cancel(context.getSender());
-                    });
-                    context.setPacketHandled(true);
-                });
-        CHANNEL.registerMessage(2, SetSelectionToolPayload.class,
-                SetSelectionToolPayload::write, SetSelectionToolPayload::decode, (payload, supplier) -> {
-                    NetworkEvent.Context context = supplier.get();
-                    context.enqueueWork(() -> {
-                        if (context.getSender() != null) {
-                            SelectionToolEvents.setEnabled(context.getSender(), payload.enabled());
-                        }
-                    });
-                    context.setPacketHandled(true);
-                });
-        CHANNEL.registerMessage(3, ServerConfigPayload.class,
-                ServerConfigPayload::write, ServerConfigPayload::decode, (payload, supplier) -> {
-                    NetworkEvent.Context context = supplier.get();
-                    if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
-                        context.enqueueWork(() -> ServerConfigState.update(payload));
-                    }
-                    context.setPacketHandled(true);
-                });
+        CHANNEL.registerMessage(StartHandler.class, StartMessage.class, 0, Side.SERVER);
+        CHANNEL.registerMessage(CancelHandler.class, CancelMessage.class, 1, Side.SERVER);
+        CHANNEL.registerMessage(SelectionHandler.class, SelectionMessage.class, 2, Side.SERVER);
+        CHANNEL.registerMessage(ConfigHandler.class, ConfigMessage.class, 3, Side.CLIENT);
     }
-
     static void sendToServer(AutoTorchPayload payload) {
-        CHANNEL.sendToServer(payload);
+        if (payload instanceof StartLightingPayload) CHANNEL.sendToServer(new StartMessage((StartLightingPayload) payload));
+        else if (payload instanceof CancelLightingPayload) CHANNEL.sendToServer(new CancelMessage((CancelLightingPayload) payload));
+        else if (payload instanceof SetSelectionToolPayload) CHANNEL.sendToServer(new SelectionMessage((SetSelectionToolPayload) payload));
+    }
+    static void sendToPlayer(EntityPlayerMP player, AutoTorchPayload payload) {
+        if (payload instanceof ServerConfigPayload) CHANNEL.sendTo(new ConfigMessage((ServerConfigPayload) payload), player);
     }
 
-    static void sendToPlayer(net.minecraft.entity.player.EntityPlayerMP player, AutoTorchPayload payload) {
-        CHANNEL.sendTo(payload, player.connection.getNetworkManager(), NetworkDirection.PLAY_TO_CLIENT);
+    public abstract static class Message<T> implements IMessage {
+        T payload;
+        Message() {}
+        Message(T payload) { this.payload = payload; }
+        @Override public void fromBytes(ByteBuf buf) { payload = decode(new PacketBuffer(buf)); }
+        @Override public void toBytes(ByteBuf buf) { encode(payload, new PacketBuffer(buf)); }
+        abstract T decode(PacketBuffer buf);
+        abstract void encode(T payload, PacketBuffer buf);
     }
+    public static final class StartMessage extends Message<StartLightingPayload> { public StartMessage() {} StartMessage(StartLightingPayload p){super(p);} StartLightingPayload decode(PacketBuffer b){return StartLightingPayload.decode(b);} void encode(StartLightingPayload p,PacketBuffer b){p.write(b);} }
+    public static final class CancelMessage extends Message<CancelLightingPayload> { public CancelMessage() {} CancelMessage(CancelLightingPayload p){super(p);} CancelLightingPayload decode(PacketBuffer b){return CancelLightingPayload.decode(b);} void encode(CancelLightingPayload p,PacketBuffer b){p.write(b);} }
+    public static final class SelectionMessage extends Message<SetSelectionToolPayload> { public SelectionMessage() {} SelectionMessage(SetSelectionToolPayload p){super(p);} SetSelectionToolPayload decode(PacketBuffer b){return SetSelectionToolPayload.decode(b);} void encode(SetSelectionToolPayload p,PacketBuffer b){p.write(b);} }
+    public static final class ConfigMessage extends Message<ServerConfigPayload> { public ConfigMessage() {} ConfigMessage(ServerConfigPayload p){super(p);} ServerConfigPayload decode(PacketBuffer b){return ServerConfigPayload.decode(b);} void encode(ServerConfigPayload p,PacketBuffer b){p.write(b);} }
+    public static final class StartHandler implements IMessageHandler<StartMessage, IMessage> { public IMessage onMessage(StartMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().player; p.getServer().addScheduledTask(() -> LightingTaskManager.start(p,m.payload)); return null; } }
+    public static final class CancelHandler implements IMessageHandler<CancelMessage, IMessage> { public IMessage onMessage(CancelMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().player; p.getServer().addScheduledTask(() -> LightingTaskManager.cancel(p)); return null; } }
+    public static final class SelectionHandler implements IMessageHandler<SelectionMessage, IMessage> { public IMessage onMessage(SelectionMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().player; p.getServer().addScheduledTask(() -> SelectionToolEvents.setEnabled(p,m.payload.enabled())); return null; } }
+    public static final class ConfigHandler implements IMessageHandler<ConfigMessage, IMessage> { public IMessage onMessage(ConfigMessage m, MessageContext c){ net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> ServerConfigState.update(m.payload)); return null; } }
 }

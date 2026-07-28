@@ -1,7 +1,6 @@
 package com.sakurakugu.autotorch.forge;
 
 import com.sakurakugu.autotorch.client.AutoTorchClient;
-import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
@@ -11,95 +10,49 @@ import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 final class AutoTorchForgeClient {
     private final AutoTorchClient client = new AutoTorchClient();
     private BlockPos selectionClickPos;
-
-    private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
-        ClientConfig.install(ForgeConfigs.CLIENT);
+    private AutoTorchForgeClient() {
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
-        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
-
-        context.getModEventBus().addListener(this::registerKeys);
-        MinecraftForge.EVENT_BUS.addListener(this::onRender);
-        MinecraftForge.EVENT_BUS.addListener(this::onTick);
-        MinecraftForge.EVENT_BUS.addListener(this::onLeftClick);
-        MinecraftForge.EVENT_BUS.addListener(this::onRightClick);
-    }
-
-    static void initialize(FMLJavaModLoadingContext context) {
-        new AutoTorchForgeClient(context);
-    }
-
-    private void registerKeys(FMLClientSetupEvent event) {
         ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        MinecraftForge.EVENT_BUS.register(this);
     }
-
-    private void onTick(TickEvent.ClientTickEvent event) {
+    static void initialize() { new AutoTorchForgeClient(); }
+    @SubscribeEvent public void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             client.tick();
-            if (!Minecraft.getInstance().gameSettings.keyBindAttack.isKeyDown()) {
-                selectionClickPos = null;
-            }
+            if (!Minecraft.getMinecraft().gameSettings.keyBindAttack.isKeyDown()) selectionClickPos = null;
         }
     }
-
-    private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
+    @SubscribeEvent public void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
         boolean start = selectionClickPos == null || !selectionClickPos.equals(event.getPos());
-        if (event.getEntity().world instanceof WorldClient
-                && client.onLeftClick((WorldClient) event.getEntity().world, event.getItemStack(), event.getPos(),
-                start)) {
-            // 1.18.2 及其以下的事件没有 START 阶段，取消破坏后还会在长按期间重复触发。
-            selectionClickPos = event.getPos().toImmutable();
-            event.setCanceled(true);
+        if (event.getEntityPlayer() != null && event.getEntityPlayer().world instanceof WorldClient && client.onLeftClick((WorldClient) event.getEntityPlayer().world, event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos(), start)) {
+            selectionClickPos = event.getPos(); event.setCanceled(true);
         }
     }
-
-    private void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getEntity().world instanceof WorldClient
-                && client.onRightClick((WorldClient) event.getEntity().world,
-                event.getHand(), event.getItemStack(), event.getPos())) {
-            event.setCancellationResult(EnumActionResult.SUCCESS);
-            event.setCanceled(true);
+    @SubscribeEvent public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getEntityPlayer() != null && event.getEntityPlayer().world instanceof WorldClient && client.onRightClick((WorldClient) event.getEntityPlayer().world, event.getHand(), event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos())) {
+            event.setCancellationResult(EnumActionResult.SUCCESS); event.setCanceled(true);
         }
     }
-
-    private void onRender(RenderWorldLastEvent event) {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.world == null) return;
-        Entity viewEntity = minecraft.getRenderViewEntity();
-        if (viewEntity == null) return;
-        double partialTicks = event.getPartialTicks();
-        // 1.13.2 的世界渲染器以观察实体的插值坐标平移顶点；真实相机坐标仅用于查询和射线检测。
-        Vec3d renderOrigin = new Vec3d(
-                viewEntity.lastTickPosX + (viewEntity.posX - viewEntity.lastTickPosX) * partialTicks,
-                viewEntity.lastTickPosY + (viewEntity.posY - viewEntity.lastTickPosY) * partialTicks,
-                viewEntity.lastTickPosZ + (viewEntity.posZ - viewEntity.lastTickPosZ) * partialTicks
-        );
-        Vec3d camera = ActiveRenderInfo.projectViewFromEntity(viewEntity, partialTicks);
+    @SubscribeEvent public void onRender(RenderWorldLastEvent event) {
+        Minecraft minecraft = Minecraft.getMinecraft(); if (minecraft.world == null) return;
+        Entity view = minecraft.getRenderViewEntity(); if (view == null) return;
+        float partial = event.getPartialTicks();
+        Vec3d origin = new Vec3d(view.lastTickPosX + (view.posX - view.lastTickPosX) * partial, view.lastTickPosY + (view.posY - view.lastTickPosY) * partial, view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partial);
+        Vec3d camera = ActiveRenderInfo.getCameraPosition();
         BlockPos cameraPos = new BlockPos(camera);
-        SelectionRenderer.extract(cameraPos);
-        LightOverlayRenderer.extract();
-
-        SelectionRenderer.render(renderOrigin);
-        LightOverlayRenderer.render(renderOrigin);
-        if (minecraft.world.getFluidState(cameraPos).isEmpty()) {
-            LightOverlayRenderer.renderWaterVisible(
-                    renderOrigin, target ->
-                            minecraft.world.rayTraceBlocks(camera, target) == null);
-        }
+        SelectionRenderer.extract(cameraPos); LightOverlayRenderer.extract();
+        SelectionRenderer.render(origin); LightOverlayRenderer.render(origin);
     }
 }

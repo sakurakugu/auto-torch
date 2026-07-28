@@ -15,20 +15,26 @@ class Button extends GuiButton implements Widget {
         this.onPress = onPress;
     }
 
-    @Override
     public void onClick(double mouseX, double mouseY) {
         if (active) onPress.onPress(this);
     }
 
-    @Override
     public void render(int mouseX, int mouseY, float partialTicks) {
         enabled = active;
         renderButton(mouseX, mouseY, partialTicks);
     }
 
     protected void renderButton(int mouseX, int mouseY, float partialTicks) {
-        super.render(mouseX, mouseY, partialTicks);
+        super.drawButton(Minecraft.getMinecraft(), mouseX, mouseY, partialTicks);
     }
+
+    @Override public void drawButton(Minecraft minecraft, int mouseX, int mouseY, float partialTicks) { render(mouseX, mouseY, partialTicks); }
+    @Override public boolean mousePressed(Minecraft minecraft, int mouseX, int mouseY) {
+        boolean pressed = super.mousePressed(minecraft, mouseX, mouseY);
+        if (pressed) onClick(mouseX, mouseY);
+        return pressed;
+    }
+    void drag(int mouseX, int mouseY) { mouseDragged(Minecraft.getMinecraft(), mouseX, mouseY); }
 
     void setMessage(String message) { displayString = message; }
     String getMessage() { return displayString; }

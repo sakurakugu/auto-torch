@@ -9,7 +9,7 @@ final class ColoredButton extends Button {
     private final int hoveredColor;
 
     ColoredButton(int x, int y, int width, int height, ITextComponent message, OnPress onPress, int backgroundColor, int hoveredColor) {
-        super(x, y, width, height, message.getString(), onPress);
+        super(x, y, width, height, message.getFormattedText(), onPress);
         this.backgroundColor = backgroundColor;
         this.hoveredColor = hoveredColor;
     }
@@ -22,14 +22,14 @@ final class ColoredButton extends Button {
             color = 0xCC555555;
         }
         fill(x + 1, y + 1,
-                x + getWidth() - 1, y + height - 1, color);
+                x + getButtonWidth() - 1, y + height - 1, color);
         int outlineColor = highlighted ? 0xFFFFFFFF : 0xFFB0B0B0;
-        fill(x, y, x + getWidth(), y + 1, outlineColor);
-        fill(x, y + height - 1, x + getWidth(), y + height, outlineColor);
+        fill(x, y, x + getButtonWidth(), y + 1, outlineColor);
+        fill(x, y + height - 1, x + getButtonWidth(), y + height, outlineColor);
         fill(x, y + 1, x + 1, y + height - 1, outlineColor);
-        fill(x + getWidth() - 1, y + 1, x + getWidth(), y + height - 1, outlineColor);
-        drawCenteredString(Minecraft.getInstance().fontRenderer, getMessage(),
-                x + getWidth() / 2, y + 6,
+        fill(x + getButtonWidth() - 1, y + 1, x + getButtonWidth(), y + height - 1, outlineColor);
+        drawCenteredString(Minecraft.getMinecraft().fontRenderer, getMessage(),
+                x + getButtonWidth() / 2, y + 6,
                 active ? 0xFFFFFFFF : 0xFFA0A0A0);
     }
 }

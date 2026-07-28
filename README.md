@@ -2,7 +2,7 @@
 
 [English](README_EN.md) | 简体中文
 
-适用于 Minecraft 1.13.2 / Forge 的自动插火把和光照显示模组。
+适用于 Minecraft 1.12.2~26.2 / Forge 的自动插火把和光照显示模组。
 
 ![icon](./common/src/main/resources/autotorch.png)
 
@@ -45,10 +45,10 @@
 
 ## 构建
 
-构建需要 Java 21，生成的模组运行于 Java 17：
+构建需要 Java 21，生成的模组运行于 Java 8：
 
 ```powershell
-$env:JAVA_HOME='你的 Java 17 安装目录'
+$env:JAVA_HOME='你的 Java 21 安装目录'
 .\gradlew.bat build
 ```
 

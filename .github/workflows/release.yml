@@ -332,6 +332,7 @@ jobs:
 
       # 使用固定提交而不是浮动标签，避免第三方 Action 更新导致发布行为意外变化。
       - name: Publish Fabric for Minecraft ${{ matrix.target.minecraft }}
+        if: matrix.target.minecraft != '1.12.2'
         uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3
         with:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
@@ -347,7 +348,7 @@ jobs:
           game-versions: ${{ matrix.target.minecraft }}
           game-version-filter: none
           environment: client | server?
-          java: ${{ matrix.target.minecraft == '1.20.1' && 'Java 17' || 'Java 25' }}
+          java: ${{ matrix.target.minecraft == '1.12.2' && 'Java 8' || (matrix.target.minecraft == '1.20.1' && 'Java 17' || 'Java 25') }}
           dependencies: fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
 
       # Forge 和 NeoForge 不依赖 Fabric API，因此不声明额外依赖。
@@ -367,10 +368,10 @@ jobs:
           game-versions: ${{ matrix.target.minecraft }}
           game-version-filter: none
           environment: client | server?
-          java: ${{ matrix.target.minecraft == '1.20.1' && 'Java 17' || 'Java 25' }}
+          java: ${{ matrix.target.minecraft == '1.12.2' && 'Java 8' || (matrix.target.minecraft == '1.20.1' && 'Java 17' || 'Java 25') }}
 
       - name: Publish NeoForge for Minecraft ${{ matrix.target.minecraft }}
-        if: matrix.target.minecraft != '1.20.1'
+        if: matrix.target.minecraft != '1.12.2' && matrix.target.minecraft != '1.20.1'
         uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3
         with:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}

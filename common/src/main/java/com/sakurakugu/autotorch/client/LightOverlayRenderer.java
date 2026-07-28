@@ -95,7 +95,7 @@ public final class LightOverlayRenderer {
         GlStateManager.scalef(0.99975586F, 0.99975586F, 0.99975586F);
         GlStateManager.lineWidth(Math.max(
                 CROSS_LINE_WIDTH,
-                (float) Minecraft.getInstance().mainWindow.getWidth() / 1920.0F * CROSS_LINE_WIDTH
+                (float) Minecraft.getMinecraft().displayWidth / 1920.0F * CROSS_LINE_WIDTH
         ));
     }
 
@@ -113,7 +113,7 @@ public final class LightOverlayRenderer {
     }
 
     private static void renderGeometry(Vec3d camera, RenderData data, boolean waterVisible) {
-        if (data == null || data.lineCount() == 0 || Minecraft.getInstance().world == null) {
+        if (data == null || data.lineCount() == 0 || Minecraft.getMinecraft().world == null) {
             return;
         }
         if (waterVisible) {

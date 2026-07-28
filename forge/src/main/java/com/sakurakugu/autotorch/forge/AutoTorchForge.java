@@ -1,84 +1,45 @@
 package com.sakurakugu.autotorch.forge;
 
 import com.sakurakugu.autotorch.AutoTorch;
+import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
-import com.sakurakugu.autotorch.server.ServerConfig;
-import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumHand;
-import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
-import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.minecraftforge.fml.server.ServerLifecycleHooks;
+import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.FMLCommonHandler;
 
-@Mod(AutoTorch.MOD_ID)
+@Mod(modid = AutoTorch.MOD_ID, useMetadata = true,
+        acceptedMinecraftVersions = "[1.12.2]", dependencies = "required-after:forge@[14,)")
 public final class AutoTorchForge {
-    public AutoTorchForge() {
-        FMLJavaModLoadingContext context = FMLJavaModLoadingContext.get();
-        ServerConfig.install(ForgeConfigs.SERVER);
-        ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
+    @Mod.EventHandler
+    public void preInit(FMLPreInitializationEvent event) {
+        ForgeConfigs.init(event.getModConfigurationDirectory());
+        com.sakurakugu.autotorch.server.ServerConfig.install(ForgeConfigs.SERVER);
+        com.sakurakugu.autotorch.client.ClientConfig.install(ForgeConfigs.CLIENT);
         ForgeNetworking.initialize();
-        context.getModEventBus().addListener(this::onConfigLoading);
-
-        MinecraftForge.EVENT_BUS.addListener(this::onServerTick);
-        MinecraftForge.EVENT_BUS.addListener(this::onLeftClick);
-        MinecraftForge.EVENT_BUS.addListener(this::onRightClick);
-        MinecraftForge.EVENT_BUS.addListener(this::onLogout);
-        MinecraftForge.EVENT_BUS.addListener(this::onLogin);
-
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            AutoTorchForgeClient.initialize(context);
-        }
+        MinecraftForge.EVENT_BUS.register(this);
+        if (event.getSide().isClient()) AutoTorchForgeClient.initialize();
     }
 
-    private void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            LightingTaskManager.onServerTick(ServerLifecycleHooks.getCurrentServer());
+    @SubscribeEvent public void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END && FMLCommonHandler.instance().getMinecraftServerInstance() != null) LightingTaskManager.onServerTick(FMLCommonHandler.instance().getMinecraftServerInstance());
+    }
+    @SubscribeEvent public void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
+        if (event.getEntityPlayer() instanceof EntityPlayerMP && SelectionToolEvents.handlesInteraction((EntityPlayerMP) event.getEntityPlayer(), event.getEntityPlayer().getHeldItem(event.getHand()))) event.setCanceled(true);
+    }
+    @SubscribeEvent public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getHand() == EnumHand.MAIN_HAND && event.getEntityPlayer() instanceof EntityPlayerMP && SelectionToolEvents.handlesInteraction((EntityPlayerMP) event.getEntityPlayer(), event.getEntityPlayer().getHeldItem(event.getHand()))) {
+            event.setCancellationResult(EnumActionResult.SUCCESS); event.setCanceled(true);
         }
     }
-
-    private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
-        if (event.getEntity() instanceof EntityPlayerMP
-                && SelectionToolEvents.handlesInteraction((EntityPlayerMP) event.getEntity(), event.getItemStack())) {
-            event.setCanceled(true);
-        }
-    }
-
-    private void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getHand() == EnumHand.MAIN_HAND
-                && event.getEntity() instanceof EntityPlayerMP
-                && SelectionToolEvents.handlesInteraction((EntityPlayerMP) event.getEntity(), event.getItemStack())) {
-            event.setCancellationResult(EnumActionResult.SUCCESS);
-            event.setCanceled(true);
-        }
-    }
-
-    private void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.getPlayer() instanceof EntityPlayerMP) {
-            SelectionToolEvents.onLogout((EntityPlayerMP) event.getPlayer());
-        }
-    }
-
-    private void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getPlayer() instanceof EntityPlayerMP) {
-            ForgeNetworking.sendToPlayer((EntityPlayerMP) event.getPlayer(), ServerConfigPayload.current());
-        }
-    }
-
-    private void onConfigLoading(ModConfig.Loading event) {
-        if (event.getConfig().getType() == ModConfig.Type.CLIENT) {
-            ForgeConfigs.CLIENT.attach(event.getConfig());
-        } else if (event.getConfig().getType() == ModConfig.Type.SERVER) {
-            ForgeConfigs.SERVER.attach(event.getConfig());
-        }
-    }
+    @SubscribeEvent public void onLogout(PlayerEvent.PlayerLoggedOutEvent event) { if (event.player instanceof EntityPlayerMP) SelectionToolEvents.onLogout((EntityPlayerMP) event.player); }
+    @SubscribeEvent public void onLogin(PlayerEvent.PlayerLoggedInEvent event) { if (event.player instanceof EntityPlayerMP) ForgeNetworking.sendToPlayer((EntityPlayerMP) event.player, ServerConfigPayload.current()); }
 }

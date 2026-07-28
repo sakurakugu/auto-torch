@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "${mod_id}",
+    "name": "${mod_name}",
+    "description": "Automatic nearby and selected-area torch placement.",
+    "version": "${mod_version}",
+    "mcversion": "${minecraft_version}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["sakurakugu"],
+    "credits": "",
+    "logoFile": "autotorch.png",
+    "screenshots": [],
+    "dependencies": []
+  }
+]

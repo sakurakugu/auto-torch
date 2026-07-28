@@ -46,7 +46,7 @@ public final class ExclusionListScreen extends Screen {
             boolean lightingEntry = lightingZone != null && index == 0;
             Button editButton = addRenderableWidget(new Button(left + panelWidth - 108, y, 50, 20,
                     new TextComponentTranslation(lightingEntry
-                            ? "screen.autotorch.edit_lighting" : "screen.autotorch.edit_exclusion").getString(), button -> {
+                            ? "screen.autotorch.edit_lighting" : "screen.autotorch.edit_exclusion").getFormattedText(), button -> {
                 int exclusionIndex = selectedIndex - (SelectionState.lightingZone() == null ? 0 : 1);
                 boolean editing = lightingEntry
                         ? SelectionState.beginEditingLightingZone()
@@ -70,17 +70,17 @@ public final class ExclusionListScreen extends Screen {
         }
 
         Button previous = addRenderableWidget(new Button(left, 184, 80, 20,
-                new TextComponentTranslation("screen.autotorch.previous_page").getString(), button -> {
+                new TextComponentTranslation("screen.autotorch.previous_page").getFormattedText(), button -> {
             page--;
             rebuildWidgets();
         }));
         previous.active = page > 0;
 
         addRenderableWidget(new Button(width / 2 - 50, 184, 100, 20,
-                new TextComponentTranslation("screen.autotorch.back").getString(), button -> onClose()));
+                new TextComponentTranslation("screen.autotorch.back").getFormattedText(), button -> onClose()));
 
         Button next = addRenderableWidget(new Button(left + panelWidth - 80, 184, 80, 20,
-                new TextComponentTranslation("screen.autotorch.next_page").getString(), button -> {
+                new TextComponentTranslation("screen.autotorch.next_page").getFormattedText(), button -> {
             page++;
             rebuildWidgets();
         }));
@@ -88,7 +88,7 @@ public final class ExclusionListScreen extends Screen {
     }
 
     private void rebuildWidgets() {
-        buttons.clear();
+        buttonList.clear();
         children.clear();
         init();
     }
@@ -104,9 +104,9 @@ public final class ExclusionListScreen extends Screen {
         int firstIndex = page * PAGE_SIZE;
         int lastIndex = Math.min(firstIndex + PAGE_SIZE, total);
 
-        drawCenteredString(font, title.getString(), width / 2, 12, 0xFFFFFFFF);
+        drawCenteredString(font, title.getFormattedText(), width / 2, 12, 0xFFFFFFFF);
         if (total == 0) {
-            drawCenteredString(font, new TextComponentTranslation("screen.autotorch.no_zone").getString(),
+            drawCenteredString(font, new TextComponentTranslation("screen.autotorch.no_zone").getFormattedText(),
                     width / 2, 82, 0xFFA0A0A0);
         }
         for (int index = firstIndex; index < lastIndex; index++) {
@@ -114,8 +114,8 @@ public final class ExclusionListScreen extends Screen {
             boolean lightingEntry = lightingZone != null && index == 0;
             int exclusionIndex = index - (lightingZone == null ? 0 : 1);
             String description = lightingEntry
-                    ? describeLighting(lightingZone).getString()
-                    : describeExclusion(exclusionIndex, exclusions.get(exclusionIndex)).getString();
+                    ? describeLighting(lightingZone).getFormattedText()
+                    : describeExclusion(exclusionIndex, exclusions.get(exclusionIndex)).getFormattedText();
             int availableWidth = panelWidth - 116;
             if (font.getStringWidth(description) > availableWidth) {
                 description = font.trimStringToWidth(description,
@@ -125,11 +125,11 @@ public final class ExclusionListScreen extends Screen {
                     lightingEntry ? LIGHTING_TEXT_COLOR : EXCLUSION_TEXT_COLOR);
         }
         drawCenteredString(font, new TextComponentTranslation("screen.autotorch.page_summary",
-                page + 1, maxPage(total) + 1, lightingZone == null ? 0 : 1, exclusions.size()).getString(),
+                page + 1, maxPage(total) + 1, lightingZone == null ? 0 : 1, exclusions.size()).getFormattedText(),
                 width / 2, 212, 0xFFA0A0A0);
         for (Map.Entry<Button, ITextComponent> entry : tooltips.entrySet()) {
             if (entry.getKey().visible && entry.getKey().isMouseOver(mouseX, mouseY)) {
-                renderTooltip(entry.getValue().getString(), mouseX, mouseY);
+                renderTooltip(entry.getValue().getFormattedText(), mouseX, mouseY);
                 break;
             }
         }

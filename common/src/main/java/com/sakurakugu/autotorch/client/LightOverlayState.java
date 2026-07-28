@@ -10,14 +10,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EnumCreatureType;
-import net.minecraft.world.EnumLightType;
+import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.world.biome.Biome;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
@@ -187,18 +183,16 @@ public final class LightOverlayState {
         if (!level.isBlockLoaded(feet)) {
             return null;
         }
-        if (drownedDetectionEnabled && isDrownedRisk(level, feet)) {
-            return marker(level, feet, RiskType.DROWNED);
-        }
-        if (!level.getFluidState(feet).isEmpty()
-                || !level.getFluidState(feet.up()).isEmpty()) {
+        // 1.12.2 没有溺尸；保留配置字段以兼容已有客户端配置，但不生成溺尸标记。
+        if (level.getBlockState(feet).getMaterial().isLiquid()
+                || level.getBlockState(feet.up()).getMaterial().isLiquid()) {
             return null;
         }
 
         IBlockState feetState = level.getBlockState(feet);
         IBlockState headState = level.getBlockState(feet.up());
-        if (!feetState.getCollisionShape(level, feet).isEmpty()
-                || !headState.getCollisionShape(level, feet.up()).isEmpty()) {
+        if (feetState.getCollisionBoundingBox(level, feet) != net.minecraft.block.Block.NULL_AABB
+                || headState.getCollisionBoundingBox(level, feet.up()) != net.minecraft.block.Block.NULL_AABB) {
             return null;
         }
 
@@ -208,48 +202,20 @@ public final class LightOverlayState {
                 || floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) != BlockFaceShape.SOLID) {
             return null;
         }
-        int blockLight = level.getLightFor(EnumLightType.BLOCK, feet);
+        int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, feet);
         return new Marker(
                 feet.toImmutable(),
                 blockLight,
-                level.getLightFor(EnumLightType.SKY, feet),
+                level.getLightFor(EnumSkyBlock.SKY, feet),
                 RiskType.NORMAL
         );
-    }
-
-    private static boolean isDrownedRisk(World level, BlockPos pos) {
-        // 每个连续且可生成怪物的水柱中，仅保留最高的完全有效位置。
-        return isDrownedSpawnPosition(level, pos) && !isDrownedSpawnPosition(level, pos.up());
-    }
-
-    private static boolean isDrownedSpawnPosition(World level, BlockPos pos) {
-        if (level.getLightFor(EnumLightType.BLOCK, pos) > 7
-                || !level.getFluidState(pos).isTagged(FluidTags.WATER)
-                || !level.getFluidState(pos.down()).isTagged(FluidTags.WATER)
-                || level.getFluidState(pos.up()).isTagged(FluidTags.WATER)) {
-            return false;
-        }
-
-        Biome biome = level.getBiome(pos);
-        return biomeAllowsDrowned(biome)
-                && (biome.getCategory() == Biome.Category.RIVER
-                || pos.getY() < 58);
-    }
-
-    private static boolean biomeAllowsDrowned(Biome biome) {
-        boolean drownedInSpawnList = biome.getSpawns(EnumCreatureType.MONSTER).stream()
-                .anyMatch(entry -> entry.entityType == EntityType.DROWNED);
-        // 1.21.11及其以下的生物群系网络编解码不会向客户端同步怪物生成表。
-        return drownedInSpawnList
-                || biome.getCategory() == Biome.Category.OCEAN
-                || biome.getCategory() == Biome.Category.RIVER;
     }
 
     private static Marker marker(World level, BlockPos pos, RiskType riskType) {
         return new Marker(
                 pos.toImmutable(),
-                level.getLightFor(EnumLightType.BLOCK, pos),
-                level.getLightFor(EnumLightType.SKY, pos),
+                level.getLightFor(EnumSkyBlock.BLOCK, pos),
+                level.getLightFor(EnumSkyBlock.SKY, pos),
                 riskType
         );
     }

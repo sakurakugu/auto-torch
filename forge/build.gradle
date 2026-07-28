@@ -4,7 +4,7 @@ plugins {
     id 'net.minecraftforge.renamer'
 }
 
-// Forge 1.13.2 的 CoreMod 引擎依赖 JDK 8 自带的 Nashorn。
+// Forge 1.12.2 的 CoreMod 引擎依赖 JDK 8 自带的 Nashorn。
 tasks.withType(JavaExec).configureEach {
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(8)
@@ -22,6 +22,11 @@ sourceSets.main {
 
 sourceSets.test {
     java.srcDir project.rootProject.file('common/src/test/java')
+}
+
+// 合并输出目录时先写入资源，再编译类，避免 Gradle 9 的资源任务清除已编译类。
+tasks.named('compileJava').configure {
+    mustRunAfter tasks.named('processResources')
 }
 
 minecraft {
@@ -44,7 +49,8 @@ repositories {
 
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${forge_version}")
-    compileOnly 'org.lwjgl:lwjgl-glfw:3.2.2'
+    implementation "com.electronwill.night-config:core:${night_config_version}"
+    implementation "com.electronwill.night-config:toml:${night_config_version}"
     compileOnly 'org.lwjgl:lwjgl-opengl:3.2.2'
 
     testImplementation platform('org.junit:junit-bom:5.12.2')
@@ -86,4 +92,10 @@ sourceSets.main.resources.srcDir generateModMetadata
 
 tasks.named('jar', Jar).configure {
     archiveClassifier = 'dev'
+    from({
+        configurations.runtimeClasspath
+                .findAll { it.name.startsWith('core-') || it.name.startsWith('toml-') }
+                .collect { zipTree(it) }
+    })
+    exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
 }
