@@ -1,7 +1,7 @@
 package com.sakurakugu.autotorch.client;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -9,7 +9,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -22,7 +22,7 @@ public final class NearbyAutoTorch {
     private static final int MIN_Y_OFFSET = -2;
     private static final int MAX_Y_OFFSET = 1;
 
-    private static ClientLevel previousLevel;
+    private static Level previousLevel;
     private static int ticksUntilScan;
     private static BlockPos lastAttemptPosition;
     private static int lastAttemptAge;
@@ -64,7 +64,7 @@ public final class NearbyAutoTorch {
         }
     }
 
-    private static BlockPos findTarget(ClientLevel level, LocalPlayer player) {
+    private static BlockPos findTarget(Level level, LocalPlayer player) {
         BlockPos origin = player.getCommandSenderBlockPosition();
         BlockPos best = null;
         double bestDistance = Double.MAX_VALUE;
@@ -90,11 +90,12 @@ public final class NearbyAutoTorch {
         return best;
     }
 
-    private static boolean isValidTarget(ClientLevel level, LocalPlayer player, BlockPos target) {
+    private static boolean isValidTarget(Level level, LocalPlayer player, BlockPos target) {
         if (!level.getBlockState(target).isAir() || !level.getFluidState(target).isEmpty()) {
             return false;
         }
-        if (!Blocks.TORCH.defaultBlockState().canSurvive(level, target)
+        BlockPos floorPos = target.below();
+        if (!Block.isFaceFull(level.getBlockState(floorPos).getCollisionShape(level, floorPos), Direction.UP)
                 || player.getBoundingBox().intersects(new AABB(target))) {
             return false;
         }
@@ -102,7 +103,7 @@ public final class NearbyAutoTorch {
         return player.getEyePosition(1.0F).distanceToSqr(hitLocation) <= 20.25;
     }
 
-    private static int measuredLight(ClientLevel level, BlockPos position) {
+    private static int measuredLight(Level level, BlockPos position) {
         int blockLight = level.getBrightness(LightLayer.BLOCK, position);
         return ClientConfig.includesSkyLight()
                 ? Math.max(blockLight, level.getBrightness(LightLayer.SKY, position))
@@ -142,7 +143,7 @@ public final class NearbyAutoTorch {
         BlockHitResult hit = new BlockHitResult(
                 centerOf(support).add(0.0, 0.5, 0.0), Direction.UP, support, false);
         InteractionResult result = minecraft.gameMode.useItemOn(player, minecraft.level, torch.hand(), hit);
-        if (result.shouldSwing()) {
+        if (result == InteractionResult.SUCCESS) {
             player.swing(torch.hand());
         }
 

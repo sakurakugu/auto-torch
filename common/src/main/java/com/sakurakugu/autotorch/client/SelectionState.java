@@ -6,12 +6,12 @@ import java.util.List;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
 
 /** 保存当前客户端世界中的临时选区；这些数据不会跨世界持久化。 */
 public final class SelectionState {
-    private static ClientLevel level;
+    private static Level level;
     private static BlockPos first;
     private static BlockPos second;
     private static AreaZone lightingZone;
@@ -28,7 +28,7 @@ public final class SelectionState {
     private SelectionState() {
     }
 
-    public static void updateLevel(ClientLevel currentLevel, BlockPos currentPosition) {
+    public static void updateLevel(Level currentLevel, BlockPos currentPosition) {
         if (level != currentLevel) {
             level = currentLevel;
             first = currentPosition.immutable();

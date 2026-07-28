@@ -975,11 +975,11 @@ public final class LightingScreen extends Screen {
     }
 
     private void enableViewportScissor() {
-        double scale = minecraft.getWindow().getGuiScale();
+        double scale = minecraft.window.getGuiScale();
         int bottom = (int) Math.round(VIEWPORT_MARGIN * scale);
         int viewportHeight = (int) Math.round((height - VIEWPORT_MARGIN * 2) * scale);
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(0, bottom, minecraft.getWindow().getWidth(), viewportHeight);
+        GL11.glScissor(0, bottom, minecraft.window.getWidth(), viewportHeight);
     }
 
     @Override

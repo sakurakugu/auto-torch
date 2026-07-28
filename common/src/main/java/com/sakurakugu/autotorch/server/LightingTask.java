@@ -239,8 +239,10 @@ final class LightingTask {
                 continue;
             }
 
-            BlockState torch = Blocks.TORCH.defaultBlockState();
-            if (torch.canSurvive(level, candidate) && level.mayInteract(player, candidate)) {
+            BlockPos floorPos = candidate.below();
+            BlockState floor = level.getBlockState(floorPos);
+            if (Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)
+                    && level.mayInteract(player, candidate)) {
                 return candidate.immutable();
             }
         }
@@ -252,7 +254,8 @@ final class LightingTask {
     }
 
     private boolean isChunkLoaded(BlockPos pos) {
-        return level.hasChunk(SectionPos.blockToSectionCoord(pos.getX()), SectionPos.blockToSectionCoord(pos.getZ()));
+        return level.getChunkSource().hasChunk(
+                SectionPos.blockToSectionCoord(pos.getX()), SectionPos.blockToSectionCoord(pos.getZ()));
     }
 
     private boolean isExcluded(BlockPos pos) {

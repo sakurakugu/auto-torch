@@ -16,7 +16,6 @@ import net.minecraftforge.fml.network.NetworkEvent;
 import net.minecraftforge.fml.network.PacketDistributor;
 import net.minecraftforge.fml.network.simple.SimpleChannel;
 
-import java.util.Optional;
 
 final class ForgeNetworking {
     private static final String PROTOCOL_VERSION = "5";
@@ -38,7 +37,7 @@ final class ForgeNetworking {
                         if (context.getSender() != null) LightingTaskManager.start(context.getSender(), payload);
                     });
                     context.setPacketHandled(true);
-                }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+                });
         CHANNEL.registerMessage(1, CancelLightingPayload.class,
                 CancelLightingPayload::write, CancelLightingPayload::decode, (payload, supplier) -> {
                     NetworkEvent.Context context = supplier.get();
@@ -46,7 +45,7 @@ final class ForgeNetworking {
                         if (context.getSender() != null) LightingTaskManager.cancel(context.getSender());
                     });
                     context.setPacketHandled(true);
-                }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+                });
         CHANNEL.registerMessage(2, SetSelectionToolPayload.class,
                 SetSelectionToolPayload::write, SetSelectionToolPayload::decode, (payload, supplier) -> {
                     NetworkEvent.Context context = supplier.get();
@@ -56,13 +55,15 @@ final class ForgeNetworking {
                         }
                     });
                     context.setPacketHandled(true);
-                }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+                });
         CHANNEL.registerMessage(3, ServerConfigPayload.class,
                 ServerConfigPayload::write, ServerConfigPayload::decode, (payload, supplier) -> {
                     NetworkEvent.Context context = supplier.get();
-                    context.enqueueWork(() -> ServerConfigState.update(payload));
+                    if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
+                        context.enqueueWork(() -> ServerConfigState.update(payload));
+                    }
                     context.setPacketHandled(true);
-                }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+                });
     }
 
     static void sendToServer(AutoTorchPayload payload) {

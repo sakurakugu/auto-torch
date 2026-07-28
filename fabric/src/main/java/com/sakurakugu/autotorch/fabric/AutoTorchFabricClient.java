@@ -17,12 +17,8 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.loader.api.FabricLoader;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.ClipContext;
@@ -57,15 +53,13 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(minecraft -> client.tick());
 
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
-            if (level instanceof ClientLevel
-                    && client.onLeftClick((ClientLevel) level, player.getItemInHand(hand), pos, true)) {
+            if (client.onLeftClick(level, player.getItemInHand(hand), pos, true)) {
                 return InteractionResult.SUCCESS;
             }
             return InteractionResult.PASS;
         });
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
-            if (level instanceof ClientLevel
-                    && client.onRightClick((ClientLevel) level, hand, player.getItemInHand(hand), hit.getBlockPos())) {
+            if (client.onRightClick(level, hand, player.getItemInHand(hand), hit.getBlockPos())) {
                 return InteractionResult.SUCCESS;
             }
             return InteractionResult.PASS;
@@ -73,25 +67,20 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
 
     }
 
-    public static void renderWorld(PoseStack poseStack, Camera camera) {
+    public static void renderWorld(Camera camera) {
         Minecraft minecraft = Minecraft.getInstance();
         Vec3 cameraPosition = camera.getPosition();
         SelectionRenderer.extract(camera.getBlockPosition());
         LightOverlayRenderer.extract();
-        MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
-        SelectionRenderer.render(cameraPosition, poseStack, buffers);
-        LightOverlayRenderer.render(cameraPosition, poseStack, buffers);
-        // 自定义几何必须在当前相机模型视图仍有效时提交，不能留到共享缓冲区稍后冲刷。
-        buffers.endBatch(RenderType.lines());
-        buffers.endBatch(SelectionRenderer.faceRenderType());
+        SelectionRenderer.render(cameraPosition);
+        LightOverlayRenderer.render(cameraPosition);
         if (minecraft.level != null && minecraft.level.getFluidState(camera.getBlockPosition()).isEmpty()) {
             LightOverlayRenderer.renderWaterVisible(
-                    cameraPosition, poseStack, buffers, target ->
+                    cameraPosition, target ->
                             minecraft.level.clip(new ClipContext(
                                     cameraPosition, target, ClipContext.Block.COLLIDER,
                                     ClipContext.Fluid.NONE, camera.getEntity()
                             )).getType() == HitResult.Type.MISS);
-            buffers.endBatch(LightOverlayRenderer.waterVisibleRenderType());
         }
     }
 }

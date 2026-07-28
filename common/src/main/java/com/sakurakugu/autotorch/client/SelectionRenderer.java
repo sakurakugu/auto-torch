@@ -6,17 +6,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.Tesselator;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -25,35 +21,6 @@ import org.lwjgl.opengl.GL11;
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
 public final class SelectionRenderer {
     private static final int DEPTH_LEQUAL = 0x0203;
-    private static final RenderType FACE_RENDER_TYPE = new RenderType(
-            "autotorch_selection_faces",
-            DefaultVertexFormat.POSITION_COLOR,
-            GL11.GL_QUADS,
-            1536,
-            false,
-            true,
-            () -> {
-                // 1.16.5 及其以下版本使用固定渲染管线，纯色顶点绘制前必须关闭纹理。
-                RenderSystem.disableTexture();
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.enableDepthTest();
-                RenderSystem.depthFunc(DEPTH_LEQUAL);
-                RenderSystem.disableCull();
-                RenderSystem.depthMask(false);
-                // 将贴合方块的选区面略微拉近，避免移动时与方块表面发生深度闪烁。
-                RenderSystem.polygonOffset(-1.0F, -10.0F);
-                RenderSystem.enablePolygonOffset();
-            },
-            () -> {
-                RenderSystem.polygonOffset(0.0F, 0.0F);
-                RenderSystem.disablePolygonOffset();
-                RenderSystem.depthMask(true);
-                RenderSystem.enableCull();
-                RenderSystem.disableBlend();
-                RenderSystem.enableTexture();
-            }
-    ) {};
     private static final int DRAFT_LINE_COLOR = 0xD070A0FF;
     private static final int SELECTION_LINE_COLOR = 0xD050FF70;
     private static final int EXCLUSION_LINE_COLOR = 0xD0FF5050;
@@ -128,25 +95,55 @@ public final class SelectionRenderer {
         renderRevision = SelectionState.renderRevision();
     }
 
-    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource buffers) {
-        renderGeometry(camera, poseStack, (stack, renderType, renderer) ->
-                renderer.render(stack.last(), buffers.getBuffer(renderType)));
-    }
-
-    private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {
+    public static void render(Vec3 camera) {
         RenderData data = renderData;
         if (data == null || data.draft() == null && data.lightingZone() == null && data.exclusions().isEmpty()) {
             return;
         }
-        poseStack.pushPose();
-        poseStack.translate(-camera.x(), -camera.y(), -camera.z());
-        RenderType renderType = data.displayMode() == SelectionState.DisplayMode.LINES
-                ? RenderType.lines() : FACE_RENDER_TYPE;
-        sink.submit(poseStack, renderType, (pose, buffer) -> renderZones(pose, buffer, data));
-        poseStack.popPose();
+        boolean lines = data.displayMode() == SelectionState.DisplayMode.LINES;
+        setupRenderState(lines);
+        Tesselator tesselator = Tesselator.getInstance();
+        BufferBuilder builder = tesselator.getBuilder();
+        builder.begin(lines ? GL11.GL_LINES : GL11.GL_QUADS, DefaultVertexFormat.POSITION_COLOR);
+        builder.offset(-camera.x(), -camera.y(), -camera.z());
+        renderZones(Pose.INSTANCE, new VertexConsumer(builder), data);
+        tesselator.end();
+        builder.offset(0.0D, 0.0D, 0.0D);
+        clearRenderState(lines);
     }
 
-    private static void renderZones(PoseStack.Pose pose, VertexConsumer buffer, RenderData data) {
+    private static void setupRenderState(boolean lines) {
+        GlStateManager.disableTexture();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.enableDepthTest();
+        GlStateManager.depthFunc(DEPTH_LEQUAL);
+        GlStateManager.disableCull();
+        GlStateManager.depthMask(false);
+        if (lines) {
+            GlStateManager.lineWidth(3.0F);
+        } else {
+            // 将贴合方块的选区面略微拉近，避免移动时与方块表面发生深度闪烁。
+            GlStateManager.polygonOffset(-1.0F, -10.0F);
+            GlStateManager.enablePolygonOffset();
+        }
+    }
+
+    private static void clearRenderState(boolean lines) {
+        if (lines) {
+            GlStateManager.lineWidth(1.0F);
+        } else {
+            GlStateManager.polygonOffset(0.0F, 0.0F);
+            GlStateManager.disablePolygonOffset();
+        }
+        GlStateManager.depthMask(true);
+        GlStateManager.enableCull();
+        GlStateManager.disableBlend();
+        GlStateManager.enableTexture();
+    }
+
+    private static void renderZones(Pose pose, VertexConsumer buffer, RenderData data) {
         if (data.draft() != null) {
             renderZone(pose, buffer, data, data.draft(), DRAFT_LINE_COLOR, DRAFT_FACE_COLOR, 3.0F);
         }
@@ -160,7 +157,7 @@ public final class SelectionRenderer {
     }
 
     private static void renderZone(
-            PoseStack.Pose pose,
+            Pose pose,
             VertexConsumer buffer,
             RenderData data,
             AreaZone zone,
@@ -202,7 +199,7 @@ public final class SelectionRenderer {
         );
     }
 
-    private static void renderBoxLines(PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color, float width) {
+    private static void renderBoxLines(Pose pose, VertexConsumer buffer, AABB box, int color, float width) {
         line(pose, buffer, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ, color, width);
         line(pose, buffer, box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ, color, width);
         line(pose, buffer, box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color, width);
@@ -217,7 +214,7 @@ public final class SelectionRenderer {
         line(pose, buffer, box.minX, box.minY, box.maxZ, box.minX, box.maxY, box.maxZ, color, width);
     }
 
-    private static void renderBoxFaces(PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color) {
+    private static void renderBoxFaces(Pose pose, VertexConsumer buffer, AABB box, int color) {
         quad(pose, buffer, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ,
                 box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color);
         quad(pose, buffer, box.minX, box.maxY, box.maxZ, box.maxX, box.maxY, box.maxZ,
@@ -233,7 +230,7 @@ public final class SelectionRenderer {
     }
 
     private static void renderSphereLines(
-            PoseStack.Pose pose, VertexConsumer buffer, AreaZone zone, int color, float width
+            Pose pose, VertexConsumer buffer, AreaZone zone, int color, float width
     ) {
         double cx = zone.first().getX() + 0.5;
         double cy = zone.first().getY() + 0.5;
@@ -256,7 +253,7 @@ public final class SelectionRenderer {
         }
     }
 
-    private static void renderSphereFaces(PoseStack.Pose pose, VertexConsumer buffer, AreaZone zone, int color) {
+    private static void renderSphereFaces(Pose pose, VertexConsumer buffer, AreaZone zone, int color) {
         double cx = zone.first().getX() + 0.5;
         double cy = zone.first().getY() + 0.5;
         double cz = zone.first().getZ() + 0.5;
@@ -269,7 +266,7 @@ public final class SelectionRenderer {
     }
 
     private static void renderBlockySphereFaces(
-            PoseStack.Pose pose, VertexConsumer buffer, AreaZone zone, BlockySphereMesh mesh, int color
+            Pose pose, VertexConsumer buffer, AreaZone zone, BlockySphereMesh mesh, int color
     ) {
         BlockPos center = zone.first();
         for (int index = 0; index < mesh.faceStrips().length; index += 2) {
@@ -278,7 +275,7 @@ public final class SelectionRenderer {
     }
 
     private static void renderBlockySphereLines(
-            PoseStack.Pose pose, VertexConsumer buffer, AreaZone zone, BlockySphereMesh mesh, int color, float width
+            Pose pose, VertexConsumer buffer, AreaZone zone, BlockySphereMesh mesh, int color, float width
     ) {
         BlockPos center = zone.first();
         for (int edge : mesh.edges()) {
@@ -411,7 +408,7 @@ public final class SelectionRenderer {
     }
 
     private static void blockEdge(
-            PoseStack.Pose pose, VertexConsumer buffer, BlockPos center, int encodedEdge, int color, float width
+            Pose pose, VertexConsumer buffer, BlockPos center, int encodedEdge, int color, float width
     ) {
         int x = center.getX() + (encodedEdge & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
         int y = center.getY() + ((encodedEdge >> BLOCK_OFFSET_BITS) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
@@ -423,7 +420,7 @@ public final class SelectionRenderer {
     }
 
     private static void blockFaceStrip(
-            PoseStack.Pose pose, VertexConsumer buffer, BlockPos center, int encodedFace, int length, int color
+            Pose pose, VertexConsumer buffer, BlockPos center, int encodedFace, int length, int color
     ) {
         int x = center.getX() + (encodedFace & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
         int y = center.getY() + ((encodedFace >> BLOCK_OFFSET_BITS) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
@@ -452,7 +449,7 @@ public final class SelectionRenderer {
     }
 
     private static void sphereQuad(
-            PoseStack.Pose pose, VertexConsumer buffer, double cx, double cy, double cz, double radius,
+            Pose pose, VertexConsumer buffer, double cx, double cy, double cz, double radius,
             int latitude, int longitude, int color
     ) {
         sphereVertex(pose, buffer, cx, cy, cz, radius, latitude, longitude, color);
@@ -462,7 +459,7 @@ public final class SelectionRenderer {
     }
 
     private static void sphereVertex(
-            PoseStack.Pose pose, VertexConsumer buffer, double cx, double cy, double cz, double radius,
+            Pose pose, VertexConsumer buffer, double cx, double cy, double cz, double radius,
             int latitude, int longitude, int color
     ) {
         double horizontal = SPHERE_LATITUDE_COS[latitude] * radius;
@@ -473,7 +470,7 @@ public final class SelectionRenderer {
     }
 
     private static void quad(
-            PoseStack.Pose pose, VertexConsumer buffer,
+            Pose pose, VertexConsumer buffer,
             double x1, double y1, double z1, double x2, double y2, double z2,
             double x3, double y3, double z3, double x4, double y4, double z4, int color
     ) {
@@ -485,7 +482,7 @@ public final class SelectionRenderer {
     }
 
     private static void line(
-            PoseStack.Pose pose, VertexConsumer buffer,
+            Pose pose, VertexConsumer buffer,
             double x1, double y1, double z1, double x2, double y2, double z2,
             int color, float width
     ) {
@@ -529,19 +526,57 @@ public final class SelectionRenderer {
         private Map<Long, BlockySphereMesh> blockySphereMeshes() { return blockySphereMeshes; }
     }
 
-    public static RenderType faceRenderType() {
-        return FACE_RENDER_TYPE;
+    private enum Pose {
+        INSTANCE;
+
+        private Object pose() {
+            return null;
+        }
     }
 
-    @FunctionalInterface
-    private interface GeometrySink {
-        void submit(PoseStack poseStack, RenderType renderType,
-                    GeometryRenderer renderer);
+    private static final class VertexConsumer {
+        private final BufferBuilder builder;
+
+        private VertexConsumer(BufferBuilder builder) {
+            this.builder = builder;
+        }
+
+        private VertexConsumer vertex(Object ignored, float x, float y, float z) {
+            builder.vertex(x, y, z);
+            return this;
+        }
+
+        private VertexConsumer color(int red, int green, int blue, int alpha) {
+            builder.color(red, green, blue, alpha);
+            return this;
+        }
+
+        private void endVertex() {
+            builder.endVertex();
+        }
     }
 
-    @FunctionalInterface
-    private interface GeometryRenderer {
-        void render(PoseStack.Pose pose, VertexConsumer buffer);
+    /** 隔离固定管线调用，避免旧版跨映射时改写 Mojang 的平台辅助类名。 */
+    private static final class GlStateManager {
+        private enum SourceFactor { SRC_ALPHA }
+        private enum DestFactor { ONE_MINUS_SRC_ALPHA }
+
+        private static void disableTexture() { GL11.glDisable(GL11.GL_TEXTURE_2D); }
+        private static void enableTexture() { GL11.glEnable(GL11.GL_TEXTURE_2D); }
+        private static void enableBlend() { GL11.glEnable(GL11.GL_BLEND); }
+        private static void disableBlend() { GL11.glDisable(GL11.GL_BLEND); }
+        private static void blendFunc(SourceFactor source, DestFactor destination) {
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        }
+        private static void enableDepthTest() { GL11.glEnable(GL11.GL_DEPTH_TEST); }
+        private static void depthFunc(int function) { GL11.glDepthFunc(function); }
+        private static void depthMask(boolean enabled) { GL11.glDepthMask(enabled); }
+        private static void disableCull() { GL11.glDisable(GL11.GL_CULL_FACE); }
+        private static void enableCull() { GL11.glEnable(GL11.GL_CULL_FACE); }
+        private static void lineWidth(float width) { GL11.glLineWidth(width); }
+        private static void polygonOffset(float factor, float units) { GL11.glPolygonOffset(factor, units); }
+        private static void enablePolygonOffset() { GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL); }
+        private static void disablePolygonOffset() { GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL); }
     }
 
     private static final class BlockySphereMesh {

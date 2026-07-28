@@ -9,7 +9,7 @@ import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.world.InteractionHand;
@@ -19,7 +19,7 @@ import org.lwjgl.glfw.GLFW;
 
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
-    private ClientLevel selectionToolSyncedLevel;
+    private Level selectionToolSyncedLevel;
     public static final String CATEGORY = "key.category.autotorch.main";
     public static final KeyMapping OPEN_SCREEN = new KeyMapping(
             "key.autotorch.open_screen",
@@ -57,9 +57,9 @@ public final class AutoTorchClient {
         }
     }
 
-    public boolean onLeftClick(ClientLevel level, ItemStack stack, BlockPos pos, boolean start) {
+    public boolean onLeftClick(Level level, ItemStack stack, BlockPos pos, boolean start) {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
-                || !level.isClientSide()
+                || !level.isClientSide
                 || stack.getItem() != Items.WOODEN_AXE) {
             return false;
         }
@@ -75,9 +75,9 @@ public final class AutoTorchClient {
         return true;
     }
 
-    public boolean onRightClick(ClientLevel level, InteractionHand hand, ItemStack stack, BlockPos pos) {
+    public boolean onRightClick(Level level, InteractionHand hand, ItemStack stack, BlockPos pos) {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
-                || !level.isClientSide()
+                || !level.isClientSide
                 || hand != InteractionHand.MAIN_HAND
                 || stack.getItem() != Items.WOODEN_AXE) {
             return false;

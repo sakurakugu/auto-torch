@@ -7,17 +7,16 @@ import java.util.List;
 import com.sakurakugu.autotorch.AutoTorchRules;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.biome.Biome;
 
@@ -34,7 +33,7 @@ public final class LightOverlayState {
             ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static int scanRange = horizontalRange;
-    private static ClientLevel level;
+    private static Level level;
     private static BlockPos scanCenter;
     private static int scanIndex;
     private static int ticksSinceCompleted;
@@ -108,7 +107,7 @@ public final class LightOverlayState {
     }
 
     public static void tick(Minecraft minecraft) {
-        ClientLevel currentLevel = minecraft.level;
+        Level currentLevel = minecraft.level;
         if (currentLevel != level) {
             level = currentLevel;
             clearScan();
@@ -185,8 +184,8 @@ public final class LightOverlayState {
         return diameter * diameter * HEIGHT;
     }
 
-    private static Marker markerAt(ClientLevel level, BlockPos feet) {
-        if (!level.hasChunk(SectionPos.blockToSectionCoord(feet.getX()),
+    private static Marker markerAt(Level level, BlockPos feet) {
+        if (!level.getChunkSource().hasChunk(SectionPos.blockToSectionCoord(feet.getX()),
                 SectionPos.blockToSectionCoord(feet.getZ()))) {
             return null;
         }
@@ -207,11 +206,8 @@ public final class LightOverlayState {
 
         BlockPos floorPos = feet.below();
         BlockState floor = level.getBlockState(floorPos);
-        if (!Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)) {
-            return null;
-        }
-        if (!NaturalSpawner.isSpawnPositionOk(
-                SpawnPlacements.Type.ON_GROUND, level, feet, EntityType.ZOMBIE)) {
+        if (floor.getBlock() instanceof LeavesBlock
+                || !Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)) {
             return null;
         }
         int blockLight = level.getBrightness(LightLayer.BLOCK, feet);
@@ -223,24 +219,23 @@ public final class LightOverlayState {
         );
     }
 
-    private static boolean isDrownedRisk(ClientLevel level, BlockPos pos) {
+    private static boolean isDrownedRisk(Level level, BlockPos pos) {
         // 每个连续且可生成怪物的水柱中，仅保留最高的完全有效位置。
         return isDrownedSpawnPosition(level, pos) && !isDrownedSpawnPosition(level, pos.above());
     }
 
-    private static boolean isDrownedSpawnPosition(ClientLevel level, BlockPos pos) {
+    private static boolean isDrownedSpawnPosition(Level level, BlockPos pos) {
         if (level.getBrightness(LightLayer.BLOCK, pos) > 7
                 || !level.getFluidState(pos).is(FluidTags.WATER)
                 || !level.getFluidState(pos.below()).is(FluidTags.WATER)
-                || !NaturalSpawner.isSpawnPositionOk(
-                        SpawnPlacements.Type.IN_WATER, level, pos, EntityType.DROWNED)) {
+                || level.getFluidState(pos.above()).is(FluidTags.WATER)) {
             return false;
         }
 
         Biome biome = level.getBiome(pos);
         return biomeAllowsDrowned(biome)
                 && (biome.getBiomeCategory() == Biome.BiomeCategory.RIVER
-                || pos.getY() < level.getSeaLevel() - 5);
+                || pos.getY() < 58);
     }
 
     private static boolean biomeAllowsDrowned(Biome biome) {
@@ -252,7 +247,7 @@ public final class LightOverlayState {
                 || biome.getBiomeCategory() == Biome.BiomeCategory.RIVER;
     }
 
-    private static Marker marker(ClientLevel level, BlockPos pos, RiskType riskType) {
+    private static Marker marker(Level level, BlockPos pos, RiskType riskType) {
         return new Marker(
                 pos.immutable(),
                 level.getBrightness(LightLayer.BLOCK, pos),

@@ -1,32 +1,18 @@
 package com.sakurakugu.autotorch.client;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.Tesselator;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.opengl.GL11;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或七段数字。 */
 public final class LightOverlayRenderer {
-    private static final RenderType WATER_VISIBLE_LINES = new RenderType(
-            "autotorch_water_visible_lines",
-            DefaultVertexFormat.POSITION_COLOR,
-            GL11.GL_LINES,
-            256,
-            false,
-            false,
-            LightOverlayRenderer::setupWaterVisibleRenderState,
-            LightOverlayRenderer::clearWaterVisibleRenderState
-    ) {};
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
     private static final int SAFE_COLOR = 0xE050E060;
@@ -60,39 +46,27 @@ public final class LightOverlayRenderer {
         renderData = buildRenderData(markers, displayMode);
     }
 
-    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource buffers) {
-        render(camera, poseStack, buffers, RenderType.lines());
+    public static void render(Vec3 camera) {
+        renderGeometry(camera, renderData, false);
     }
 
-    public static void render(
-            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderType renderType
-    ) {
-        renderGeometry(camera, poseStack, renderData, (stack, renderer) ->
-                renderer.render(stack.last(), buffers.getBuffer(renderType)));
-    }
-
-    public static void renderFiltered(
-            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderType renderType,
+    private static void renderFiltered(
+            Vec3 camera,
             Predicate<LightOverlayState.Marker> filter
     ) {
         RenderData current = renderData;
         if (current == null) return;
         RenderData filtered = buildRenderData(
                 current.sourceMarkers(), current.displayMode(), filter, 8);
-        renderGeometry(camera, poseStack, filtered, (stack, renderer) ->
-                renderer.render(stack.last(), buffers.getBuffer(renderType)));
+        renderGeometry(camera, filtered, true);
     }
 
     public static void renderWaterVisible(
-            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, Predicate<Vec3> isVisibleTarget
+            Vec3 camera, Predicate<Vec3> isVisibleTarget
     ) {
-        renderFiltered(camera, poseStack, buffers, WATER_VISIBLE_LINES,
+        renderFiltered(camera,
                 marker -> marker.riskType() == LightOverlayState.RiskType.DROWNED
                         && isVisibleTarget.test(markerTarget(marker)));
-    }
-
-    public static RenderType waterVisibleRenderType() {
-        return WATER_VISIBLE_LINES;
     }
 
     private static Vec3 markerTarget(LightOverlayState.Marker marker) {
@@ -105,49 +79,80 @@ public final class LightOverlayRenderer {
 
     private static void setupWaterVisibleRenderState() {
         // 世界渲染回调会继承当前状态，纯色线条需要显式关闭纹理。
-        RenderSystem.disableTexture();
-        RenderSystem.enableBlend();
-        RenderSystem.blendFuncSeparate(
+        GlStateManager.disableTexture();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFuncSeparate(
                 GlStateManager.SourceFactor.SRC_ALPHA,
                 GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
                 GlStateManager.SourceFactor.ONE,
                 GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA
         );
-        RenderSystem.disableDepthTest();
-        RenderSystem.depthMask(false);
-        RenderSystem.disableCull();
+        GlStateManager.disableDepthTest();
+        GlStateManager.depthMask(false);
+        GlStateManager.disableCull();
 
-        RenderSystem.pushMatrix();
-        RenderSystem.scalef(0.99975586F, 0.99975586F, 0.99975586F);
-        RenderSystem.lineWidth(Math.max(
+        GlStateManager.pushMatrix();
+        GlStateManager.scalef(0.99975586F, 0.99975586F, 0.99975586F);
+        GlStateManager.lineWidth(Math.max(
                 CROSS_LINE_WIDTH,
-                (float) Minecraft.getInstance().getWindow().getWidth() / 1920.0F * CROSS_LINE_WIDTH
+                (float) Minecraft.getInstance().window.getWidth() / 1920.0F * CROSS_LINE_WIDTH
         ));
     }
 
     private static void clearWaterVisibleRenderState() {
-        RenderSystem.lineWidth(1.0F);
-        RenderSystem.popMatrix();
+        GlStateManager.lineWidth(1.0F);
+        GlStateManager.popMatrix();
 
-        RenderSystem.enableCull();
-        RenderSystem.depthMask(true);
-        RenderSystem.enableDepthTest();
-        RenderSystem.disableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableTexture();
+        GlStateManager.enableCull();
+        GlStateManager.depthMask(true);
+        GlStateManager.enableDepthTest();
+        GlStateManager.disableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.enableTexture();
     }
 
-    private static void renderGeometry(
-            Vec3 camera, PoseStack poseStack, RenderData data, GeometrySink sink
-    ) {
+    private static void renderGeometry(Vec3 camera, RenderData data, boolean waterVisible) {
         if (data == null || data.lineCount() == 0 || Minecraft.getInstance().level == null) {
             return;
         }
+        if (waterVisible) {
+            setupWaterVisibleRenderState();
+        } else {
+            setupLineRenderState(data.displayMode());
+        }
+        Tesselator tesselator = Tesselator.getInstance();
+        BufferBuilder builder = tesselator.getBuilder();
+        builder.begin(GL11.GL_LINES, DefaultVertexFormat.POSITION_COLOR);
+        builder.offset(-camera.x(), -camera.y(), -camera.z());
+        submitLines(Pose.INSTANCE, new VertexConsumer(builder), data);
+        tesselator.end();
+        builder.offset(0.0D, 0.0D, 0.0D);
+        if (waterVisible) {
+            clearWaterVisibleRenderState();
+        } else {
+            clearLineRenderState();
+        }
+    }
 
-        poseStack.pushPose();
-        poseStack.translate(-camera.x(), -camera.y(), -camera.z());
-        sink.submit(poseStack, (pose, buffer) -> submitLines(pose, buffer, data));
-        poseStack.popPose();
+    private static void setupLineRenderState(LightOverlayState.DisplayMode displayMode) {
+        GlStateManager.disableTexture();
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        GlStateManager.enableDepthTest();
+        GlStateManager.depthMask(false);
+        GlStateManager.disableCull();
+        GlStateManager.lineWidth(displayMode == LightOverlayState.DisplayMode.NUMBERS
+                ? DIGIT_LINE_WIDTH : CROSS_LINE_WIDTH);
+    }
+
+    private static void clearLineRenderState() {
+        GlStateManager.lineWidth(1.0F);
+        GlStateManager.enableCull();
+        GlStateManager.depthMask(true);
+        GlStateManager.disableBlend();
+        GlStateManager.enableTexture();
     }
 
     private static RenderData buildRenderData(
@@ -233,7 +238,7 @@ public final class LightOverlayRenderer {
         }
     }
 
-    private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data) {
+    private static void submitLines(Pose pose, VertexConsumer buffer, RenderData data) {
         float[] coordinates = data.coordinates();
         int[] colors = data.colors();
         float lineWidth = data.displayMode() == LightOverlayState.DisplayMode.NUMBERS
@@ -247,7 +252,7 @@ public final class LightOverlayRenderer {
     }
 
     private static void line(
-            PoseStack.Pose pose, VertexConsumer buffer,
+            Pose pose, VertexConsumer buffer,
             float x1, float y1, float z1, float x2, float y2, float z2, int color, float lineWidth
     ) {
         applyColor(buffer.vertex(pose.pose(), x1, y1, z1), color)
@@ -332,13 +337,62 @@ public final class LightOverlayRenderer {
         }
     }
 
-    @FunctionalInterface
-    private interface GeometrySink {
-        void submit(PoseStack poseStack, GeometryRenderer renderer);
+    private enum Pose {
+        INSTANCE;
+
+        private Object pose() {
+            return null;
+        }
     }
 
-    @FunctionalInterface
-    private interface GeometryRenderer {
-        void render(PoseStack.Pose pose, VertexConsumer buffer);
+    private static final class VertexConsumer {
+        private final BufferBuilder builder;
+
+        private VertexConsumer(BufferBuilder builder) {
+            this.builder = builder;
+        }
+
+        private VertexConsumer vertex(Object ignored, float x, float y, float z) {
+            builder.vertex(x, y, z);
+            return this;
+        }
+
+        private VertexConsumer color(int red, int green, int blue, int alpha) {
+            builder.color(red, green, blue, alpha);
+            return this;
+        }
+
+        private void endVertex() {
+            builder.endVertex();
+        }
+    }
+
+    /** 隔离固定管线调用，避免旧版跨映射时改写 Mojang 的平台辅助类名。 */
+    private static final class GlStateManager {
+        private enum SourceFactor { SRC_ALPHA, ONE }
+        private enum DestFactor { ONE_MINUS_SRC_ALPHA }
+
+        private static void disableTexture() { GL11.glDisable(GL11.GL_TEXTURE_2D); }
+        private static void enableTexture() { GL11.glEnable(GL11.GL_TEXTURE_2D); }
+        private static void enableBlend() { GL11.glEnable(GL11.GL_BLEND); }
+        private static void disableBlend() { GL11.glDisable(GL11.GL_BLEND); }
+        private static void blendFunc(SourceFactor source, DestFactor destination) {
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        }
+        private static void blendFuncSeparate(
+                SourceFactor sourceRgb, DestFactor destinationRgb,
+                SourceFactor sourceAlpha, DestFactor destinationAlpha
+        ) {
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        }
+        private static void disableDepthTest() { GL11.glDisable(GL11.GL_DEPTH_TEST); }
+        private static void enableDepthTest() { GL11.glEnable(GL11.GL_DEPTH_TEST); }
+        private static void depthMask(boolean enabled) { GL11.glDepthMask(enabled); }
+        private static void disableCull() { GL11.glDisable(GL11.GL_CULL_FACE); }
+        private static void enableCull() { GL11.glEnable(GL11.GL_CULL_FACE); }
+        private static void lineWidth(float width) { GL11.glLineWidth(width); }
+        private static void pushMatrix() { GL11.glPushMatrix(); }
+        private static void popMatrix() { GL11.glPopMatrix(); }
+        private static void scalef(float x, float y, float z) { GL11.glScalef(x, y, z); }
     }
 }

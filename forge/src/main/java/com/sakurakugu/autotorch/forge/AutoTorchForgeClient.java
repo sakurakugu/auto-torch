@@ -1,6 +1,5 @@
 package com.sakurakugu.autotorch.forge;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
@@ -8,8 +7,6 @@ import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ActiveRenderInfo;
-import net.minecraft.client.renderer.IRenderTypeBuffer;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.ActionResultType;
 import net.minecraft.util.math.BlockPos;
@@ -88,20 +85,15 @@ final class AutoTorchForgeClient {
         SelectionRenderer.extract(levelCamera.getBlockPosition());
         LightOverlayRenderer.extract();
 
-        MatrixStack poseStack = event.getMatrixStack();
-        IRenderTypeBuffer.Impl buffers = minecraft.renderBuffers().bufferSource();
-        SelectionRenderer.render(camera, poseStack, buffers);
-        LightOverlayRenderer.render(camera, poseStack, buffers);
-        buffers.endBatch(RenderType.lines());
-        buffers.endBatch(SelectionRenderer.faceRenderType());
+        SelectionRenderer.render(camera);
+        LightOverlayRenderer.render(camera);
         if (minecraft.level.getFluidState(levelCamera.getBlockPosition()).isEmpty()) {
             LightOverlayRenderer.renderWaterVisible(
-                    camera, poseStack, buffers, target ->
+                    camera, target ->
                             minecraft.level.clip(new RayTraceContext(
                                     camera, target, RayTraceContext.BlockMode.COLLIDER,
                                     RayTraceContext.FluidMode.NONE, levelCamera.getEntity()
                             )).getType() == RayTraceResult.Type.MISS);
-            buffers.endBatch(LightOverlayRenderer.waterVisibleRenderType());
         }
     }
 }
