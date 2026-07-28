@@ -10,7 +10,6 @@ import net.minecraft.util.EnumActionResult;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.item.Item;
-import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.Vec3d;
 
@@ -80,7 +79,7 @@ public final class NearbyAutoTorch {
                         continue;
                     }
                     Vec3d center = centerOf(candidate);
-                    double distance = player.getDistanceSq(center.x, center.y, center.z);
+                    double distance = player.getDistanceSq(center.xCoord, center.yCoord, center.zCoord);
                     if (distance < bestDistance) {
                         bestDistance = distance;
                         best = candidate.toImmutable();
@@ -96,8 +95,8 @@ public final class NearbyAutoTorch {
             return false;
         }
         BlockPos floorPos = target.down();
-        if (level.getBlockState(floorPos).getBlockFaceShape(level, floorPos, EnumFacing.UP) != BlockFaceShape.SOLID
-                || player.getEntityBoundingBox().intersects(new AxisAlignedBB(target))) {
+        if (!level.getBlockState(floorPos).isSideSolid(level, floorPos, EnumFacing.UP)
+                || player.getEntityBoundingBox().intersectsWith(new AxisAlignedBB(target))) {
             return false;
         }
         Vec3d hitLocation = centerOf(target.down()).addVector(0.0, 0.5, 0.0);

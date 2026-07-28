@@ -8,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ActiveRenderInfo;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.entity.Entity;
-import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
@@ -42,7 +41,7 @@ final class AutoTorchForgeClient {
     }
     @SubscribeEvent public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
         if (event.getEntityPlayer() != null && event.getEntityPlayer().world instanceof WorldClient && client.onRightClick((WorldClient) event.getEntityPlayer().world, event.getHand(), event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos())) {
-            event.setCancellationResult(EnumActionResult.SUCCESS); event.setCanceled(true);
+            event.setCanceled(true);
         }
     }
     @SubscribeEvent public void onRender(RenderWorldLastEvent event) {
@@ -50,7 +49,7 @@ final class AutoTorchForgeClient {
         Entity view = minecraft.getRenderViewEntity(); if (view == null) return;
         float partial = event.getPartialTicks();
         Vec3d origin = new Vec3d(view.lastTickPosX + (view.posX - view.lastTickPosX) * partial, view.lastTickPosY + (view.posY - view.lastTickPosY) * partial, view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partial);
-        Vec3d camera = ActiveRenderInfo.getCameraPosition();
+        Vec3d camera = ActiveRenderInfo.projectViewFromEntity(view, partial);
         BlockPos cameraPos = new BlockPos(camera);
         SelectionRenderer.extract(cameraPos); LightOverlayRenderer.extract();
         SelectionRenderer.render(origin); LightOverlayRenderer.render(origin);

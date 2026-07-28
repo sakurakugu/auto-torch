@@ -69,7 +69,7 @@ public final class LightingTaskManager {
         }
         BlockPos scanMin = new BlockPos(min.getX(), scanMinY, min.getZ());
         BlockPos scanMax = new BlockPos(max.getX(), scanMaxY, max.getZ());
-        if (!player.getServerWorld().isValid(scanMin) || !player.getServerWorld().isValid(scanMax)) {
+        if (!isValidWorldPosition(scanMin) || !isValidWorldPosition(scanMax)) {
             sendSystemMessage(player, new TextComponentTranslation("message.autotorch.outside_world"));
             return;
         }
@@ -132,6 +132,12 @@ public final class LightingTaskManager {
         return (long) max.getX() - min.getX() + 1L <= maxAxisLength
                 && (long) max.getY() - min.getY() + 1L <= maxAxisLength
                 && (long) max.getZ() - min.getZ() + 1L <= maxAxisLength;
+    }
+
+    private static boolean isValidWorldPosition(BlockPos pos) {
+        return pos.getX() >= -30000000 && pos.getX() < 30000000
+                && pos.getZ() >= -30000000 && pos.getZ() < 30000000
+                && pos.getY() >= 0 && pos.getY() < 256;
     }
 
     public static void cancel(EntityPlayerMP player) {

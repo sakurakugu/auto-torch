@@ -1,6 +1,6 @@
 package com.sakurakugu.autotorch.client;
 
-import net.minecraft.client.renderer.BufferBuilder;
+import net.minecraft.client.renderer.VertexBuffer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.Tessellator;
 import java.util.Arrays;
@@ -122,9 +122,9 @@ public final class LightOverlayRenderer {
             setupLineRenderState(data.displayMode());
         }
         Tessellator tesselator = Tessellator.getInstance();
-        BufferBuilder builder = tesselator.getBuffer();
+        VertexBuffer builder = tesselator.getBuffer();
         builder.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
-        builder.setTranslation(-camera.x, -camera.y, -camera.z);
+        builder.setTranslation(-camera.xCoord, -camera.yCoord, -camera.zCoord);
         submitLines(Pose.INSTANCE, new VertexConsumer(builder), data);
         tesselator.draw();
         builder.setTranslation(0.0D, 0.0D, 0.0D);
@@ -346,9 +346,9 @@ public final class LightOverlayRenderer {
     }
 
     private static final class VertexConsumer {
-        private final BufferBuilder builder;
+        private final VertexBuffer builder;
 
-        private VertexConsumer(BufferBuilder builder) {
+        private VertexConsumer(VertexBuffer builder) {
             this.builder = builder;
         }
 

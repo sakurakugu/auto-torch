@@ -13,7 +13,6 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.block.state.BlockFaceShape;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
@@ -183,7 +182,7 @@ public final class LightOverlayState {
         if (!level.isBlockLoaded(feet)) {
             return null;
         }
-        // 1.12.2 没有溺尸；保留配置字段以兼容已有客户端配置，但不生成溺尸标记。
+        // 1.11.2 没有溺尸；保留配置字段以兼容已有客户端配置，但不生成溺尸标记。
         if (level.getBlockState(feet).getMaterial().isLiquid()
                 || level.getBlockState(feet.up()).getMaterial().isLiquid()) {
             return null;
@@ -199,7 +198,7 @@ public final class LightOverlayState {
         BlockPos floorPos = feet.down();
         IBlockState floor = level.getBlockState(floorPos);
         if (floor.getBlock() instanceof BlockLeaves
-                || floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) != BlockFaceShape.SOLID) {
+                || !floor.isSideSolid(level, floorPos, EnumFacing.UP)) {
             return null;
         }
         int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, feet);

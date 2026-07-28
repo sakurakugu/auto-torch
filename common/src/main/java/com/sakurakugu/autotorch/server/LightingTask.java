@@ -22,7 +22,6 @@ import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.item.Item;
 import net.minecraft.util.text.Style;
 import net.minecraft.block.Block;
-import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.init.Blocks;
 import net.minecraft.block.state.IBlockState;
 
@@ -221,7 +220,7 @@ final class LightingTask {
 
         BlockPos floorPos = feet.down();
         IBlockState floor = level.getBlockState(floorPos);
-        return floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) == BlockFaceShape.SOLID;
+        return floor.isSideSolid(level, floorPos, EnumFacing.UP);
     }
 
     private BlockPos findTorchPosition(EntityPlayerMP player, BlockPos darkPosition) {
@@ -242,7 +241,7 @@ final class LightingTask {
 
             BlockPos floorPos = candidate.down();
             IBlockState floor = level.getBlockState(floorPos);
-            if (floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) == BlockFaceShape.SOLID
+            if (floor.isSideSolid(level, floorPos, EnumFacing.UP)
                     && level.isBlockModifiable(player, candidate)) {
                 return candidate.toImmutable();
             }

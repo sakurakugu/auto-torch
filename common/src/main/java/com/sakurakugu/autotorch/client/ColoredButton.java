@@ -21,15 +21,16 @@ final class ColoredButton extends Button {
         if (!active) {
             color = 0xCC555555;
         }
-        fill(x + 1, y + 1,
-                x + getButtonWidth() - 1, y + height - 1, color);
+        fill(xPosition + 1, yPosition + 1,
+                xPosition + getButtonWidth() - 1, yPosition + height - 1, color);
         int outlineColor = highlighted ? 0xFFFFFFFF : 0xFFB0B0B0;
-        fill(x, y, x + getButtonWidth(), y + 1, outlineColor);
-        fill(x, y + height - 1, x + getButtonWidth(), y + height, outlineColor);
-        fill(x, y + 1, x + 1, y + height - 1, outlineColor);
-        fill(x + getButtonWidth() - 1, y + 1, x + getButtonWidth(), y + height - 1, outlineColor);
-        drawCenteredString(Minecraft.getMinecraft().fontRenderer, getMessage(),
-                x + getButtonWidth() / 2, y + 6,
+        fill(xPosition, yPosition, xPosition + getButtonWidth(), yPosition + 1, outlineColor);
+        fill(xPosition, yPosition + height - 1, xPosition + getButtonWidth(), yPosition + height, outlineColor);
+        fill(xPosition, yPosition + 1, xPosition + 1, yPosition + height - 1, outlineColor);
+        fill(xPosition + getButtonWidth() - 1, yPosition + 1,
+                xPosition + getButtonWidth(), yPosition + height - 1, outlineColor);
+        drawCenteredString(Minecraft.getMinecraft().fontRendererObj, getMessage(),
+                xPosition + getButtonWidth() / 2, yPosition + 6,
                 active ? 0xFFFFFFFF : 0xFFA0A0A0);
     }
 }

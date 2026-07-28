@@ -6,13 +6,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.minecraft.client.renderer.BufferBuilder;
+import net.minecraft.client.renderer.VertexBuffer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.Tessellator;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import java.util.HashSet;
+import java.util.Set;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.Vec3d;
@@ -103,9 +104,9 @@ public final class SelectionRenderer {
         boolean lines = data.displayMode() == SelectionState.DisplayMode.LINES;
         setupRenderState(lines);
         Tessellator tesselator = Tessellator.getInstance();
-        BufferBuilder builder = tesselator.getBuffer();
+        VertexBuffer builder = tesselator.getBuffer();
         builder.begin(lines ? GL11.GL_LINES : GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
-        builder.setTranslation(-camera.x, -camera.y, -camera.z);
+        builder.setTranslation(-camera.xCoord, -camera.yCoord, -camera.zCoord);
         renderZones(Pose.INSTANCE, new VertexConsumer(builder), data);
         tesselator.draw();
         builder.setTranslation(0.0D, 0.0D, 0.0D);
@@ -313,7 +314,7 @@ public final class SelectionRenderer {
 
     private static BlockySphereMesh buildBlockySphereMesh(long radiusSquared) {
         int radius = (int) Math.sqrt(radiusSquared);
-        IntOpenHashSet edges = new IntOpenHashSet(Math.max(16, radius * radius * 12));
+        Set<Integer> edges = new HashSet<>(Math.max(16, radius * radius * 12));
         IntArrayBuilder faceStrips = new IntArrayBuilder(Math.max(16, radius * radius * 12));
         for (int first = -radius; first <= radius; first++) {
             long firstSquared = (long) first * first;
@@ -341,10 +342,10 @@ public final class SelectionRenderer {
                 addBlockFaceEdges(edges, first, second, -edge, 5);
             }
         }
-        return new BlockySphereMesh(edges.toIntArray(), faceStrips.toArray());
+        return new BlockySphereMesh(edges.stream().mapToInt(Integer::intValue).toArray(), faceStrips.toArray());
     }
 
-    private static void addBlockFaceEdges(IntOpenHashSet edges, int x, int y, int z, int direction) {
+    private static void addBlockFaceEdges(Set<Integer> edges, int x, int y, int z, int direction) {
         switch (direction) {
             case 0: addXFaceEdges(edges, x + 1, y, z); break;
             case 1: addXFaceEdges(edges, x, y, z); break;
@@ -355,21 +356,21 @@ public final class SelectionRenderer {
         }
     }
 
-    private static void addXFaceEdges(IntOpenHashSet edges, int x, int y, int z) {
+    private static void addXFaceEdges(Set<Integer> edges, int x, int y, int z) {
         edges.add(encodeBlockEdge(x, y, z, 1));
         edges.add(encodeBlockEdge(x, y, z + 1, 1));
         edges.add(encodeBlockEdge(x, y, z, 2));
         edges.add(encodeBlockEdge(x, y + 1, z, 2));
     }
 
-    private static void addYFaceEdges(IntOpenHashSet edges, int x, int y, int z) {
+    private static void addYFaceEdges(Set<Integer> edges, int x, int y, int z) {
         edges.add(encodeBlockEdge(x, y, z, 0));
         edges.add(encodeBlockEdge(x, y, z + 1, 0));
         edges.add(encodeBlockEdge(x, y, z, 2));
         edges.add(encodeBlockEdge(x + 1, y, z, 2));
     }
 
-    private static void addZFaceEdges(IntOpenHashSet edges, int x, int y, int z) {
+    private static void addZFaceEdges(Set<Integer> edges, int x, int y, int z) {
         edges.add(encodeBlockEdge(x, y, z, 0));
         edges.add(encodeBlockEdge(x, y + 1, z, 0));
         edges.add(encodeBlockEdge(x, y, z, 1));
@@ -535,9 +536,9 @@ public final class SelectionRenderer {
     }
 
     private static final class VertexConsumer {
-        private final BufferBuilder builder;
+        private final VertexBuffer builder;
 
-        private VertexConsumer(BufferBuilder builder) {
+        private VertexConsumer(VertexBuffer builder) {
             this.builder = builder;
         }
 
