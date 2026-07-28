@@ -16,7 +16,7 @@ public final class SelectionToolEvents {
     }
 
     public static boolean handlesInteraction(ServerPlayer player, ItemStack stack) {
-        return isEnabled(player.getUUID()) && stack.is(Items.WOODEN_AXE);
+        return isEnabled(player.getUUID()) && stack.getItem() == Items.WOODEN_AXE;
     }
 
     public static void setEnabled(ServerPlayer player, boolean enabled) {

@@ -33,9 +33,11 @@ final class ForgeConfigs {
 
         void define(Value definition) {
             List<String> path = Arrays.asList(definition.key().split("\\."));
-            if (definition instanceof BooleanValue value) {
+            if (definition instanceof BooleanValue) {
+                BooleanValue value = (BooleanValue) definition;
                 values.put(value.key(), builder.define(path, value.defaultValue()));
-            } else if (definition instanceof IntValue value) {
+            } else if (definition instanceof IntValue) {
+                IntValue value = (IntValue) definition;
                 values.put(value.key(), builder.defineInRange(
                         path, value.defaultValue(), value.minValue(), value.maxValue()));
             }

@@ -26,6 +26,10 @@ public final class ExclusionListScreen extends Screen {
         super(new TranslatableComponent("screen.autotorch.exclusions_title"));
     }
 
+    private <T extends AbstractWidget> T addRenderableWidget(T widget) {
+        return addButton(widget);
+    }
+
     @Override
     protected void init() {
         tooltips.clear();
@@ -88,7 +92,8 @@ public final class ExclusionListScreen extends Screen {
     }
 
     private void rebuildWidgets() {
-        clearWidgets();
+        buttons.clear();
+        children.clear();
         init();
     }
 

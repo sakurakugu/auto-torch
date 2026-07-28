@@ -1,6 +1,7 @@
 package com.sakurakugu.autotorch.client;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.sakurakugu.autotorch.network.AreaShape;
@@ -157,7 +158,7 @@ public final class SelectionState {
 
     public static List<AreaZone> exclusions() {
         // 返回副本，防止界面或渲染代码绕过数量限制直接修改内部列表。
-        return List.copyOf(EXCLUSIONS);
+        return Collections.unmodifiableList(new ArrayList<>(EXCLUSIONS));
     }
 
     public static boolean addExclusion(AreaZone exclusion) {

@@ -1,6 +1,7 @@
 package com.sakurakugu.autotorch.client;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.sakurakugu.autotorch.AutoTorchRules;
@@ -38,7 +39,7 @@ public final class LightOverlayState {
     private static int scanIndex;
     private static int ticksSinceCompleted;
     private static List<Marker> workingMarkers = new ArrayList<>();
-    private static List<Marker> markers = List.of();
+    private static List<Marker> markers = Collections.emptyList();
 
     private LightOverlayState() {
     }
@@ -142,7 +143,7 @@ public final class LightOverlayState {
             }
         }
         if (scanIndex >= scanVolume) {
-            markers = List.copyOf(workingMarkers);
+            markers = Collections.unmodifiableList(new ArrayList<>(workingMarkers));
             ticksSinceCompleted = 0;
         }
     }
@@ -161,7 +162,7 @@ public final class LightOverlayState {
         scanIndex = 0;
         ticksSinceCompleted = 0;
         workingMarkers = new ArrayList<>();
-        markers = List.of();
+        markers = Collections.emptyList();
     }
 
     private static boolean movedOutsideRefreshArea(BlockPos playerPos, BlockPos center) {
@@ -244,7 +245,7 @@ public final class LightOverlayState {
 
     private static boolean biomeAllowsDrowned(Biome biome) {
         boolean drownedInSpawnList = biome.getMobSettings()
-                .getMobs(MobCategory.MONSTER).unwrap().stream()
+                .getMobs(MobCategory.MONSTER).stream()
                 .anyMatch(entry -> entry.type == EntityType.DROWNED);
         // 1.21.11及其以下的生物群系网络编解码不会向客户端同步怪物生成表。
         return drownedInSpawnList
@@ -271,7 +272,24 @@ public final class LightOverlayState {
         DROWNED
     }
 
-    public record Marker(BlockPos pos, int blockLight, int skyLight, RiskType riskType) {
+    public static final class Marker {
+        private final BlockPos pos;
+        private final int blockLight;
+        private final int skyLight;
+        private final RiskType riskType;
+
+        public Marker(BlockPos pos, int blockLight, int skyLight, RiskType riskType) {
+            this.pos = pos;
+            this.blockLight = blockLight;
+            this.skyLight = skyLight;
+            this.riskType = riskType;
+        }
+
+        public BlockPos pos() { return pos; }
+        public int blockLight() { return blockLight; }
+        public int skyLight() { return skyLight; }
+        public RiskType riskType() { return riskType; }
+
         public boolean nightOnly() {
             return blockLight == 0 && skyLight > 0;
         }

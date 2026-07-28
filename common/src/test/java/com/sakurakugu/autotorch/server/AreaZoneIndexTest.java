@@ -1,6 +1,6 @@
 package com.sakurakugu.autotorch.server;
 
-import java.util.List;
+import java.util.Collections;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AreaZoneIndexTest {
     @Test
     void findsBoxesAcrossNegativeCellBoundaries() {
-        AreaZoneIndex index = new AreaZoneIndex(List.of(new AreaZone(
+        AreaZoneIndex index = new AreaZoneIndex(Collections.singletonList(new AreaZone(
                 AreaShape.BOX, new BlockPos(-17, -1, -17), new BlockPos(1, 16, 1))));
 
         assertTrue(index.contains(new BlockPos(-17, -1, -17)));
@@ -24,7 +24,7 @@ class AreaZoneIndexTest {
 
     @Test
     void filtersCandidatesByExactSphereShape() {
-        AreaZoneIndex index = new AreaZoneIndex(List.of(new AreaZone(
+        AreaZoneIndex index = new AreaZoneIndex(Collections.singletonList(new AreaZone(
                 AreaShape.SPHERE, BlockPos.ZERO, new BlockPos(5, 0, 0))));
 
         assertTrue(index.contains(new BlockPos(3, 4, 0)));
@@ -34,6 +34,6 @@ class AreaZoneIndexTest {
 
     @Test
     void handlesEmptyIndex() {
-        assertFalse(new AreaZoneIndex(List.of()).contains(BlockPos.ZERO));
+        assertFalse(new AreaZoneIndex(Collections.emptyList()).contains(BlockPos.ZERO));
     }
 }

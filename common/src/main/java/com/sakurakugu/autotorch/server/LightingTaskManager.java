@@ -60,7 +60,7 @@ public final class LightingTaskManager {
                     ServerConfig.maxBoxAxisLength(), ServerConfig.maxSphereRadius()));
             return;
         }
-        int scanMinY = Math.max(min.getY(), player.getLevel().getMinBuildHeight());
+        int scanMinY = Math.max(min.getY(), 0);
         int scanMaxY = Math.min(max.getY(), player.getLevel().getMaxBuildHeight() - 1);
         if (scanMinY > scanMaxY) {
             sendSystemMessage(player, new TranslatableComponent("message.autotorch.outside_world"));

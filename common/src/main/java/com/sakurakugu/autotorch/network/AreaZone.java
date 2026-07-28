@@ -1,15 +1,32 @@
 package com.sakurakugu.autotorch.network;
 
 import com.sakurakugu.autotorch.AutoTorchRules;
+import java.util.Objects;
 import net.minecraft.core.BlockPos;
 
 /** 由 A/B 两点定义的球形或轴对齐长方体区域。 */
-public record AreaZone(AreaShape shape, BlockPos first, BlockPos second) {
+public final class AreaZone {
     public static final int MAX_SPHERE_RADIUS = 160;
+    private final AreaShape shape;
+    private final BlockPos first;
+    private final BlockPos second;
 
-    public AreaZone {
-        first = first.immutable();
-        second = second.immutable();
+    public AreaZone(AreaShape shape, BlockPos first, BlockPos second) {
+        this.shape = shape;
+        this.first = first.immutable();
+        this.second = second.immutable();
+    }
+
+    public AreaShape shape() {
+        return shape;
+    }
+
+    public BlockPos first() {
+        return first;
+    }
+
+    public BlockPos second() {
+        return second;
     }
 
     public BlockPos min() {
@@ -93,5 +110,18 @@ public record AreaZone(AreaShape shape, BlockPos first, BlockPos second) {
         return AutoTorchRules.sphereIntersectsBox(
                 sphere.first.getX(), sphere.first.getY(), sphere.first.getZ(), sphere.radiusSquared(),
                 boxMin.getX(), boxMin.getY(), boxMin.getZ(), boxMax.getX(), boxMax.getY(), boxMax.getZ());
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) return true;
+        if (!(other instanceof AreaZone)) return false;
+        AreaZone zone = (AreaZone) other;
+        return shape == zone.shape && first.equals(zone.first) && second.equals(zone.second);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(shape, first, second);
     }
 }

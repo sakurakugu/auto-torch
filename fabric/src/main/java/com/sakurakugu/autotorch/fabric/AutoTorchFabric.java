@@ -18,6 +18,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 
@@ -48,21 +49,21 @@ public final class AutoTorchFabric implements ModInitializer {
 
         ServerTickEvents.END_SERVER_TICK.register(LightingTaskManager::onServerTick);
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) ->
-                player instanceof ServerPlayer serverPlayer
-                        && SelectionToolEvents.handlesInteraction(serverPlayer, player.getItemInHand(hand))
+                player instanceof ServerPlayer
+                        && SelectionToolEvents.handlesInteraction((ServerPlayer) player, player.getItemInHand(hand))
                         ? InteractionResult.SUCCESS : InteractionResult.PASS);
         UseBlockCallback.EVENT.register((player, level, hand, hit) ->
                 hand == InteractionHand.MAIN_HAND
-                        && player instanceof ServerPlayer serverPlayer
-                        && SelectionToolEvents.handlesInteraction(serverPlayer, player.getItemInHand(hand))
+                        && player instanceof ServerPlayer
+                        && SelectionToolEvents.handlesInteraction((ServerPlayer) player, player.getItemInHand(hand))
                         ? InteractionResult.SUCCESS : InteractionResult.PASS);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                SelectionToolEvents.onLogout(handler.getPlayer()));
+                SelectionToolEvents.onLogout(handler.player));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerConfigPayload payload = ServerConfigPayload.current();
-            var buffer = PacketByteBufs.create();
+            FriendlyByteBuf buffer = PacketByteBufs.create();
             payload.write(buffer);
-            ServerPlayNetworking.send(handler.getPlayer(), payload.id(), buffer);
+            ServerPlayNetworking.send(handler.player, payload.id(), buffer);
         });
     }
 

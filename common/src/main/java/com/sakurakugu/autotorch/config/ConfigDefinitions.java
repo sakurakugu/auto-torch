@@ -1,5 +1,7 @@
 package com.sakurakugu.autotorch.config;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import com.sakurakugu.autotorch.network.AreaZone;
@@ -44,7 +46,7 @@ public final class ConfigDefinitions {
     public static final IntValue PERFORMANCE_GLOBAL_PLACE_BUDGET_PER_TICK = integer("performance.globalPlaceBudgetPerTick", 16, 1, 256);
     public static final IntValue PERFORMANCE_RANDOM_PLACEMENT_ATTEMPTS = integer("performance.randomPlacementAttempts", 32, 1, 128);
 
-    public static final List<Value> CLIENT = List.of(
+    public static final List<Value> CLIENT = Collections.unmodifiableList(Arrays.asList(
             NEARBY_AUTO_TORCH_ENABLED, NEARBY_AUTO_TORCH_LIGHT_THRESHOLD,
             NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT, LIGHT_OVERLAY_ENABLED,
             LIGHT_OVERLAY_HORIZONTAL_RANGE, LIGHT_OVERLAY_SHOW_NUMBERS,
@@ -54,16 +56,16 @@ public final class ConfigDefinitions {
             TASK_DEFAULT_MIN_SPACING, TASK_DEFAULT_LIGHT_THRESHOLD, TASK_DEFAULT_UNDERGROUND_ONLY,
             TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES, TASK_DEFAULT_SURVIVAL_CONSUMES_TORCHES,
             TASK_DEFAULT_WOODEN_AXE_SELECTION_ENABLED
-    );
+    ));
 
-    public static final List<Value> SERVER = List.of(
+    public static final List<Value> SERVER = Collections.unmodifiableList(Arrays.asList(
             LIMIT_MAX_BOX_AXIS_LENGTH, LIMIT_MAX_SPHERE_RADIUS, LIMIT_MAX_EXCLUSIONS,
             LIMIT_MAX_TORCHES_PER_TASK, LIMIT_ALLOW_UNLIMITED_TORCHES,
             LIMIT_MIN_SPACING, LIMIT_MAX_SPACING, LIMIT_MAX_CONCURRENT_TASKS,
             GAMEPLAY_SURVIVAL_CONSUMES_TORCHES, PERFORMANCE_SCAN_BUDGET_PER_TASK_TICK,
             PERFORMANCE_PLACE_BUDGET_PER_TASK_TICK, PERFORMANCE_GLOBAL_SCAN_BUDGET_PER_TICK,
             PERFORMANCE_GLOBAL_PLACE_BUDGET_PER_TICK, PERFORMANCE_RANDOM_PLACEMENT_ATTEMPTS
-    );
+    ));
 
     private ConfigDefinitions() {
     }
@@ -76,18 +78,60 @@ public final class ConfigDefinitions {
         return new IntValue(key, defaultValue, minValue, maxValue);
     }
 
-    public sealed interface Value permits BooleanValue, IntValue {
+    public interface Value {
         String key();
     }
 
-    public record BooleanValue(String key, boolean defaultValue) implements Value {
+    public static final class BooleanValue implements Value {
+        private final String key;
+        private final boolean defaultValue;
+
+        public BooleanValue(String key, boolean defaultValue) {
+            this.key = key;
+            this.defaultValue = defaultValue;
+        }
+
+        @Override
+        public String key() {
+            return key;
+        }
+
+        public boolean defaultValue() {
+            return defaultValue;
+        }
     }
 
-    public record IntValue(String key, int defaultValue, int minValue, int maxValue) implements Value {
-        public IntValue {
+    public static final class IntValue implements Value {
+        private final String key;
+        private final int defaultValue;
+        private final int minValue;
+        private final int maxValue;
+
+        public IntValue(String key, int defaultValue, int minValue, int maxValue) {
             if (minValue > defaultValue || defaultValue > maxValue) {
                 throw new IllegalArgumentException("Default value must be within the configured range: " + key);
             }
+            this.key = key;
+            this.defaultValue = defaultValue;
+            this.minValue = minValue;
+            this.maxValue = maxValue;
+        }
+
+        @Override
+        public String key() {
+            return key;
+        }
+
+        public int defaultValue() {
+            return defaultValue;
+        }
+
+        public int minValue() {
+            return minValue;
+        }
+
+        public int maxValue() {
+            return maxValue;
         }
 
         public int clamp(int value) {

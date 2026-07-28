@@ -5,9 +5,9 @@ import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.util.ActionResultType;
+import net.minecraft.util.Hand;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
@@ -18,7 +18,7 @@ import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
-import net.minecraftforge.fmllegacy.server.ServerLifecycleHooks;
+import net.minecraftforge.fml.server.ServerLifecycleHooks;
 
 @Mod(AutoTorch.MOD_ID)
 public final class AutoTorchForge {
@@ -46,28 +46,30 @@ public final class AutoTorchForge {
     }
 
     private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
-        if (event.getEntity() instanceof ServerPlayer player
-                && SelectionToolEvents.handlesInteraction(player, event.getItemStack())) {
+        if (event.getEntity() instanceof ServerPlayerEntity
+                && SelectionToolEvents.handlesInteraction((ServerPlayerEntity) event.getEntity(), event.getItemStack())) {
             event.setCanceled(true);
         }
     }
 
     private void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getHand() == InteractionHand.MAIN_HAND
-                && event.getEntity() instanceof ServerPlayer player
-                && SelectionToolEvents.handlesInteraction(player, event.getItemStack())) {
-            event.setCancellationResult(InteractionResult.SUCCESS);
+        if (event.getHand() == Hand.MAIN_HAND
+                && event.getEntity() instanceof ServerPlayerEntity
+                && SelectionToolEvents.handlesInteraction((ServerPlayerEntity) event.getEntity(), event.getItemStack())) {
+            event.setCancellationResult(ActionResultType.SUCCESS);
             event.setCanceled(true);
         }
     }
 
     private void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) SelectionToolEvents.onLogout(player);
+        if (event.getEntity() instanceof ServerPlayerEntity) {
+            SelectionToolEvents.onLogout((ServerPlayerEntity) event.getEntity());
+        }
     }
 
     private void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current());
+        if (event.getEntity() instanceof ServerPlayerEntity) {
+            ForgeNetworking.sendToPlayer((ServerPlayerEntity) event.getEntity(), ServerConfigPayload.current());
         }
     }
 }

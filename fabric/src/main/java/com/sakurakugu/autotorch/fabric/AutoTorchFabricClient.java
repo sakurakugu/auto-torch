@@ -20,8 +20,12 @@ import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.phys.Vec3;
+import com.mojang.blaze3d.vertex.PoseStack;
 
 public final class AutoTorchFabricClient implements ClientModInitializer {
     @Override
@@ -35,7 +39,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             AutoTorchFabric.closeServerConfig();
         });
         PlatformNetworking.installSender(payload -> {
-            var buffer = PacketByteBufs.create();
+            FriendlyByteBuf buffer = PacketByteBufs.create();
             payload.write(buffer);
             ClientPlayNetworking.send(payload.id(), buffer);
         });
@@ -51,26 +55,26 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(minecraft -> client.tick());
 
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
-            if (level instanceof ClientLevel clientLevel
-                    && client.onLeftClick(clientLevel, player.getItemInHand(hand), pos, true)) {
+            if (level instanceof ClientLevel
+                    && client.onLeftClick((ClientLevel) level, player.getItemInHand(hand), pos, true)) {
                 return InteractionResult.SUCCESS;
             }
             return InteractionResult.PASS;
         });
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
-            if (level instanceof ClientLevel clientLevel
-                    && client.onRightClick(clientLevel, hand, player.getItemInHand(hand), hit.getBlockPos())) {
+            if (level instanceof ClientLevel
+                    && client.onRightClick((ClientLevel) level, hand, player.getItemInHand(hand), hit.getBlockPos())) {
                 return InteractionResult.SUCCESS;
             }
             return InteractionResult.PASS;
         });
 
         WorldRenderEvents.BEFORE_ENTITIES.register(context -> {
-            var camera = context.camera().getPosition();
+            Vec3 camera = context.camera().getPosition();
             SelectionRenderer.extract(context.camera().getBlockPosition());
             LightOverlayRenderer.extract();
-            var poseStack = context.matrixStack();
-            var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+            PoseStack poseStack = context.matrixStack();
+            MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
             SelectionRenderer.render(camera, poseStack, buffers);
             LightOverlayRenderer.render(camera, poseStack, buffers);
             // 自定义几何必须在当前相机模型视图仍有效时提交，不能留到共享缓冲区稍后冲刷。

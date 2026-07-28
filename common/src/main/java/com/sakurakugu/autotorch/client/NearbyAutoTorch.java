@@ -99,7 +99,7 @@ public final class NearbyAutoTorch {
             return false;
         }
         Vec3 hitLocation = Vec3.atCenterOf(target.below()).add(0.0, 0.5, 0.0);
-        return player.getEyePosition().distanceToSqr(hitLocation) <= 20.25;
+        return player.getEyePosition(1.0F).distanceToSqr(hitLocation) <= 20.25;
     }
 
     private static int measuredLight(ClientLevel level, BlockPos position) {
@@ -116,15 +116,15 @@ public final class NearbyAutoTorch {
     }
 
     private static TorchSource findTorch(LocalPlayer player) {
-        if (player.getOffhandItem().is(Items.TORCH)) {
+        if (player.getOffhandItem().getItem() == Items.TORCH) {
             return new TorchSource(InteractionHand.OFF_HAND, -1);
         }
-        int selected = player.getInventory().selected;
-        if (player.getInventory().getItem(selected).is(Items.TORCH)) {
+        int selected = player.inventory.selected;
+        if (player.inventory.getItem(selected).getItem() == Items.TORCH) {
             return new TorchSource(InteractionHand.MAIN_HAND, selected);
         }
         for (int slot = 0; slot < 9; slot++) {
-            if (player.getInventory().getItem(slot).is(Items.TORCH)) {
+            if (player.inventory.getItem(slot).getItem() == Items.TORCH) {
                 return new TorchSource(InteractionHand.MAIN_HAND, slot);
             }
         }
@@ -133,9 +133,9 @@ public final class NearbyAutoTorch {
 
     private static void place(Minecraft minecraft, TorchSource torch, BlockPos target) {
         LocalPlayer player = minecraft.player;
-        int previousSlot = player.getInventory().selected;
+        int previousSlot = player.inventory.selected;
         if (torch.hotbarSlot() >= 0) {
-            player.getInventory().selected = torch.hotbarSlot();
+            player.inventory.selected = torch.hotbarSlot();
         }
 
         BlockPos support = target.below();
@@ -147,12 +147,22 @@ public final class NearbyAutoTorch {
         }
 
         if (torch.hotbarSlot() >= 0) {
-            player.getInventory().selected = previousSlot;
+            player.inventory.selected = previousSlot;
         }
         lastAttemptPosition = target.immutable();
         lastAttemptAge = 0;
     }
 
-    private record TorchSource(InteractionHand hand, int hotbarSlot) {
+    private static final class TorchSource {
+        private final InteractionHand hand;
+        private final int hotbarSlot;
+
+        private TorchSource(InteractionHand hand, int hotbarSlot) {
+            this.hand = hand;
+            this.hotbarSlot = hotbarSlot;
+        }
+
+        private InteractionHand hand() { return hand; }
+        private int hotbarSlot() { return hotbarSlot; }
     }
 }

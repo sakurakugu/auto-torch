@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.ChatFormatting;
@@ -28,6 +29,7 @@ import net.minecraft.world.level.block.state.BlockState;
 final class LightingTask {
     private static final int PROGRESS_UPDATE_INTERVAL_TICKS = 10;
     private static final int PROGRESS_BAR_LENGTH = 20;
+    private static final int UPDATE_ALL = 3;
 
     private final ServerLevel level;
     private final AreaZone selection;
@@ -79,7 +81,8 @@ final class LightingTask {
         this.lightThreshold = lightThreshold;
         this.consumeTorches = consumeTorches;
         this.undergroundOnly = undergroundOnly;
-        this.exclusions = new AreaZoneIndex(exclusions.stream().filter(selection::intersects).toList());
+        this.exclusions = new AreaZoneIndex(exclusions.stream()
+                .filter(selection::intersects).collect(Collectors.toList()));
 
         // 使用稳定种子生成伪随机遍历，使结果可复现，同时避免总从选区同一角开始。
         long seed = level.getSeed() ^ playerId.getMostSignificantBits() ^ playerId.getLeastSignificantBits()
@@ -132,7 +135,7 @@ final class LightingTask {
             if (consumeTorches && !hasTorch(player)) {
                 return finish(player, "message.autotorch.out_of_torches", scannedThisTick, placedThisTick, placed);
             }
-            if (!level.setBlock(torchPos, Blocks.TORCH.defaultBlockState(), Block.UPDATE_ALL)) {
+            if (!level.setBlock(torchPos, Blocks.TORCH.defaultBlockState(), UPDATE_ALL)) {
                 continue;
             }
             if (consumeTorches) {
@@ -169,13 +172,13 @@ final class LightingTask {
                 scanIndex * PROGRESS_BAR_LENGTH / volume);
         Component bar;
         if (pass == 0) {
-            bar = new TextComponent("|".repeat(passFilled)).withStyle(ChatFormatting.GRAY)
-                    .append(new TextComponent("|".repeat(PROGRESS_BAR_LENGTH - passFilled))
+            bar = new TextComponent(progressBar(passFilled)).withStyle(ChatFormatting.GRAY)
+                    .append(new TextComponent(progressBar(PROGRESS_BAR_LENGTH - passFilled))
                             .withStyle(ChatFormatting.DARK_GRAY));
         } else {
             // 第二轮从左向右用绿色覆盖第一轮已经铺满的灰色进度条。
-            bar = new TextComponent("|".repeat(passFilled)).withStyle(ChatFormatting.GREEN)
-                    .append(new TextComponent("|".repeat(PROGRESS_BAR_LENGTH - passFilled))
+            bar = new TextComponent(progressBar(passFilled)).withStyle(ChatFormatting.GREEN)
+                    .append(new TextComponent(progressBar(PROGRESS_BAR_LENGTH - passFilled))
                             .withStyle(ChatFormatting.GRAY));
         }
         player.displayClientMessage(new TranslatableComponent("message.autotorch.progress", bar, percent, placed), true);
@@ -237,7 +240,7 @@ final class LightingTask {
             }
 
             BlockState torch = Blocks.TORCH.defaultBlockState();
-            if (torch.canSurvive(level, candidate) && player.mayInteract(level, candidate)) {
+            if (torch.canSurvive(level, candidate) && level.mayInteract(player, candidate)) {
                 return candidate.immutable();
             }
         }
@@ -293,8 +296,8 @@ final class LightingTask {
     }
 
     private static boolean hasTorch(ServerPlayer player) {
-        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
-            if (player.getInventory().getItem(slot).is(Items.TORCH)) {
+        for (int slot = 0; slot < player.inventory.getContainerSize(); slot++) {
+            if (player.inventory.getItem(slot).getItem() == Items.TORCH) {
                 return true;
             }
         }
@@ -302,11 +305,11 @@ final class LightingTask {
     }
 
     private static void consumeTorch(ServerPlayer player) {
-        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
-            ItemStack stack = player.getInventory().getItem(slot);
-            if (stack.is(Items.TORCH)) {
+        for (int slot = 0; slot < player.inventory.getContainerSize(); slot++) {
+            ItemStack stack = player.inventory.getItem(slot);
+            if (stack.getItem() == Items.TORCH) {
                 stack.shrink(1);
-                player.getInventory().setChanged();
+                player.inventory.setChanged();
                 return;
             }
         }
@@ -335,6 +338,25 @@ final class LightingTask {
         return a;
     }
 
-    record TickResult(boolean done, int scanned, int placed) {
+    private static String progressBar(int length) {
+        StringBuilder result = new StringBuilder(length);
+        for (int i = 0; i < length; i++) result.append('|');
+        return result.toString();
+    }
+
+    static final class TickResult {
+        private final boolean done;
+        private final int scanned;
+        private final int placed;
+
+        TickResult(boolean done, int scanned, int placed) {
+            this.done = done;
+            this.scanned = scanned;
+            this.placed = placed;
+        }
+
+        boolean done() { return done; }
+        int scanned() { return scanned; }
+        int placed() { return placed; }
     }
 }

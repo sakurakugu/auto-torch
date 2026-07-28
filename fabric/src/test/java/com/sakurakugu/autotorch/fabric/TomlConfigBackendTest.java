@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -29,8 +30,8 @@ class TomlConfigBackendTest {
             assertTrue(Files.exists(serverPath));
         }
 
-        String clientToml = Files.readString(clientPath);
-        String serverToml = Files.readString(serverPath);
+        String clientToml = read(clientPath);
+        String serverToml = read(serverPath);
         assertTrue(clientToml.contains("[nearbyAutoTorch]"));
         assertTrue(clientToml.contains("[lightingTaskDefaults]"));
         assertTrue(serverToml.contains("[limits]"));
@@ -46,13 +47,13 @@ class TomlConfigBackendTest {
     @Test
     void fillsMissingValuesAndPreservesUnknownValues() throws IOException {
         Path path = configDirectory.resolve("autotorch-client.toml");
-        Files.writeString(path, "futureValue = 42\n\n[nearbyAutoTorch]\nenabled = true\n");
+        write(path, "futureValue = 42\n\n[nearbyAutoTorch]\nenabled = true\n");
 
         try (TomlConfigBackend backend = new TomlConfigBackend(path, ConfigDefinitions.CLIENT)) {
             assertTrue(backend.getBoolean("nearbyAutoTorch.enabled", false));
         }
 
-        String toml = Files.readString(path);
+        String toml = read(path);
         assertTrue(toml.contains("futureValue = 42"));
         assertTrue(toml.contains("lightThreshold = 4"));
     }
@@ -60,14 +61,11 @@ class TomlConfigBackendTest {
     @Test
     void repairsWrongTypesAndOutOfRangeIntegers() throws IOException {
         Path path = configDirectory.resolve("autotorch-client.toml");
-        Files.writeString(path, """
-                [nearbyAutoTorch]
-                enabled = "yes"
-                lightThreshold = 99
-
-                [lightOverlay]
-                horizontalRange = 1.5
-                """);
+        write(path, "[nearbyAutoTorch]\n"
+                + "enabled = \"yes\"\n"
+                + "lightThreshold = 99\n\n"
+                + "[lightOverlay]\n"
+                + "horizontalRange = 1.5\n");
 
         try (TomlConfigBackend backend = new TomlConfigBackend(path, ConfigDefinitions.CLIENT)) {
             assertFalse(backend.getBoolean("nearbyAutoTorch.enabled", true));
@@ -75,7 +73,7 @@ class TomlConfigBackendTest {
             assertEquals(16, backend.getInt("lightOverlay.horizontalRange", 16));
         }
 
-        String toml = Files.readString(path);
+        String toml = read(path);
         assertTrue(toml.contains("enabled = false"));
         assertTrue(toml.contains("lightThreshold = 16"));
         assertTrue(toml.contains("horizontalRange = 16"));
@@ -85,13 +83,13 @@ class TomlConfigBackendTest {
     void malformedTomlIsNotOverwritten() throws IOException {
         Path path = configDirectory.resolve("autotorch-client.toml");
         String malformed = "broken = [\n";
-        Files.writeString(path, malformed);
+        write(path, malformed);
 
         IllegalStateException exception = assertThrows(IllegalStateException.class,
                 () -> new TomlConfigBackend(path, ConfigDefinitions.CLIENT));
 
         assertTrue(exception.getMessage().contains(path.toString()));
-        assertEquals(malformed, Files.readString(path));
+        assertEquals(malformed, read(path));
     }
 
     @Test
@@ -99,18 +97,18 @@ class TomlConfigBackendTest {
         Path legacyPath = configDirectory.resolve("autotorch-client.properties");
         Path tomlPath = configDirectory.resolve("autotorch-client.toml");
         String legacy = "nearbyAutoTorch.enabled=true\n";
-        Files.writeString(legacyPath, legacy);
+        write(legacyPath, legacy);
 
         try (TomlConfigBackend backend = new TomlConfigBackend(tomlPath, ConfigDefinitions.CLIENT)) {
             assertFalse(backend.getBoolean("nearbyAutoTorch.enabled", true));
         }
 
-        Files.writeString(legacyPath, "nearbyAutoTorch.enabled=true\n");
+        write(legacyPath, "nearbyAutoTorch.enabled=true\n");
         try (TomlConfigBackend backend = new TomlConfigBackend(tomlPath, ConfigDefinitions.CLIENT)) {
             assertFalse(backend.getBoolean("nearbyAutoTorch.enabled", true));
         }
 
-        assertEquals(legacy, Files.readString(legacyPath));
+        assertEquals(legacy, read(legacyPath));
         assertTrue(Files.exists(tomlPath));
     }
 
@@ -130,5 +128,13 @@ class TomlConfigBackendTest {
 
     private static String leafName(String key) {
         return key.substring(key.lastIndexOf('.') + 1);
+    }
+
+    private static String read(Path path) throws IOException {
+        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+    }
+
+    private static void write(Path path, String content) throws IOException {
+        Files.write(path, content.getBytes(StandardCharsets.UTF_8));
     }
 }

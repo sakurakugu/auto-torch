@@ -781,6 +781,10 @@ public final class LightingScreen extends Screen {
         return new TranslatableComponent("screen.autotorch.swamp_slime_detection_unavailable");
     }
 
+    private <T extends AbstractWidget> T addRenderableWidget(T widget) {
+        return addButton(widget);
+    }
+
     private Component drownedDetectionMessage() {
         return new TranslatableComponent(LightOverlayState.isDrownedDetectionEnabled()
                 ? "screen.autotorch.drowned_detection_on"
@@ -841,8 +845,9 @@ public final class LightingScreen extends Screen {
     }
 
     private void moveWidgets(int deltaY) {
-        for (var child : children()) {
-            if (child instanceof AbstractWidget widget) {
+        for (Object child : children()) {
+            if (child instanceof AbstractWidget) {
+                AbstractWidget widget = (AbstractWidget) child;
                 widget.y += deltaY;
             }
         }

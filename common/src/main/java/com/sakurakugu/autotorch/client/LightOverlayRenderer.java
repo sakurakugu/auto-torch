@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.client;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
@@ -27,7 +28,7 @@ public final class LightOverlayRenderer {
             0b0111111, 0b0000110, 0b1011011, 0b1001111, 0b1100110,
             0b1101101, 0b1111101, 0b0000111, 0b1111111, 0b1101111
     };
-    private static final List<LightOverlayState.Marker> NO_MARKERS = List.of();
+    private static final List<LightOverlayState.Marker> NO_MARKERS = Collections.emptyList();
     private static volatile RenderData renderData;
 
     private LightOverlayRenderer() {
@@ -133,11 +134,11 @@ public final class LightOverlayRenderer {
     }
 
     private static int markerColor(LightOverlayState.Marker marker) {
-        return switch (marker.riskType()) {
-            case DROWNED -> DROWNED_RISK_COLOR;
-            case NORMAL -> marker.blockLight() > 0 ? SAFE_COLOR
-                    : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
-        };
+        if (marker.riskType() == LightOverlayState.RiskType.DROWNED) {
+            return DROWNED_RISK_COLOR;
+        }
+        return marker.blockLight() > 0 ? SAFE_COLOR
+                : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
     }
 
     private static void addDigit(
@@ -181,13 +182,10 @@ public final class LightOverlayRenderer {
             PoseStack.Pose pose, VertexConsumer buffer,
             float x1, float y1, float z1, float x2, float y2, float z2, int color, float lineWidth
     ) {
-        float nx = x2 - x1;
-        float ny = y2 - y1;
-        float nz = z2 - z1;
         applyColor(buffer.vertex(pose.pose(), x1, y1, z1), color)
-                .normal(pose.normal(), nx, ny, nz).endVertex();
+                .endVertex();
         applyColor(buffer.vertex(pose.pose(), x2, y2, z2), color)
-                .normal(pose.normal(), nx, ny, nz).endVertex();
+                .endVertex();
     }
 
     private static VertexConsumer applyColor(VertexConsumer vertex, int color) {
@@ -195,10 +193,29 @@ public final class LightOverlayRenderer {
                 color & 0xFF, (color >>> 24) & 0xFF);
     }
 
-    private record RenderData(
-            List<LightOverlayState.Marker> sourceMarkers, LightOverlayState.DisplayMode displayMode,
-            float[] coordinates, int[] colors, int lineCount
-    ) {
+    private static final class RenderData {
+        private final List<LightOverlayState.Marker> sourceMarkers;
+        private final LightOverlayState.DisplayMode displayMode;
+        private final float[] coordinates;
+        private final int[] colors;
+        private final int lineCount;
+
+        private RenderData(
+                List<LightOverlayState.Marker> sourceMarkers, LightOverlayState.DisplayMode displayMode,
+                float[] coordinates, int[] colors, int lineCount
+        ) {
+            this.sourceMarkers = sourceMarkers;
+            this.displayMode = displayMode;
+            this.coordinates = coordinates;
+            this.colors = colors;
+            this.lineCount = lineCount;
+        }
+
+        private List<LightOverlayState.Marker> sourceMarkers() { return sourceMarkers; }
+        private LightOverlayState.DisplayMode displayMode() { return displayMode; }
+        private float[] coordinates() { return coordinates; }
+        private int[] colors() { return colors; }
+        private int lineCount() { return lineCount; }
     }
 
     private static final class GeometryBuilder {

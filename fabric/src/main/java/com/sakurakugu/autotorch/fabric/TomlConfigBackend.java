@@ -2,9 +2,13 @@ package com.sakurakugu.autotorch.fabric;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.toml.TomlFormat;
@@ -14,7 +18,7 @@ import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 
 final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
-    private static final System.Logger LOGGER = System.getLogger(TomlConfigBackend.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(TomlConfigBackend.class.getName());
 
     private final Path path;
     private final CommentedFileConfig config;
@@ -24,7 +28,7 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
 
     TomlConfigBackend(Path path, List<Value> definitions) {
         this.path = path;
-        this.definitions = List.copyOf(definitions);
+        this.definitions = Collections.unmodifiableList(new ArrayList<>(definitions));
         this.definitionIndex = indexDefinitions(this.definitions);
         this.config = CommentedFileConfig.builder(path, TomlFormat.instance())
                 .sync()
@@ -50,11 +54,12 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
     @Override
     public boolean getBoolean(String key, boolean fallback) {
         Object value = config.getRaw(key);
-        if (value instanceof Boolean booleanValue) {
-            return booleanValue;
+        if (value instanceof Boolean) {
+            return (Boolean) value;
         }
-        BooleanValue definition = definitionIndex.get(key) instanceof BooleanValue booleanValue
-                ? booleanValue : new BooleanValue(key, fallback);
+        Value knownDefinition = definitionIndex.get(key);
+        BooleanValue definition = knownDefinition instanceof BooleanValue
+                ? (BooleanValue) knownDefinition : new BooleanValue(key, fallback);
         warnInvalidType(key, value, "boolean", definition.defaultValue());
         config.set(key, definition.defaultValue());
         save();
@@ -63,8 +68,8 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
 
     @Override
     public int getInt(String key, int fallback) {
-        IntValue definition = definitionIndex.get(key) instanceof IntValue intValue
-                ? intValue : null;
+        Value knownDefinition = definitionIndex.get(key);
+        IntValue definition = knownDefinition instanceof IntValue ? (IntValue) knownDefinition : null;
         Object value = config.getRaw(key);
         Integer integerValue = asInteger(value);
         if (integerValue == null) {
@@ -79,9 +84,9 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
         }
         int clamped = definition.clamp(integerValue);
         if (clamped != integerValue) {
-            LOGGER.log(System.Logger.Level.WARNING,
+            LOGGER.log(Level.WARNING,
                     "Configuration {0} field {1} is outside [{2}, {3}]; corrected from {4} to {5}",
-                    path, key, definition.minValue(), definition.maxValue(), integerValue, clamped);
+                    new Object[] { path, key, definition.minValue(), definition.maxValue(), integerValue, clamped });
             config.set(key, clamped);
             save();
         }
@@ -95,12 +100,13 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
 
     @Override
     public void setInt(String key, int value) {
-        IntValue definition = definitionIndex.get(key) instanceof IntValue intValue ? intValue : null;
+        Value knownDefinition = definitionIndex.get(key);
+        IntValue definition = knownDefinition instanceof IntValue ? (IntValue) knownDefinition : null;
         int corrected = definition == null ? value : definition.clamp(value);
         if (corrected != value) {
-            LOGGER.log(System.Logger.Level.WARNING,
+            LOGGER.log(Level.WARNING,
                     "Configuration {0} field {1} is outside [{2}, {3}]; corrected from {4} to {5}",
-                    path, key, definition.minValue(), definition.maxValue(), value, corrected);
+                    new Object[] { path, key, definition.minValue(), definition.maxValue(), value, corrected });
         }
         config.set(key, corrected);
     }
@@ -131,7 +137,8 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
         config.bulkUpdate(values -> {
             for (Value definition : definitions) {
                 Object raw = values.getRaw(definition.key());
-                if (definition instanceof BooleanValue booleanValue) {
+                if (definition instanceof BooleanValue) {
+                    BooleanValue booleanValue = (BooleanValue) definition;
                     if (!(raw instanceof Boolean)) {
                         if (raw != null) {
                             warnInvalidType(definition.key(), raw, "boolean", booleanValue.defaultValue());
@@ -139,7 +146,8 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
                         values.set(definition.key(), booleanValue.defaultValue());
                         changed[0] = true;
                     }
-                } else if (definition instanceof IntValue intValue) {
+                } else if (definition instanceof IntValue) {
+                    IntValue intValue = (IntValue) definition;
                     Integer parsed = asInteger(raw);
                     int corrected;
                     if (parsed == null) {
@@ -150,9 +158,10 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
                     } else {
                         corrected = intValue.clamp(parsed);
                         if (corrected != parsed) {
-                            LOGGER.log(System.Logger.Level.WARNING,
+                            LOGGER.log(Level.WARNING,
                                     "Configuration {0} field {1} is outside [{2}, {3}]; corrected from {4} to {5}",
-                                    path, definition.key(), intValue.minValue(), intValue.maxValue(), parsed, corrected);
+                                    new Object[] { path, definition.key(), intValue.minValue(),
+                                            intValue.maxValue(), parsed, corrected });
                         }
                     }
                     if (parsed == null || corrected != parsed) {
@@ -167,28 +176,31 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
 
     private void warnInvalidType(String key, Object value, String expectedType, Object fallback) {
         String actualType = value == null ? "missing" : value.getClass().getSimpleName();
-        LOGGER.log(System.Logger.Level.WARNING,
+        LOGGER.log(Level.WARNING,
                 "Configuration {0} field {1} must be {2}, but was {3}; corrected to {4}",
-                path, key, expectedType, actualType, fallback);
+                new Object[] { path, key, expectedType, actualType, fallback });
     }
 
     private static Integer asInteger(Object value) {
         if (value instanceof Byte || value instanceof Short || value instanceof Integer) {
             return ((Number) value).intValue();
         }
-        if (value instanceof Long longValue && longValue >= Integer.MIN_VALUE && longValue <= Integer.MAX_VALUE) {
-            return longValue.intValue();
+        if (value instanceof Long) {
+            long longValue = (Long) value;
+            if (longValue >= Integer.MIN_VALUE && longValue <= Integer.MAX_VALUE) {
+                return (int) longValue;
+            }
         }
         return null;
     }
 
     private static Map<String, Value> indexDefinitions(List<Value> definitions) {
         Map<String, Value> indexed = new HashMap<>();
-        for (Value definition : List.copyOf(definitions)) {
+        for (Value definition : new ArrayList<>(definitions)) {
             if (indexed.put(definition.key(), definition) != null) {
                 throw new IllegalArgumentException("Duplicate configuration key: " + definition.key());
             }
         }
-        return Map.copyOf(indexed);
+        return Collections.unmodifiableMap(indexed);
     }
 }

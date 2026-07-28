@@ -1,5 +1,6 @@
 package com.sakurakugu.autotorch.client;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -9,7 +10,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
@@ -20,6 +20,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.lwjgl.opengl.GL11;
 
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
 public final class SelectionRenderer {
@@ -27,12 +28,13 @@ public final class SelectionRenderer {
     private static final RenderType FACE_RENDER_TYPE = new RenderType(
             "autotorch_selection_faces",
             DefaultVertexFormat.POSITION_COLOR,
-            VertexFormat.Mode.QUADS,
+            GL11.GL_QUADS,
             1536,
             false,
             true,
             () -> {
-                RenderSystem.setShader(GameRenderer::getPositionColorShader);
+                // 1.16.5 使用固定渲染管线，纯色顶点绘制前必须关闭纹理。
+                RenderSystem.disableTexture();
                 RenderSystem.enableBlend();
                 RenderSystem.defaultBlendFunc();
                 RenderSystem.enableDepthTest();
@@ -49,6 +51,7 @@ public final class SelectionRenderer {
                 RenderSystem.depthMask(true);
                 RenderSystem.enableCull();
                 RenderSystem.disableBlend();
+                RenderSystem.enableTexture();
             }
     ) {};
     private static final int DRAFT_LINE_COLOR = 0xD070A0FF;
@@ -71,7 +74,8 @@ public final class SelectionRenderer {
     private static final long MAX_SPHERE_RADIUS_SQUARED =
             (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
     private static final int MAX_CACHED_BLOCKY_SPHERES = 4;
-    private static final Map<Long, BlockySphereMesh> BLOCKY_SPHERE_CACHE = new LinkedHashMap<>(8, 0.75F, true) {
+    private static final Map<Long, BlockySphereMesh> BLOCKY_SPHERE_CACHE =
+            new LinkedHashMap<Long, BlockySphereMesh>(8, 0.75F, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Long, BlockySphereMesh> eldest) {
             return size() > MAX_CACHED_BLOCKY_SPHERES;
@@ -103,7 +107,8 @@ public final class SelectionRenderer {
         }
         if (!SelectionState.isOverlayEnabled()) {
             renderData = new RenderData(
-                    null, null, List.of(), SelectionState.displayMode(), SelectionState.sphereDisplayMode(), Map.of()
+                    null, null, Collections.emptyList(), SelectionState.displayMode(),
+                    SelectionState.sphereDisplayMode(), Collections.emptyMap()
             );
             renderRevision = SelectionState.renderRevision();
             return;
@@ -286,7 +291,7 @@ public final class SelectionRenderer {
             SelectionState.SphereDisplayMode sphereDisplayMode
     ) {
         if (sphereDisplayMode != SelectionState.SphereDisplayMode.BLOCKY) {
-            return Map.of();
+            return Collections.emptyMap();
         }
         Map<Long, BlockySphereMesh> meshes = new HashMap<>();
         addBlockySphereMesh(meshes, draft);
@@ -294,7 +299,7 @@ public final class SelectionRenderer {
         for (AreaZone exclusion : exclusions) {
             addBlockySphereMesh(meshes, exclusion);
         }
-        return Map.copyOf(meshes);
+        return Collections.unmodifiableMap(new HashMap<>(meshes));
     }
 
     private static void addBlockySphereMesh(Map<Long, BlockySphereMesh> meshes, AreaZone zone) {
@@ -344,12 +349,12 @@ public final class SelectionRenderer {
 
     private static void addBlockFaceEdges(IntOpenHashSet edges, int x, int y, int z, int direction) {
         switch (direction) {
-            case 0 -> addXFaceEdges(edges, x + 1, y, z);
-            case 1 -> addXFaceEdges(edges, x, y, z);
-            case 2 -> addYFaceEdges(edges, x, y + 1, z);
-            case 3 -> addYFaceEdges(edges, x, y, z);
-            case 4 -> addZFaceEdges(edges, x, y, z + 1);
-            default -> addZFaceEdges(edges, x, y, z);
+            case 0: addXFaceEdges(edges, x + 1, y, z); break;
+            case 1: addXFaceEdges(edges, x, y, z); break;
+            case 2: addYFaceEdges(edges, x, y + 1, z); break;
+            case 3: addYFaceEdges(edges, x, y, z); break;
+            case 4: addZFaceEdges(edges, x, y, z + 1); break;
+            default: addZFaceEdges(edges, x, y, z); break;
         }
     }
 
@@ -425,18 +430,24 @@ public final class SelectionRenderer {
         int z = center.getZ() + ((encodedFace >> (BLOCK_OFFSET_BITS * 2)) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
         int direction = encodedFace >>> BLOCK_FACE_DIRECTION_SHIFT;
         switch (direction) {
-            case 0 -> quad(pose, buffer,
+            case 0: quad(pose, buffer,
                     x + 1, y, z, x + 1, y + 1, z, x + 1, y + 1, z + length, x + 1, y, z + length, color);
-            case 1 -> quad(pose, buffer,
+                break;
+            case 1: quad(pose, buffer,
                     x, y, z + length, x, y + 1, z + length, x, y + 1, z, x, y, z, color);
-            case 2 -> quad(pose, buffer,
+                break;
+            case 2: quad(pose, buffer,
                     x, y + 1, z + length, x + 1, y + 1, z + length, x + 1, y + 1, z, x, y + 1, z, color);
-            case 3 -> quad(pose, buffer,
+                break;
+            case 3: quad(pose, buffer,
                     x, y, z, x + 1, y, z, x + 1, y, z + length, x, y, z + length, color);
-            case 4 -> quad(pose, buffer,
+                break;
+            case 4: quad(pose, buffer,
                     x + 1, y, z + 1, x + 1, y + length, z + 1, x, y + length, z + 1, x, y, z + 1, color);
-            default -> quad(pose, buffer,
+                break;
+            default: quad(pose, buffer,
                     x, y, z, x, y + length, z, x + 1, y + length, z, x + 1, y, z, color);
+                break;
         }
     }
 
@@ -478,25 +489,10 @@ public final class SelectionRenderer {
             double x1, double y1, double z1, double x2, double y2, double z2,
             int color, float width
     ) {
-        float nx = (float) (x2 - x1);
-        float ny = (float) (y2 - y1);
-        float nz = (float) (z2 - z1);
-        if (ny == 0.0F && nz == 0.0F && nx != 0.0F) {
-            nx = Math.copySign(1.0F, nx);
-        } else if (nx == 0.0F && nz == 0.0F && ny != 0.0F) {
-            ny = Math.copySign(1.0F, ny);
-        } else if (nx == 0.0F && ny == 0.0F && nz != 0.0F) {
-            nz = Math.copySign(1.0F, nz);
-        } else {
-            float length = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
-            nx /= length;
-            ny /= length;
-            nz /= length;
-        }
         applyColor(buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1), color)
-                .normal(pose.normal(), nx, ny, nz).endVertex();
+                .endVertex();
         applyColor(buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2), color)
-                .normal(pose.normal(), nx, ny, nz).endVertex();
+                .endVertex();
     }
 
     private static VertexConsumer applyColor(VertexConsumer vertex, int color) {
@@ -504,14 +500,33 @@ public final class SelectionRenderer {
                 color & 0xFF, (color >>> 24) & 0xFF);
     }
 
-    private record RenderData(
-            AreaZone draft,
-            AreaZone lightingZone,
-            List<AreaZone> exclusions,
-            SelectionState.DisplayMode displayMode,
-            SelectionState.SphereDisplayMode sphereDisplayMode,
-            Map<Long, BlockySphereMesh> blockySphereMeshes
-    ) {
+    private static final class RenderData {
+        private final AreaZone draft;
+        private final AreaZone lightingZone;
+        private final List<AreaZone> exclusions;
+        private final SelectionState.DisplayMode displayMode;
+        private final SelectionState.SphereDisplayMode sphereDisplayMode;
+        private final Map<Long, BlockySphereMesh> blockySphereMeshes;
+
+        private RenderData(
+                AreaZone draft, AreaZone lightingZone, List<AreaZone> exclusions,
+                SelectionState.DisplayMode displayMode, SelectionState.SphereDisplayMode sphereDisplayMode,
+                Map<Long, BlockySphereMesh> blockySphereMeshes
+        ) {
+            this.draft = draft;
+            this.lightingZone = lightingZone;
+            this.exclusions = exclusions;
+            this.displayMode = displayMode;
+            this.sphereDisplayMode = sphereDisplayMode;
+            this.blockySphereMeshes = blockySphereMeshes;
+        }
+
+        private AreaZone draft() { return draft; }
+        private AreaZone lightingZone() { return lightingZone; }
+        private List<AreaZone> exclusions() { return exclusions; }
+        private SelectionState.DisplayMode displayMode() { return displayMode; }
+        private SelectionState.SphereDisplayMode sphereDisplayMode() { return sphereDisplayMode; }
+        private Map<Long, BlockySphereMesh> blockySphereMeshes() { return blockySphereMeshes; }
     }
 
     public static RenderType faceRenderType() {
@@ -529,7 +544,17 @@ public final class SelectionRenderer {
         void render(PoseStack.Pose pose, VertexConsumer buffer);
     }
 
-    private record BlockySphereMesh(int[] edges, int[] faceStrips) {
+    private static final class BlockySphereMesh {
+        private final int[] edges;
+        private final int[] faceStrips;
+
+        private BlockySphereMesh(int[] edges, int[] faceStrips) {
+            this.edges = edges;
+            this.faceStrips = faceStrips;
+        }
+
+        private int[] edges() { return edges; }
+        private int[] faceStrips() { return faceStrips; }
     }
 
     private static final class IntArrayBuilder {

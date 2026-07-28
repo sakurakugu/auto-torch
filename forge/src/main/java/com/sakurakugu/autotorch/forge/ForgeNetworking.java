@@ -9,11 +9,12 @@ import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.fmllegacy.network.NetworkDirection;
-import net.minecraftforge.fmllegacy.network.NetworkRegistry;
-import net.minecraftforge.fmllegacy.network.PacketDistributor;
-import net.minecraftforge.fmllegacy.network.simple.SimpleChannel;
+import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.fml.network.NetworkDirection;
+import net.minecraftforge.fml.network.NetworkRegistry;
+import net.minecraftforge.fml.network.NetworkEvent;
+import net.minecraftforge.fml.network.PacketDistributor;
+import net.minecraftforge.fml.network.simple.SimpleChannel;
 
 import java.util.Optional;
 
@@ -32,7 +33,7 @@ final class ForgeNetworking {
     static void initialize() {
         CHANNEL.registerMessage(0, StartLightingPayload.class,
                 StartLightingPayload::write, StartLightingPayload::decode, (payload, supplier) -> {
-                    var context = supplier.get();
+                    NetworkEvent.Context context = supplier.get();
                     context.enqueueWork(() -> {
                         if (context.getSender() != null) LightingTaskManager.start(context.getSender(), payload);
                     });
@@ -40,7 +41,7 @@ final class ForgeNetworking {
                 }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(1, CancelLightingPayload.class,
                 CancelLightingPayload::write, CancelLightingPayload::decode, (payload, supplier) -> {
-                    var context = supplier.get();
+                    NetworkEvent.Context context = supplier.get();
                     context.enqueueWork(() -> {
                         if (context.getSender() != null) LightingTaskManager.cancel(context.getSender());
                     });
@@ -48,7 +49,7 @@ final class ForgeNetworking {
                 }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(2, SetSelectionToolPayload.class,
                 SetSelectionToolPayload::write, SetSelectionToolPayload::decode, (payload, supplier) -> {
-                    var context = supplier.get();
+                    NetworkEvent.Context context = supplier.get();
                     context.enqueueWork(() -> {
                         if (context.getSender() != null) {
                             SelectionToolEvents.setEnabled(context.getSender(), payload.enabled());
@@ -58,7 +59,7 @@ final class ForgeNetworking {
                 }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(3, ServerConfigPayload.class,
                 ServerConfigPayload::write, ServerConfigPayload::decode, (payload, supplier) -> {
-                    var context = supplier.get();
+                    NetworkEvent.Context context = supplier.get();
                     context.enqueueWork(() -> ServerConfigState.update(payload));
                     context.setPacketHandled(true);
                 }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
@@ -68,7 +69,7 @@ final class ForgeNetworking {
         CHANNEL.sendToServer(payload);
     }
 
-    static void sendToPlayer(net.minecraft.server.level.ServerPlayer player, AutoTorchPayload payload) {
+    static void sendToPlayer(net.minecraft.entity.player.ServerPlayerEntity player, AutoTorchPayload payload) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), payload);
     }
 }

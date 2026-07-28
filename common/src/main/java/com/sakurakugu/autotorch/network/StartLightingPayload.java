@@ -1,6 +1,7 @@
 package com.sakurakugu.autotorch.network;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.sakurakugu.autotorch.AutoTorch;
@@ -9,17 +10,38 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
 /** 客户端提交的照明任务配置；服务端收到后仍需进行完整的边界校验。 */
-public record StartLightingPayload(
-        AreaZone selection,
-        int maxTorches,
-        int minSpacing,
-        int lightThreshold,
-        boolean consumeTorches,
-        boolean undergroundOnly,
-        List<AreaZone> exclusions
-) implements AutoTorchPayload {
+public final class StartLightingPayload implements AutoTorchPayload {
     public static final int MAX_EXCLUSIONS = 32;
     public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID + ":start_lighting");
+    private final AreaZone selection;
+    private final int maxTorches;
+    private final int minSpacing;
+    private final int lightThreshold;
+    private final boolean consumeTorches;
+    private final boolean undergroundOnly;
+    private final List<AreaZone> exclusions;
+
+    public StartLightingPayload(
+            AreaZone selection, int maxTorches, int minSpacing, int lightThreshold,
+            boolean consumeTorches, boolean undergroundOnly, List<AreaZone> exclusions
+    ) {
+        this.selection = selection;
+        this.maxTorches = maxTorches;
+        this.minSpacing = minSpacing;
+        this.lightThreshold = lightThreshold;
+        this.consumeTorches = consumeTorches;
+        this.undergroundOnly = undergroundOnly;
+        // 固化列表，避免编码或异步处理期间调用方继续修改数据。
+        this.exclusions = Collections.unmodifiableList(new ArrayList<>(exclusions));
+    }
+
+    public AreaZone selection() { return selection; }
+    public int maxTorches() { return maxTorches; }
+    public int minSpacing() { return minSpacing; }
+    public int lightThreshold() { return lightThreshold; }
+    public boolean consumeTorches() { return consumeTorches; }
+    public boolean undergroundOnly() { return undergroundOnly; }
+    public List<AreaZone> exclusions() { return exclusions; }
 
     public static StartLightingPayload decode(FriendlyByteBuf buffer) {
         return new StartLightingPayload(
@@ -31,11 +53,6 @@ public record StartLightingPayload(
                 buffer.readBoolean(),
                 readExclusions(buffer)
         );
-    }
-
-    public StartLightingPayload {
-        // 固化坐标与列表，避免编码或异步处理期间调用方继续修改数据。
-        exclusions = List.copyOf(exclusions);
     }
 
     @Override

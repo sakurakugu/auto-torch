@@ -1,6 +1,7 @@
 plugins {
     id 'net.fabricmc.fabric-loom-remap' version '1.17.16' apply false
     id 'net.minecraftforge.gradle' version '[7.0.17,8)' apply false
+    id 'net.minecraftforge.renamer' version '1.0.17' apply false
 }
 
 ext.minecraft_version_range = "[${minecraft_version}]"
@@ -17,11 +18,18 @@ subprojects {
     }
 
     plugins.withType(JavaPlugin).configureEach {
-        java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+        java.toolchain.languageVersion = JavaLanguageVersion.of(8)
 
         tasks.withType(JavaCompile).configureEach {
             options.encoding = 'UTF-8'
             options.compilerArgs.add('-Xlint:deprecation')
+        }
+
+        // Java 8 启动器会错误解码开发目录中的中文路径，运行客户端时改用 JDK 17。
+        tasks.withType(JavaExec).configureEach {
+            javaLauncher = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(17)
+            }
         }
     }
 }

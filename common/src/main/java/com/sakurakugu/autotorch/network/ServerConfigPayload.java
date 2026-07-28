@@ -7,17 +7,40 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
 /** 服务端在玩家登录后同步会影响客户端显示的权威配置。 */
-public record ServerConfigPayload(
-        boolean survivalConsumesTorches,
-        int maxBoxAxisLength,
-        int maxSphereRadius,
-        int maxExclusions,
-        int maxTorchesPerTask,
-        boolean allowsUnlimitedTorches,
-        int minSpacing,
-        int maxSpacing
-) implements AutoTorchPayload {
+public final class ServerConfigPayload implements AutoTorchPayload {
     public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID + ":server_config");
+    private final boolean survivalConsumesTorches;
+    private final int maxBoxAxisLength;
+    private final int maxSphereRadius;
+    private final int maxExclusions;
+    private final int maxTorchesPerTask;
+    private final boolean allowsUnlimitedTorches;
+    private final int minSpacing;
+    private final int maxSpacing;
+
+    public ServerConfigPayload(
+            boolean survivalConsumesTorches, int maxBoxAxisLength, int maxSphereRadius,
+            int maxExclusions, int maxTorchesPerTask, boolean allowsUnlimitedTorches,
+            int minSpacing, int maxSpacing
+    ) {
+        this.survivalConsumesTorches = survivalConsumesTorches;
+        this.maxBoxAxisLength = maxBoxAxisLength;
+        this.maxSphereRadius = maxSphereRadius;
+        this.maxExclusions = maxExclusions;
+        this.maxTorchesPerTask = maxTorchesPerTask;
+        this.allowsUnlimitedTorches = allowsUnlimitedTorches;
+        this.minSpacing = minSpacing;
+        this.maxSpacing = maxSpacing;
+    }
+
+    public boolean survivalConsumesTorches() { return survivalConsumesTorches; }
+    public int maxBoxAxisLength() { return maxBoxAxisLength; }
+    public int maxSphereRadius() { return maxSphereRadius; }
+    public int maxExclusions() { return maxExclusions; }
+    public int maxTorchesPerTask() { return maxTorchesPerTask; }
+    public boolean allowsUnlimitedTorches() { return allowsUnlimitedTorches; }
+    public int minSpacing() { return minSpacing; }
+    public int maxSpacing() { return maxSpacing; }
 
     public static ServerConfigPayload decode(FriendlyByteBuf buffer) {
         return new ServerConfigPayload(

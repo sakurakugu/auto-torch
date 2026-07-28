@@ -11,11 +11,11 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
+import org.lwjgl.glfw.GLFW;
 
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
@@ -24,13 +24,13 @@ public final class AutoTorchClient {
     public static final KeyMapping OPEN_SCREEN = new KeyMapping(
             "key.autotorch.open_screen",
             InputConstants.Type.KEYSYM,
-            InputConstants.KEY_G,
+            GLFW.GLFW_KEY_G,
             CATEGORY
     );
     public static final KeyMapping TOGGLE_LIGHT_OVERLAY = new KeyMapping(
             "key.autotorch.toggle_light_overlay",
             InputConstants.Type.KEYSYM,
-            InputConstants.KEY_F7,
+            GLFW.GLFW_KEY_F7,
             CATEGORY
     );
 
@@ -59,7 +59,7 @@ public final class AutoTorchClient {
     public boolean onLeftClick(ClientLevel level, ItemStack stack, BlockPos pos, boolean start) {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
                 || !level.isClientSide()
-                || !stack.is(Items.WOODEN_AXE)) {
+                || stack.getItem() != Items.WOODEN_AXE) {
             return false;
         }
         // 长按破坏方块会连续触发事件，只在 START 阶段记录一次 A 点。
@@ -78,7 +78,7 @@ public final class AutoTorchClient {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
                 || !level.isClientSide()
                 || hand != InteractionHand.MAIN_HAND
-                || !stack.is(Items.WOODEN_AXE)) {
+                || stack.getItem() != Items.WOODEN_AXE) {
             return false;
         }
         SelectionState.setSecond(pos);

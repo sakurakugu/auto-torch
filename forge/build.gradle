@@ -1,6 +1,7 @@
 plugins {
     id 'java-library'
     id 'net.minecraftforge.gradle'
+    id 'net.minecraftforge.renamer'
 }
 
 base {
@@ -8,8 +9,19 @@ base {
 }
 
 sourceSets.main {
-    java.srcDir project(':common').file('src/main/java')
     resources.srcDir project(':common').file('src/main/resources')
+}
+
+configurations {
+    forgeMappings
+    forgeRuntimeMappings
+    fabricIntermediary
+    commonNamedMinecraft
+}
+
+def commonNamedSourceSet = sourceSets.create('commonNamed') {
+    java.setSrcDirs([project(':common').file('src/main/java')])
+    compileClasspath = sourceSets.main.compileClasspath + configurations.commonNamedMinecraft
 }
 
 minecraft {
@@ -34,7 +46,69 @@ repositories {
 
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${forge_version}")
+    compileOnly 'org.lwjgl:lwjgl-glfw:3.2.2'
+    compileOnly 'org.lwjgl:lwjgl-opengl:3.2.2'
+    forgeMappings "net.minecraft:mappings_official:${forge_mappings_version}:map2obf@tsrg.gz"
+    forgeRuntimeMappings "net.minecraft:mappings_official:${forge_mappings_version}:map2srg@tsrg.gz"
+    fabricIntermediary "net.fabricmc:intermediary:${minecraft_version}:v2"
+    commonNamedMinecraft project(path: ':common', configuration: 'namedMinecraftElements')
 }
+
+def extractLoomMappings = tasks.register('extractLoomMappings', Sync) {
+    from({ zipTree(project(':common').configurations.mappings.singleFile) })
+    include 'mappings/mappings.tiny'
+    eachFile { path = 'mappings.tiny' }
+    includeEmptyDirs = false
+    into layout.buildDirectory.dir('mappings/loom')
+}
+
+def loomMappingsFile = files(layout.buildDirectory.file('mappings/loom/mappings.tiny'))
+        .builtBy(extractLoomMappings)
+def namedToIntermediary = renamer.convert('namedToIntermediary') {
+    map = loomMappingsFile
+    reverse = true
+}
+def extractIntermediaryMappings = tasks.register('extractIntermediaryMappings', Sync) {
+    from({ zipTree(configurations.fabricIntermediary.singleFile) })
+    include 'mappings/mappings.tiny'
+    eachFile { path = 'mappings.tiny' }
+    includeEmptyDirs = false
+    into layout.buildDirectory.dir('mappings/intermediary')
+}
+def intermediaryMappingsFile = files(layout.buildDirectory.file('mappings/intermediary/mappings.tiny'))
+        .builtBy(extractIntermediaryMappings)
+def intermediaryToObfuscated = renamer.convert('intermediaryToObfuscated') {
+    map = intermediaryMappingsFile
+    reverse = true
+}
+def namedToObfuscated = renamer.chain('namedToObfuscated') {
+    left namedToIntermediary
+    right intermediaryToObfuscated
+}
+def obfuscatedToForge = renamer.convert('obfuscatedToForge') {
+    map = configurations.forgeMappings
+    reverse = true
+}
+def namedToForge = renamer.chain('namedToForge') {
+    left namedToObfuscated
+    right obfuscatedToForge
+}
+def renamedCommonSources = renamer.sources('renameCommonSources', commonNamedSourceSet) {
+    extract {
+        sourceCompatibility = JavaVersion.VERSION_17
+    }
+    apply {
+        map = files(namedToForge.flatMap { it.output })
+        archiveClassifier = 'forge'
+    }
+}
+def unpackCommonSources = tasks.register('unpackCommonSources', Sync) {
+    dependsOn renamedCommonSources.apply
+    from({ zipTree(renamedCommonSources.file) })
+    into layout.buildDirectory.dir('generated/sources/forgeCommon')
+}
+
+sourceSets.main.java.srcDir(unpackCommonSources.map { it.destinationDir })
 
 def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
     def values = [
@@ -55,5 +129,19 @@ def generateModMetadata = tasks.register('generateModMetadata', ProcessResources
 sourceSets.main.resources.srcDir generateModMetadata
 
 tasks.named('jar', Jar).configure {
+    archiveClassifier = 'dev'
     from sourceSets.main.output.classesDirs
+}
+
+def reobfJar = renamer.classes('reobfJar', tasks.named('jar', Jar)) {
+    map = configurations.forgeRuntimeMappings
+    archiveClassifier = ''
+    output = layout.buildDirectory.file("libs/${mod_id}-${minecraft_version}-forge-${mod_version}.jar")
+    javaLauncher = javaToolchains.launcherFor { spec ->
+        spec.languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+tasks.named('assemble').configure {
+    dependsOn reobfJar
 }
