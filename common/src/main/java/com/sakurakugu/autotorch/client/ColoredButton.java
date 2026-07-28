@@ -18,13 +18,14 @@ final class ColoredButton extends Button {
 
     @Override
     public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-        int color = isHoveredOrFocused() ? hoveredColor : backgroundColor;
+        boolean highlighted = isHovered() || isFocused();
+        int color = highlighted ? hoveredColor : backgroundColor;
         if (!active) {
             color = 0xCC555555;
         }
         fill(poseStack, x + 1, y + 1,
                 x + getWidth() - 1, y + getHeight() - 1, color);
-        int outlineColor = isHoveredOrFocused() ? 0xFFFFFFFF : 0xFFB0B0B0;
+        int outlineColor = highlighted ? 0xFFFFFFFF : 0xFFB0B0B0;
         fill(poseStack, x, y, x + getWidth(), y + 1, outlineColor);
         fill(poseStack, x, y + getHeight() - 1, x + getWidth(), y + getHeight(), outlineColor);
         fill(poseStack, x, y + 1, x + 1, y + getHeight() - 1, outlineColor);

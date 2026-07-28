@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -14,7 +15,6 @@ public final class LightOverlayRenderer {
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
     private static final int SAFE_COLOR = 0xE050E060;
-    private static final int SWAMP_SLIME_RISK_COLOR = 0xE0E050E0;
     private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
     private static final float CROSS_LINE_WIDTH = 2.5F;
     private static final float DIGIT_LINE_WIDTH = 4.0F;
@@ -52,12 +52,25 @@ public final class LightOverlayRenderer {
     public static void render(
             Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderType renderType
     ) {
-        renderGeometry(camera, poseStack, (stack, renderer) ->
+        renderGeometry(camera, poseStack, renderData, (stack, renderer) ->
                 renderer.render(stack.last(), buffers.getBuffer(renderType)));
     }
 
-    private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {
-        RenderData data = renderData;
+    public static void renderFiltered(
+            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderType renderType,
+            Predicate<LightOverlayState.Marker> filter
+    ) {
+        RenderData current = renderData;
+        if (current == null) return;
+        RenderData filtered = buildRenderData(
+                current.sourceMarkers(), current.displayMode(), filter, 8);
+        renderGeometry(camera, poseStack, filtered, (stack, renderer) ->
+                renderer.render(stack.last(), buffers.getBuffer(renderType)));
+    }
+
+    private static void renderGeometry(
+            Vec3 camera, PoseStack poseStack, RenderData data, GeometrySink sink
+    ) {
         if (data == null || data.lineCount() == 0 || Minecraft.getInstance().level == null) {
             return;
         }
@@ -71,8 +84,18 @@ public final class LightOverlayRenderer {
     private static RenderData buildRenderData(
             List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
     ) {
-        GeometryBuilder geometry = new GeometryBuilder(markers.size());
+        return buildRenderData(markers, displayMode, marker -> true, markers.size());
+    }
+
+    private static RenderData buildRenderData(
+            List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode,
+            Predicate<LightOverlayState.Marker> filter, int expectedMarkerCount
+    ) {
+        GeometryBuilder geometry = new GeometryBuilder(expectedMarkerCount);
         for (LightOverlayState.Marker marker : markers) {
+            if (!filter.test(marker)) {
+                continue;
+            }
             if (displayMode == LightOverlayState.DisplayMode.NUMBERS) {
                 addNumber(geometry, marker);
                 continue;
@@ -111,7 +134,6 @@ public final class LightOverlayRenderer {
 
     private static int markerColor(LightOverlayState.Marker marker) {
         return switch (marker.riskType()) {
-            case SWAMP_SLIME -> SWAMP_SLIME_RISK_COLOR;
             case DROWNED -> DROWNED_RISK_COLOR;
             case NORMAL -> marker.blockLight() > 0 ? SAFE_COLOR
                     : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
@@ -162,10 +184,15 @@ public final class LightOverlayRenderer {
         float nx = x2 - x1;
         float ny = y2 - y1;
         float nz = z2 - z1;
-        buffer.vertex(pose.pose(), x1, y1, z1)
-                .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
-        buffer.vertex(pose.pose(), x2, y2, z2)
-                .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
+        applyColor(buffer.vertex(pose.pose(), x1, y1, z1), color)
+                .normal(pose.normal(), nx, ny, nz).endVertex();
+        applyColor(buffer.vertex(pose.pose(), x2, y2, z2), color)
+                .normal(pose.normal(), nx, ny, nz).endVertex();
+    }
+
+    private static VertexConsumer applyColor(VertexConsumer vertex, int color) {
+        return vertex.color((color >> 16) & 0xFF, (color >> 8) & 0xFF,
+                color & 0xFF, (color >>> 24) & 0xFF);
     }
 
     private record RenderData(

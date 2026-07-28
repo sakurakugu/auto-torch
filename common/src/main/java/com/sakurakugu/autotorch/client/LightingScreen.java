@@ -187,11 +187,9 @@ public final class LightingScreen extends Screen {
         }));
         addRenderableWidget(new LightRangeSlider(left + 202, 258, 108, 20));
 
-        swampSlimeDetectionButton = addRenderableWidget(withTooltip(button(left, 282, 153, 20,
-                swampSlimeDetectionMessage(), button -> {
-            LightOverlayState.toggleSwampSlimeDetection();
-            swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
-        }), new TranslatableComponent("screen.autotorch.swamp_slime_detection.tooltip")));
+        swampSlimeDetectionButton = addRenderableWidget(button(left, 282, 153, 20,
+                swampSlimeDetectionMessage(), button -> { }));
+        swampSlimeDetectionButton.active = false;
         drownedDetectionButton = addRenderableWidget(withTooltip(button(left + 157, 282, 153, 20,
                 drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
@@ -780,9 +778,7 @@ public final class LightingScreen extends Screen {
     }
 
     private Component swampSlimeDetectionMessage() {
-        return new TranslatableComponent(LightOverlayState.isSwampSlimeDetectionEnabled()
-                ? "screen.autotorch.swamp_slime_detection_on"
-                : "screen.autotorch.swamp_slime_detection_off");
+        return new TranslatableComponent("screen.autotorch.swamp_slime_detection_unavailable");
     }
 
     private Component drownedDetectionMessage() {

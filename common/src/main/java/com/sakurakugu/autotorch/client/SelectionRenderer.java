@@ -455,10 +455,10 @@ public final class SelectionRenderer {
             int latitude, int longitude, int color
     ) {
         double horizontal = SPHERE_LATITUDE_COS[latitude] * radius;
-        buffer.vertex(pose.pose(),
+        applyColor(buffer.vertex(pose.pose(),
                 (float) (cx + SPHERE_LONGITUDE_COS[longitude] * horizontal),
                 (float) (cy + SPHERE_LATITUDE_SIN[latitude] * radius),
-                (float) (cz + SPHERE_LONGITUDE_SIN[longitude] * horizontal)).color(color).endVertex();
+                (float) (cz + SPHERE_LONGITUDE_SIN[longitude] * horizontal)), color).endVertex();
     }
 
     private static void quad(
@@ -467,10 +467,10 @@ public final class SelectionRenderer {
             double x3, double y3, double z3, double x4, double y4, double z4, int color
     ) {
         // 选区面使用独立四边形且不写深度，保证水面等透明内容仍能正常渲染。
-        buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1).color(color).endVertex();
-        buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2).color(color).endVertex();
-        buffer.vertex(pose.pose(), (float) x3, (float) y3, (float) z3).color(color).endVertex();
-        buffer.vertex(pose.pose(), (float) x4, (float) y4, (float) z4).color(color).endVertex();
+        applyColor(buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1), color).endVertex();
+        applyColor(buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2), color).endVertex();
+        applyColor(buffer.vertex(pose.pose(), (float) x3, (float) y3, (float) z3), color).endVertex();
+        applyColor(buffer.vertex(pose.pose(), (float) x4, (float) y4, (float) z4), color).endVertex();
     }
 
     private static void line(
@@ -493,10 +493,15 @@ public final class SelectionRenderer {
             ny /= length;
             nz /= length;
         }
-        buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1)
-                .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
-        buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2)
-                .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
+        applyColor(buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1), color)
+                .normal(pose.normal(), nx, ny, nz).endVertex();
+        applyColor(buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2), color)
+                .normal(pose.normal(), nx, ny, nz).endVertex();
+    }
+
+    private static VertexConsumer applyColor(VertexConsumer vertex, int color) {
+        return vertex.color((color >> 16) & 0xFF, (color >> 8) & 0xFF,
+                color & 0xFF, (color >>> 24) & 0xFF);
     }
 
     private record RenderData(
