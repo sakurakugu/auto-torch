@@ -9,11 +9,11 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.util.text.TextFormatting;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.world.WorldServer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -69,7 +69,7 @@ final class LightingTask {
     ) {
         this.level = level;
         this.selection = selection;
-        this.min = scanMin.toImmutable();
+        this.min = scanMin.getImmutable();
         this.sizeX = scanMax.getX() - min.getX() + 1;
         this.sizeY = scanMax.getY() - min.getY() + 1;
         this.sizeZ = scanMax.getZ() - min.getZ() + 1;
@@ -91,7 +91,7 @@ final class LightingTask {
     }
 
     TickResult tick(EntityPlayerMP player, int scanBudget, int placeBudget) {
-        if (player.getServerWorld() != level) {
+        if (player.getServerForPlayer() != level) {
             return finish(player, "message.autotorch.wrong_dimension", 0, 0);
         }
         if (maxTorches > 0 && placed >= maxTorches) {
@@ -133,7 +133,7 @@ final class LightingTask {
             if (consumeTorches && !hasTorch(player)) {
                 return finish(player, "message.autotorch.out_of_torches", scannedThisTick, placedThisTick, placed);
             }
-            if (!level.setBlockState(torchPos, Blocks.TORCH.getDefaultState(), UPDATE_ALL)) {
+            if (!level.setBlockState(torchPos, Blocks.torch.getDefaultState(), UPDATE_ALL)) {
                 continue;
             }
             if (consumeTorches) {
@@ -170,7 +170,7 @@ final class LightingTask {
                 scanIndex * PROGRESS_BAR_LENGTH / volume);
         String bar = formattedProgressBar(pass, passFilled);
         LightingTaskManager.sendSystemMessage(
-                player, new TextComponentTranslation("message.autotorch.progress", bar, percent, placed), true);
+                player, new ChatComponentTranslation("message.autotorch.progress", bar, percent, placed), true);
     }
 
     private static TickResult finish(
@@ -180,8 +180,8 @@ final class LightingTask {
             int placedThisTick,
             Object... messageArguments
     ) {
-        LightingTaskManager.sendSystemMessage(player, new TextComponentString(""), true);
-        LightingTaskManager.sendSystemMessage(player, new TextComponentTranslation(messageKey, messageArguments));
+        LightingTaskManager.sendSystemMessage(player, new ChatComponentText(""), true);
+        LightingTaskManager.sendSystemMessage(player, new ChatComponentTranslation(messageKey, messageArguments));
         return new TickResult(true, scannedThisTick, placedThisTick);
     }
 
@@ -199,7 +199,7 @@ final class LightingTask {
         if (isExcluded(feet) || !level.isAirBlock(feet) || !level.isAirBlock(feet.up())) {
             return false;
         }
-        if (level.getBlockState(feet).getMaterial().isLiquid()
+        if (level.getBlockState(feet).getBlock().getMaterial().isLiquid()
                 || level.getLightFor(EnumSkyBlock.BLOCK, feet) > lightThreshold) {
             return false;
         }
@@ -209,7 +209,7 @@ final class LightingTask {
 
         BlockPos floorPos = feet.down();
         IBlockState floor = level.getBlockState(floorPos);
-        return floor.isSideSolid(level, floorPos, EnumFacing.UP);
+        return floor.getBlock().isSideSolid(level, floorPos, EnumFacing.UP);
     }
 
     private BlockPos findTorchPosition(EntityPlayerMP player, BlockPos darkPosition) {
@@ -224,15 +224,16 @@ final class LightingTask {
             if (!insideSelection(candidate) || isExcluded(candidate) || !isChunkLoaded(candidate)) {
                 continue;
             }
-            if (!level.isAirBlock(candidate) || level.getBlockState(candidate).getMaterial().isLiquid()) {
+            if (!level.isAirBlock(candidate)
+                    || level.getBlockState(candidate).getBlock().getMaterial().isLiquid()) {
                 continue;
             }
 
             BlockPos floorPos = candidate.down();
             IBlockState floor = level.getBlockState(floorPos);
-            if (floor.isSideSolid(level, floorPos, EnumFacing.UP)
+            if (floor.getBlock().isSideSolid(level, floorPos, EnumFacing.UP)
                     && level.isBlockModifiable(player, candidate)) {
-                return candidate.toImmutable();
+                return candidate.getImmutable();
             }
         }
         return null;
@@ -289,7 +290,7 @@ final class LightingTask {
     private static boolean hasTorch(EntityPlayerMP player) {
         for (int slot = 0; slot < player.inventory.getSizeInventory(); slot++) {
             ItemStack stack = player.inventory.getStackInSlot(slot);
-            if (stack != null && stack.getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
+            if (stack != null && stack.getItem() == Item.getItemFromBlock(Blocks.torch)) {
                 return true;
             }
         }
@@ -299,7 +300,7 @@ final class LightingTask {
     private static void consumeTorch(EntityPlayerMP player) {
         for (int slot = 0; slot < player.inventory.getSizeInventory(); slot++) {
             ItemStack stack = player.inventory.getStackInSlot(slot);
-            if (stack != null && stack.getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
+            if (stack != null && stack.getItem() == Item.getItemFromBlock(Blocks.torch)) {
                 stack.stackSize--;
                 if (stack.stackSize <= 0) {
                     player.inventory.setInventorySlotContents(slot, null);
@@ -344,11 +345,11 @@ final class LightingTask {
     }
 
     static String formattedProgressBar(int pass, int filled) {
-        TextFormatting filledColor = pass == 0 ? TextFormatting.GRAY : TextFormatting.GREEN;
-        TextFormatting remainingColor = pass == 0 ? TextFormatting.DARK_GRAY : TextFormatting.GRAY;
+        EnumChatFormatting filledColor = pass == 0 ? EnumChatFormatting.GRAY : EnumChatFormatting.GREEN;
+        EnumChatFormatting remainingColor = pass == 0 ? EnumChatFormatting.DARK_GRAY : EnumChatFormatting.GRAY;
         return filledColor + progressBar(filled)
                 + remainingColor + progressBar(PROGRESS_BAR_LENGTH - filled)
-                + TextFormatting.RESET;
+                + EnumChatFormatting.RESET;
     }
 
     static final class TickResult {

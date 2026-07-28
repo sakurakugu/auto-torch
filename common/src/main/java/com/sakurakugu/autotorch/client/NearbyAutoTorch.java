@@ -3,16 +3,14 @@ package com.sakurakugu.autotorch.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
 import net.minecraft.client.entity.EntityPlayerSP;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.EnumActionResult;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.Vec3;
 
 /** 通过普通客户端交互，在玩家附近的黑暗区域放置快捷栏中的火把。 */
 public final class NearbyAutoTorch {
@@ -79,11 +77,11 @@ public final class NearbyAutoTorch {
                             || isWaitingToRetry(candidate)) {
                         continue;
                     }
-                    Vec3d center = centerOf(candidate);
+                    Vec3 center = centerOf(candidate);
                     double distance = player.getDistanceSq(center.xCoord, center.yCoord, center.zCoord);
                     if (distance < bestDistance) {
                         bestDistance = distance;
-                        best = candidate.toImmutable();
+                        best = candidate.getImmutable();
                     }
                 }
             }
@@ -92,15 +90,17 @@ public final class NearbyAutoTorch {
     }
 
     private static boolean isValidTarget(World level, EntityPlayerSP player, BlockPos target) {
-        if (!level.isAirBlock(target) || level.getBlockState(target).getMaterial().isLiquid()) {
+        if (!level.isAirBlock(target)
+                || level.getBlockState(target).getBlock().getMaterial().isLiquid()) {
             return false;
         }
         BlockPos floorPos = target.down();
-        if (!level.getBlockState(floorPos).isSideSolid(level, floorPos, EnumFacing.UP)
-                || player.getEntityBoundingBox().intersectsWith(new AxisAlignedBB(target))) {
+        if (!level.getBlockState(floorPos).getBlock().isSideSolid(level, floorPos, EnumFacing.UP)
+                || player.getEntityBoundingBox().intersectsWith(
+                        new AxisAlignedBB(target, target.add(1, 1, 1)))) {
             return false;
         }
-        Vec3d hitLocation = centerOf(target.down()).addVector(0.0, 0.5, 0.0);
+        Vec3 hitLocation = centerOf(target.down()).addVector(0.0, 0.5, 0.0);
         return player.getPositionEyes(1.0F).squareDistanceTo(hitLocation) <= 20.25;
     }
 
@@ -118,23 +118,20 @@ public final class NearbyAutoTorch {
     }
 
     private static TorchSource findTorch(EntityPlayerSP player) {
-        if (isTorch(player.getHeldItemOffhand())) {
-            return new TorchSource(EnumHand.OFF_HAND, -1);
-        }
         int selected = player.inventory.currentItem;
         if (isTorch(player.inventory.getStackInSlot(selected))) {
-            return new TorchSource(EnumHand.MAIN_HAND, selected);
+            return new TorchSource(selected);
         }
         for (int slot = 0; slot < 9; slot++) {
             if (isTorch(player.inventory.getStackInSlot(slot))) {
-                return new TorchSource(EnumHand.MAIN_HAND, slot);
+                return new TorchSource(slot);
             }
         }
         return null;
     }
 
     private static boolean isTorch(ItemStack stack) {
-        return stack != null && stack.getItem() == Item.getItemFromBlock(Blocks.TORCH);
+        return stack != null && stack.getItem() == Item.getItemFromBlock(Blocks.torch);
     }
 
     private static void place(Minecraft minecraft, TorchSource torch, BlockPos target) {
@@ -145,34 +142,31 @@ public final class NearbyAutoTorch {
         }
 
         BlockPos support = target.down();
-        EnumActionResult result = minecraft.playerController.processRightClickBlock(
-                player, minecraft.theWorld, player.getHeldItem(torch.hand()), support, EnumFacing.UP,
-                centerOf(support).addVector(0.0, 0.5, 0.0), torch.hand());
-        if (result == EnumActionResult.SUCCESS) {
-            player.swingArm(torch.hand());
+        boolean placed = minecraft.playerController.onPlayerRightClick(
+                player, minecraft.theWorld, player.getHeldItem(), support, EnumFacing.UP,
+                centerOf(support).addVector(0.0, 0.5, 0.0));
+        if (placed) {
+            player.swingItem();
         }
 
         if (torch.hotbarSlot() >= 0) {
             player.inventory.currentItem = previousSlot;
         }
-        lastAttemptPosition = target.toImmutable();
+        lastAttemptPosition = target.getImmutable();
         lastAttemptAge = 0;
     }
 
-    private static Vec3d centerOf(BlockPos pos) {
-        return new Vec3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+    private static Vec3 centerOf(BlockPos pos) {
+        return new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
     }
 
     private static final class TorchSource {
-        private final EnumHand hand;
         private final int hotbarSlot;
 
-        private TorchSource(EnumHand hand, int hotbarSlot) {
-            this.hand = hand;
+        private TorchSource(int hotbarSlot) {
             this.hotbarSlot = hotbarSlot;
         }
 
-        private EnumHand hand() { return hand; }
         private int hotbarSlot() { return hotbarSlot; }
     }
 }

@@ -7,7 +7,7 @@ import java.util.List;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.world.World;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.BlockPos;
 
 /** 保存当前客户端世界中的临时选区；这些数据不会跨世界持久化。 */
 public final class SelectionState {
@@ -31,8 +31,8 @@ public final class SelectionState {
     public static void updateLevel(World currentLevel, BlockPos currentPosition) {
         if (level != currentLevel) {
             level = currentLevel;
-            first = currentPosition.toImmutable();
-            second = currentPosition.toImmutable();
+            first = currentPosition.getImmutable();
+            second = currentPosition.getImmutable();
             lightingZone = null;
             shape = AreaShape.BOX;
             displayMode = ClientConfig.usesSelectionLines() ? DisplayMode.LINES : DisplayMode.FACES;
@@ -48,7 +48,7 @@ public final class SelectionState {
 
     public static BlockPos first(BlockPos fallback) {
         if (first == null) {
-            first = fallback.toImmutable();
+            first = fallback.getImmutable();
             renderRevision++;
         }
         return first;
@@ -56,20 +56,20 @@ public final class SelectionState {
 
     public static BlockPos second(BlockPos fallback) {
         if (second == null) {
-            second = fallback.toImmutable();
+            second = fallback.getImmutable();
             renderRevision++;
         }
         return second;
     }
 
     public static void setFirst(BlockPos pos) {
-        first = pos.toImmutable();
+        first = pos.getImmutable();
         drafting = true;
         renderRevision++;
     }
 
     public static void setSecond(BlockPos pos) {
-        second = pos.toImmutable();
+        second = pos.getImmutable();
         drafting = true;
         renderRevision++;
     }

@@ -2,7 +2,7 @@ package com.sakurakugu.autotorch.network;
 
 import com.sakurakugu.autotorch.AutoTorchRules;
 import java.util.Objects;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.BlockPos;
 
 /** 由 A/B 两点定义的球形或轴对齐长方体区域。 */
 public final class AreaZone {
@@ -13,8 +13,8 @@ public final class AreaZone {
 
     public AreaZone(AreaShape shape, BlockPos first, BlockPos second) {
         this.shape = shape;
-        this.first = first.toImmutable();
-        this.second = second.toImmutable();
+        this.first = first.getImmutable();
+        this.second = second.getImmutable();
     }
 
     public AreaShape shape() {

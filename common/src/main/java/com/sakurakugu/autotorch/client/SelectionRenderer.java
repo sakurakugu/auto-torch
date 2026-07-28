@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.minecraft.client.renderer.VertexBuffer;
+import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.Tessellator;
 
@@ -14,9 +14,9 @@ import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import java.util.HashSet;
 import java.util.Set;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.Vec3;
 import org.lwjgl.opengl.GL11;
 
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
@@ -96,7 +96,7 @@ public final class SelectionRenderer {
         renderRevision = SelectionState.renderRevision();
     }
 
-    public static void render(Vec3d camera) {
+    public static void render(Vec3 camera) {
         RenderData data = renderData;
         if (data == null || data.draft() == null && data.lightingZone() == null && data.exclusions().isEmpty()) {
             return;
@@ -104,7 +104,7 @@ public final class SelectionRenderer {
         boolean lines = data.displayMode() == SelectionState.DisplayMode.LINES;
         setupRenderState(lines);
         Tessellator tesselator = Tessellator.getInstance();
-        VertexBuffer builder = tesselator.getBuffer();
+        WorldRenderer builder = tesselator.getWorldRenderer();
         builder.begin(lines ? GL11.GL_LINES : GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
         builder.setTranslation(-camera.xCoord, -camera.yCoord, -camera.zCoord);
         renderZones(Pose.INSTANCE, new VertexConsumer(builder), data);
@@ -536,9 +536,9 @@ public final class SelectionRenderer {
     }
 
     private static final class VertexConsumer {
-        private final VertexBuffer builder;
+        private final WorldRenderer builder;
 
-        private VertexConsumer(VertexBuffer builder) {
+        private VertexConsumer(WorldRenderer builder) {
             this.builder = builder;
         }
 

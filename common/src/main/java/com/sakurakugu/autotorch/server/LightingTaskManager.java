@@ -12,12 +12,12 @@ import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.IChatComponent;
+import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.network.play.server.SPacketChat;
+import net.minecraft.network.play.server.S02PacketChat;
 import net.minecraft.server.MinecraftServer;
 
 /** 按玩家管理照明任务，并在每个服务端刻推进任务。 */
@@ -28,18 +28,18 @@ public final class LightingTaskManager {
     private LightingTaskManager() {
     }
 
-    static void sendSystemMessage(EntityPlayerMP player, ITextComponent message) {
+    static void sendSystemMessage(EntityPlayerMP player, IChatComponent message) {
         sendSystemMessage(player, message, false);
     }
 
-    static void sendSystemMessage(EntityPlayerMP player, ITextComponent message, boolean overlay) {
-        player.connection.sendPacket(new SPacketChat(message, (byte) (overlay ? 2 : 0)));
+    static void sendSystemMessage(EntityPlayerMP player, IChatComponent message, boolean overlay) {
+        player.playerNetServerHandler.sendPacket(new S02PacketChat(message, (byte) (overlay ? 2 : 0)));
     }
 
     public static void start(EntityPlayerMP player, StartLightingPayload payload) {
         // 网络载荷不可信，所有会影响扫描范围和资源消耗的参数都在服务端校验。
         if (!player.isAllowEdit()) {
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.no_build_permission"));
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.no_build_permission"));
             return;
         }
 
@@ -58,20 +58,20 @@ public final class LightingTaskManager {
 
         if (!isValidZone(selection) || sizeX > maxSelectionBoundAxis || sizeY > maxSelectionBoundAxis
                 || sizeZ > maxSelectionBoundAxis || volume > maxSelectionBoundVolume) {
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.area_too_large",
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.area_too_large",
                     ServerConfig.maxBoxAxisLength(), ServerConfig.maxSphereRadius()));
             return;
         }
         int scanMinY = Math.max(min.getY(), 0);
-        int scanMaxY = Math.min(max.getY(), player.getServerWorld().getHeight() - 1);
+        int scanMaxY = Math.min(max.getY(), player.getServerForPlayer().getHeight() - 1);
         if (scanMinY > scanMaxY) {
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.outside_world"));
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.outside_world"));
             return;
         }
         BlockPos scanMin = new BlockPos(min.getX(), scanMinY, min.getZ());
         BlockPos scanMax = new BlockPos(max.getX(), scanMaxY, max.getZ());
         if (!isValidWorldPosition(scanMin) || !isValidWorldPosition(scanMax)) {
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.outside_world"));
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.outside_world"));
             return;
         }
         long scanVolume = sizeX * ((long) scanMaxY - scanMinY + 1L) * sizeZ;
@@ -79,26 +79,26 @@ public final class LightingTaskManager {
         if (payload.maxTorches() < 0
                 || payload.maxTorches() > ServerConfig.maxTorchesPerTask()
                 || (payload.maxTorches() == 0 && !ServerConfig.allowsUnlimitedTorches())) {
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.invalid_settings"));
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.invalid_settings"));
             return;
         }
         if (payload.minSpacing() < ServerConfig.minSpacing()
                 || payload.minSpacing() > ServerConfig.maxSpacing()) {
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.invalid_settings"));
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.invalid_settings"));
             return;
         }
         if (payload.lightThreshold() < ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.minValue()
                 || payload.lightThreshold() > ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.maxValue()) {
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.invalid_settings"));
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.invalid_settings"));
             return;
         }
         if (payload.exclusions().size() > ServerConfig.maxExclusions()
                 || payload.exclusions().stream().anyMatch(zone -> !isValidZone(zone))) {
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.invalid_settings"));
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.invalid_settings"));
             return;
         }
         if (!TASKS.containsKey(player.getUniqueID()) && TASKS.size() >= ServerConfig.maxConcurrentTasks()) {
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.server_busy"));
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.server_busy"));
             return;
         }
 
@@ -106,19 +106,19 @@ public final class LightingTaskManager {
         int minSpacing = payload.minSpacing();
         int lightThreshold = payload.lightThreshold();
         boolean consumeTorches = AutoTorchRules.consumesInventoryTorches(
-                player.isCreative(), payload.consumeTorches(), ServerConfig.survivalConsumesTorches(),
-                player.getServer().isSinglePlayer()
-                        && Objects.equals(player.getServer().getServerOwner(),
+                player.capabilities.isCreativeMode, payload.consumeTorches(), ServerConfig.survivalConsumesTorches(),
+                player.mcServer.isSinglePlayer()
+                        && Objects.equals(player.mcServer.getServerOwner(),
                         player.getGameProfile().getName()));
 
         LightingTask task = new LightingTask(
-                player.getServerWorld(), selection, scanMin, scanMax, maxTorches, minSpacing, lightThreshold,
+                player.getServerForPlayer(), selection, scanMin, scanMax, maxTorches, minSpacing, lightThreshold,
                 consumeTorches, payload.undergroundOnly(),
                 payload.exclusions(), player.getUniqueID()
         );
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
         TASKS.put(player.getUniqueID(), task);
-        sendSystemMessage(player, new TextComponentTranslation("message.autotorch.started", scanVolume));
+        sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.started", scanVolume));
         task.showInitialProgress(player);
     }
 
@@ -143,10 +143,10 @@ public final class LightingTaskManager {
 
     public static void cancel(EntityPlayerMP player) {
         if (TASKS.remove(player.getUniqueID()) != null) {
-            sendSystemMessage(player, new TextComponentString(""), true);
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.cancelled"));
+            sendSystemMessage(player, new ChatComponentText(""), true);
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.cancelled"));
         } else {
-            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.no_task"));
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.no_task"));
         }
     }
 
@@ -164,7 +164,7 @@ public final class LightingTaskManager {
 
         for (UUID playerId : players) {
             LightingTask task = TASKS.get(playerId);
-            EntityPlayerMP player = server.getPlayerList().getPlayerByUUID(playerId);
+            EntityPlayerMP player = server.getConfigurationManager().getPlayerByUUID(playerId);
             if (task != null && player != null) {
                 task.tickProgress(player);
             }
@@ -173,7 +173,7 @@ public final class LightingTaskManager {
         for (int offset = 0; offset < taskCount && scanRemaining > 0 && placeRemaining > 0; offset++) {
             UUID playerId = players.get((roundRobinStart + offset) % taskCount);
             LightingTask task = TASKS.get(playerId);
-            EntityPlayerMP player = server.getPlayerList().getPlayerByUUID(playerId);
+            EntityPlayerMP player = server.getConfigurationManager().getPlayerByUUID(playerId);
             if (task == null || player == null) {
                 completed.add(playerId);
                 continue;

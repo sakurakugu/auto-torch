@@ -4,13 +4,12 @@ import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
-import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.EnumHand;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import org.lwjgl.input.Keyboard;
@@ -47,7 +46,7 @@ public final class AutoTorchClient {
         while (TOGGLE_LIGHT_OVERLAY.isPressed()) {
             if (minecraft.thePlayer != null) {
                 boolean enabled = LightOverlayState.toggle();
-                minecraft.ingameGUI.setRecordPlaying(new TextComponentTranslation(enabled
+                minecraft.ingameGUI.setRecordPlaying(new ChatComponentTranslation(enabled
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
             }
         }
@@ -57,14 +56,14 @@ public final class AutoTorchClient {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
                 || !level.isRemote
                 || stack == null
-                || stack.getItem() != Items.WOODEN_AXE) {
+                || stack.getItem() != Items.wooden_axe) {
             return false;
         }
         // 长按破坏方块会连续触发事件，只在 START 阶段记录一次 A 点。
         if (start) {
             SelectionState.setFirst(pos);
             Minecraft.getMinecraft().ingameGUI.setRecordPlaying(
-                    new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
+                    new ChatComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                                     ? "message.autotorch.selected_center" : "message.autotorch.selected_a",
                             formatPosition(pos)), false
             );
@@ -72,12 +71,11 @@ public final class AutoTorchClient {
         return true;
     }
 
-    public boolean onRightClick(World level, EnumHand hand, ItemStack stack, BlockPos pos) {
+    public boolean onRightClick(World level, ItemStack stack, BlockPos pos) {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
                 || !level.isRemote
-                || hand != EnumHand.MAIN_HAND
                 || stack == null
-                || stack.getItem() != Items.WOODEN_AXE) {
+                || stack.getItem() != Items.wooden_axe) {
             return false;
         }
         SelectionState.setSecond(pos);
@@ -86,14 +84,14 @@ public final class AutoTorchClient {
             long maxRadiusSquared = (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
             if (draft.radiusSquared() > maxRadiusSquared) {
                 Minecraft.getMinecraft().ingameGUI.setRecordPlaying(
-                        new TextComponentTranslation("message.autotorch.sphere_radius_too_large",
-                                AreaZone.MAX_SPHERE_RADIUS).setStyle(new net.minecraft.util.text.Style().setColor(TextFormatting.RED)), false
+                        new ChatComponentTranslation("message.autotorch.sphere_radius_too_large",
+                                AreaZone.MAX_SPHERE_RADIUS).setChatStyle(new net.minecraft.util.ChatStyle().setColor(EnumChatFormatting.RED)), false
                 );
                 return true;
             }
         }
         Minecraft.getMinecraft().ingameGUI.setRecordPlaying(
-                new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
+                new ChatComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                                 ? "message.autotorch.selected_radius" : "message.autotorch.selected_b",
                         formatPosition(pos)), false
         );

@@ -7,17 +7,17 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.IChatComponent;
 import org.lwjgl.input.Mouse;
 
-/** 集中适配 1.9.4 GuiScreen 与界面业务使用的控件生命周期。 */
+/** 集中适配 1.8.9 GuiScreen 与界面业务使用的控件生命周期。 */
 abstract class Screen extends GuiScreen {
     protected Minecraft minecraft;
     protected FontRenderer font;
-    protected final ITextComponent title;
+    protected final IChatComponent title;
     protected final List<Object> children = new ArrayList<>();
     private Button pressedButton;
-    Screen(ITextComponent title) { this.title = title; }
+    Screen(IChatComponent title) { this.title = title; }
     protected abstract void init();
     @Override public final void initGui() { minecraft = mc; font = fontRendererObj; buttonList.clear(); children.clear(); init(); }
     public void onClose() { minecraft.displayGuiScreen(null); }

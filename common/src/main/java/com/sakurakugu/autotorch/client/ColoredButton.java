@@ -1,14 +1,14 @@
 package com.sakurakugu.autotorch.client;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.IChatComponent;
 
 /** 使用明确语义色的普通按钮，保留原版按钮的输入、焦点和旁白行为。 */
 final class ColoredButton extends Button {
     private final int backgroundColor;
     private final int hoveredColor;
 
-    ColoredButton(int x, int y, int width, int height, ITextComponent message, OnPress onPress, int backgroundColor, int hoveredColor) {
+    ColoredButton(int x, int y, int width, int height, IChatComponent message, OnPress onPress, int backgroundColor, int hoveredColor) {
         super(x, y, width, height, message.getFormattedText(), onPress);
         this.backgroundColor = backgroundColor;
         this.hoveredColor = hoveredColor;

@@ -8,8 +8,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ActiveRenderInfo;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.entity.Entity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.Vec3;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -33,23 +33,27 @@ final class AutoTorchForgeClient {
             if (!Minecraft.getMinecraft().gameSettings.keyBindAttack.isKeyDown()) selectionClickPos = null;
         }
     }
-    @SubscribeEvent public void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
-        boolean start = selectionClickPos == null || !selectionClickPos.equals(event.getPos());
-        if (event.getEntityPlayer() != null && event.getEntityPlayer().worldObj instanceof WorldClient && client.onLeftClick((WorldClient) event.getEntityPlayer().worldObj, event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos(), start)) {
-            selectionClickPos = event.getPos(); event.setCanceled(true);
-        }
-    }
-    @SubscribeEvent public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getEntityPlayer() != null && event.getEntityPlayer().worldObj instanceof WorldClient && client.onRightClick((WorldClient) event.getEntityPlayer().worldObj, event.getHand(), event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos())) {
+    @SubscribeEvent public void onInteract(PlayerInteractEvent event) {
+        if (event.entityPlayer == null || !(event.entityPlayer.worldObj instanceof WorldClient)) return;
+        if (event.action == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK) {
+            boolean start = selectionClickPos == null || !selectionClickPos.equals(event.pos);
+            if (client.onLeftClick((WorldClient) event.entityPlayer.worldObj,
+                    event.entityPlayer.getHeldItem(), event.pos, start)) {
+                selectionClickPos = event.pos;
+                event.setCanceled(true);
+            }
+        } else if (event.action == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK
+                && client.onRightClick((WorldClient) event.entityPlayer.worldObj,
+                        event.entityPlayer.getHeldItem(), event.pos)) {
             event.setCanceled(true);
         }
     }
     @SubscribeEvent public void onRender(RenderWorldLastEvent event) {
         Minecraft minecraft = Minecraft.getMinecraft(); if (minecraft.theWorld == null) return;
         Entity view = minecraft.getRenderViewEntity(); if (view == null) return;
-        float partial = event.getPartialTicks();
-        Vec3d origin = new Vec3d(view.lastTickPosX + (view.posX - view.lastTickPosX) * partial, view.lastTickPosY + (view.posY - view.lastTickPosY) * partial, view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partial);
-        Vec3d camera = ActiveRenderInfo.projectViewFromEntity(view, partial);
+        float partial = event.partialTicks;
+        Vec3 origin = new Vec3(view.lastTickPosX + (view.posX - view.lastTickPosX) * partial, view.lastTickPosY + (view.posY - view.lastTickPosY) * partial, view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partial);
+        Vec3 camera = ActiveRenderInfo.projectViewFromEntity(view, partial);
         BlockPos cameraPos = new BlockPos(camera);
         SelectionRenderer.extract(cameraPos); LightOverlayRenderer.extract();
         SelectionRenderer.render(origin); LightOverlayRenderer.render(origin);

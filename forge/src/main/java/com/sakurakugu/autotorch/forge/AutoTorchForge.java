@@ -5,7 +5,6 @@ import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.util.EnumHand;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -16,7 +15,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 
 @Mod(modid = AutoTorch.MOD_ID, useMetadata = true,
-        acceptedMinecraftVersions = "[1.9.4]", dependencies = "required-after:Forge@[12,)")
+        acceptedMinecraftVersions = "[1.8.9]", dependencies = "required-after:Forge@[11,)")
 public final class AutoTorchForge {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
@@ -31,11 +30,12 @@ public final class AutoTorchForge {
     @SubscribeEvent public void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase == TickEvent.Phase.END && FMLCommonHandler.instance().getMinecraftServerInstance() != null) LightingTaskManager.onServerTick(FMLCommonHandler.instance().getMinecraftServerInstance());
     }
-    @SubscribeEvent public void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
-        if (event.getEntityPlayer() instanceof EntityPlayerMP && SelectionToolEvents.handlesInteraction((EntityPlayerMP) event.getEntityPlayer(), event.getEntityPlayer().getHeldItem(event.getHand()))) event.setCanceled(true);
-    }
-    @SubscribeEvent public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getHand() == EnumHand.MAIN_HAND && event.getEntityPlayer() instanceof EntityPlayerMP && SelectionToolEvents.handlesInteraction((EntityPlayerMP) event.getEntityPlayer(), event.getEntityPlayer().getHeldItem(event.getHand()))) {
+    @SubscribeEvent public void onInteract(PlayerInteractEvent event) {
+        if ((event.action == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK
+                || event.action == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK)
+                && event.entityPlayer instanceof EntityPlayerMP
+                && SelectionToolEvents.handlesInteraction(
+                        (EntityPlayerMP) event.entityPlayer, event.entityPlayer.getHeldItem())) {
             event.setCanceled(true);
         }
     }

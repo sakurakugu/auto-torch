@@ -1,8 +1,8 @@
 package com.sakurakugu.autotorch.server;
 
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentTranslation;
-import net.minecraft.util.text.TextFormatting;
+import net.minecraft.util.IChatComponent;
+import net.minecraft.util.ChatComponentTranslation;
+import net.minecraft.util.EnumChatFormatting;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,31 +12,31 @@ class LightingTaskTest {
     @Test
     void formatsFirstPassProgressBarForLegacyOverlay() {
         assertEquals(
-                TextFormatting.GRAY + "|||||"
-                        + TextFormatting.DARK_GRAY + "|||||||||||||||"
-                        + TextFormatting.RESET,
+                EnumChatFormatting.GRAY + "|||||"
+                        + EnumChatFormatting.DARK_GRAY + "|||||||||||||||"
+                        + EnumChatFormatting.RESET,
                 LightingTask.formattedProgressBar(0, 5));
     }
 
     @Test
     void formatsSecondPassProgressBarForLegacyOverlay() {
         assertEquals(
-                TextFormatting.GREEN + "||||||||||||"
-                        + TextFormatting.GRAY + "||||||||"
-                        + TextFormatting.RESET,
+                EnumChatFormatting.GREEN + "||||||||||||"
+                        + EnumChatFormatting.GRAY + "||||||||"
+                        + EnumChatFormatting.RESET,
                 LightingTask.formattedProgressBar(1, 12));
     }
 
     @Test
     void preservesFormattingCodesThroughTextComponentSerialization() {
         String bar = LightingTask.formattedProgressBar(1, 12);
-        TextComponentTranslation message = new TextComponentTranslation(
+        ChatComponentTranslation message = new ChatComponentTranslation(
                 "message.autotorch.progress", bar, 75, 16);
 
-        ITextComponent decoded = ITextComponent.Serializer.jsonToComponent(
-                ITextComponent.Serializer.componentToJson(message));
+        IChatComponent decoded = IChatComponent.Serializer.jsonToComponent(
+                IChatComponent.Serializer.componentToJson(message));
 
-        TextComponentTranslation decodedTranslation = assertInstanceOf(TextComponentTranslation.class, decoded);
+        ChatComponentTranslation decodedTranslation = assertInstanceOf(ChatComponentTranslation.class, decoded);
         assertEquals(bar, decodedTranslation.getFormatArgs()[0]);
     }
 }

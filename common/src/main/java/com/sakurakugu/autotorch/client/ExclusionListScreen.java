@@ -6,20 +6,20 @@ import java.util.Map;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.IChatComponent;
+import net.minecraft.util.ChatComponentTranslation;
 
 /** 列出照明范围和所有排除区，并提供分页、原位修改和单条删除。 */
 public final class ExclusionListScreen extends Screen {
     private static final int PAGE_SIZE = 6;
     private static final int LIGHTING_TEXT_COLOR = 0xFF50FF70;
     private static final int EXCLUSION_TEXT_COLOR = 0xFFFF5050;
-    private final Map<Button, ITextComponent> tooltips = new LinkedHashMap<>();
+    private final Map<Button, IChatComponent> tooltips = new LinkedHashMap<>();
     private int page;
 
     public ExclusionListScreen() {
-        super(new TextComponentTranslation("screen.autotorch.exclusions_title"));
+        super(new ChatComponentTranslation("screen.autotorch.exclusions_title"));
     }
 
     private <T extends Button> T addRenderableWidget(T widget) {
@@ -46,7 +46,7 @@ public final class ExclusionListScreen extends Screen {
             int selectedIndex = index;
             boolean lightingEntry = lightingZone != null && index == 0;
             Button editButton = addRenderableWidget(new Button(left + panelWidth - 108, y, 50, 20,
-                    new TextComponentTranslation(lightingEntry
+                    new ChatComponentTranslation(lightingEntry
                             ? "screen.autotorch.edit_lighting" : "screen.autotorch.edit_exclusion").getFormattedText(), button -> {
                 int exclusionIndex = selectedIndex - (SelectionState.lightingZone() == null ? 0 : 1);
                 boolean editing = lightingEntry
@@ -56,10 +56,10 @@ public final class ExclusionListScreen extends Screen {
                     minecraft.displayGuiScreen(new LightingScreen());
                 }
             }));
-            tooltips.put(editButton, new TextComponentTranslation(lightingEntry
+            tooltips.put(editButton, new ChatComponentTranslation(lightingEntry
                     ? "screen.autotorch.edit_lighting.tooltip" : "screen.autotorch.edit_exclusion.tooltip"));
             addRenderableWidget(new ColoredButton(left + panelWidth - 54, y, 54, 20,
-                    new TextComponentTranslation("screen.autotorch.delete_zone"), button -> {
+                    new ChatComponentTranslation("screen.autotorch.delete_zone"), button -> {
                         if (lightingEntry) {
                             SelectionState.removeLightingZone();
                         } else {
@@ -71,17 +71,17 @@ public final class ExclusionListScreen extends Screen {
         }
 
         Button previous = addRenderableWidget(new Button(left, 184, 80, 20,
-                new TextComponentTranslation("screen.autotorch.previous_page").getFormattedText(), button -> {
+                new ChatComponentTranslation("screen.autotorch.previous_page").getFormattedText(), button -> {
             page--;
             rebuildWidgets();
         }));
         previous.active = page > 0;
 
         addRenderableWidget(new Button(width / 2 - 50, 184, 100, 20,
-                new TextComponentTranslation("screen.autotorch.back").getFormattedText(), button -> onClose()));
+                new ChatComponentTranslation("screen.autotorch.back").getFormattedText(), button -> onClose()));
 
         Button next = addRenderableWidget(new Button(left + panelWidth - 80, 184, 80, 20,
-                new TextComponentTranslation("screen.autotorch.next_page").getFormattedText(), button -> {
+                new ChatComponentTranslation("screen.autotorch.next_page").getFormattedText(), button -> {
             page++;
             rebuildWidgets();
         }));
@@ -107,7 +107,7 @@ public final class ExclusionListScreen extends Screen {
 
         drawCenteredString(font, title.getFormattedText(), width / 2, 12, 0xFFFFFFFF);
         if (total == 0) {
-            drawCenteredString(font, new TextComponentTranslation("screen.autotorch.no_zone").getFormattedText(),
+            drawCenteredString(font, new ChatComponentTranslation("screen.autotorch.no_zone").getFormattedText(),
                     width / 2, 82, 0xFFA0A0A0);
         }
         for (int index = firstIndex; index < lastIndex; index++) {
@@ -125,10 +125,10 @@ public final class ExclusionListScreen extends Screen {
             drawString(font, description, left + 4, y,
                     lightingEntry ? LIGHTING_TEXT_COLOR : EXCLUSION_TEXT_COLOR);
         }
-        drawCenteredString(font, new TextComponentTranslation("screen.autotorch.page_summary",
+        drawCenteredString(font, new ChatComponentTranslation("screen.autotorch.page_summary",
                 page + 1, maxPage(total) + 1, lightingZone == null ? 0 : 1, exclusions.size()).getFormattedText(),
                 width / 2, 212, 0xFFA0A0A0);
-        for (Map.Entry<Button, ITextComponent> entry : tooltips.entrySet()) {
+        for (Map.Entry<Button, IChatComponent> entry : tooltips.entrySet()) {
             if (entry.getKey().visible && entry.getKey().isMouseOver(mouseX, mouseY)) {
                 renderTooltip(entry.getValue().getFormattedText(), mouseX, mouseY);
                 break;
@@ -136,19 +136,19 @@ public final class ExclusionListScreen extends Screen {
         }
     }
 
-    private static ITextComponent describeLighting(AreaZone zone) {
+    private static IChatComponent describeLighting(AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
-            return new TextComponentTranslation("screen.autotorch.lighting_sphere_row", format(zone.first()), zone.radius());
+            return new ChatComponentTranslation("screen.autotorch.lighting_sphere_row", format(zone.first()), zone.radius());
         }
-        return new TextComponentTranslation("screen.autotorch.lighting_box_row", format(zone.first()), format(zone.second()));
+        return new ChatComponentTranslation("screen.autotorch.lighting_box_row", format(zone.first()), format(zone.second()));
     }
 
-    private static ITextComponent describeExclusion(int index, AreaZone zone) {
+    private static IChatComponent describeExclusion(int index, AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
-            return new TextComponentTranslation("screen.autotorch.exclusion_sphere_row",
+            return new ChatComponentTranslation("screen.autotorch.exclusion_sphere_row",
                     index + 1, format(zone.first()), zone.radius());
         }
-        return new TextComponentTranslation("screen.autotorch.exclusion_box_row",
+        return new ChatComponentTranslation("screen.autotorch.exclusion_box_row",
                 index + 1, format(zone.first()), format(zone.second()));
     }
 
