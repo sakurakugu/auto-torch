@@ -4,7 +4,7 @@ import java.util.Collections;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.util.BlockPos;
+import com.sakurakugu.autotorch.compat.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;

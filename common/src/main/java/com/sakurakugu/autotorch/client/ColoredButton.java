@@ -29,7 +29,7 @@ final class ColoredButton extends Button {
         fill(xPosition, yPosition + 1, xPosition + 1, yPosition + height - 1, outlineColor);
         fill(xPosition + getButtonWidth() - 1, yPosition + 1,
                 xPosition + getButtonWidth(), yPosition + height - 1, outlineColor);
-        drawCenteredString(Minecraft.getMinecraft().fontRendererObj, getMessage(),
+        drawCenteredString(Minecraft.getMinecraft().fontRenderer, getMessage(),
                 xPosition + getButtonWidth() / 2, yPosition + 6,
                 active ? 0xFFFFFFFF : 0xFFA0A0A0);
     }

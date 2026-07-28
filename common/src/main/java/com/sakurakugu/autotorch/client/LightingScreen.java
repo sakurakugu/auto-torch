@@ -10,7 +10,7 @@ import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.BlockPos;
+import com.sakurakugu.autotorch.compat.BlockPos;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
@@ -65,7 +65,7 @@ public final class LightingScreen extends Screen {
     protected void init() {
         tooltips.clear();
         BlockPos playerPos = minecraft.thePlayer == null
-                ? BlockPos.ORIGIN : minecraft.thePlayer.getPosition();
+                ? BlockPos.ORIGIN : new BlockPos(minecraft.thePlayer);
         int left = panelLeft();
 
         shapeButton = addRenderableWidget(button(left, 20, 126, 20, shapeMessage(), button -> {
@@ -190,7 +190,7 @@ public final class LightingScreen extends Screen {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage().getFormattedText());
         }), new ChatComponentTranslation("screen.autotorch.drowned_detection.tooltip")));
-        // Minecraft 1.8.9 尚未加入溺尸，保留控件位置但禁止修改无效配置。
+        // Minecraft 1.7.10 尚未加入溺尸，保留控件位置但禁止修改无效配置。
         drownedDetectionButton.active = false;
 
         nearbyAutoTorchButton = addRenderableWidget(withTooltip(button(left, 326, 153, 20,
@@ -690,7 +690,7 @@ public final class LightingScreen extends Screen {
 
     private BlockPos currentPosition() {
         return minecraft.thePlayer == null
-                ? BlockPos.ORIGIN : minecraft.thePlayer.getPosition();
+                ? BlockPos.ORIGIN : new BlockPos(minecraft.thePlayer);
     }
 
     private static void setPosition(EditBox[] boxes, BlockPos pos) {
@@ -983,7 +983,8 @@ public final class LightingScreen extends Screen {
     }
 
     private void enableViewportScissor() {
-        net.minecraft.client.gui.ScaledResolution resolution = new net.minecraft.client.gui.ScaledResolution(minecraft);
+        net.minecraft.client.gui.ScaledResolution resolution = new net.minecraft.client.gui.ScaledResolution(
+                minecraft, minecraft.displayWidth, minecraft.displayHeight);
         double scale = resolution.getScaleFactor();
         int bottom = (int) Math.round(VIEWPORT_MARGIN * scale);
         int viewportHeight = (int) Math.round((height - VIEWPORT_MARGIN * 2) * scale);

@@ -6,7 +6,7 @@ import java.util.Map;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.util.BlockPos;
+import com.sakurakugu.autotorch.compat.BlockPos;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.util.ChatComponentTranslation;
 

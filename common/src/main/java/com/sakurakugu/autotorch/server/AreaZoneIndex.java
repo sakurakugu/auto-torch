@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.sakurakugu.autotorch.network.AreaZone;
-import net.minecraft.util.BlockPos;
+import com.sakurakugu.autotorch.compat.BlockPos;
 
 /** 按固定大小的空间桶索引区域，避免每次查询都遍历全部区域。 */
 final class AreaZoneIndex {

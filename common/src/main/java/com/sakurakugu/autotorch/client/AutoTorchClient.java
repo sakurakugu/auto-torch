@@ -8,7 +8,7 @@ import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
-import net.minecraft.util.BlockPos;
+import com.sakurakugu.autotorch.compat.BlockPos;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
@@ -32,7 +32,7 @@ public final class AutoTorchClient {
     public void tick() {
         Minecraft minecraft = Minecraft.getMinecraft();
         BlockPos currentPosition = minecraft.thePlayer == null
-                ? BlockPos.ORIGIN : minecraft.thePlayer.getPosition();
+                ? BlockPos.ORIGIN : new BlockPos(minecraft.thePlayer);
         // 切换世界或退出存档时重置选区，避免把旧维度坐标带入新世界。
         SelectionState.updateLevel(minecraft.theWorld, currentPosition);
         LightOverlayState.tick(minecraft);
@@ -46,8 +46,8 @@ public final class AutoTorchClient {
         while (TOGGLE_LIGHT_OVERLAY.isPressed()) {
             if (minecraft.thePlayer != null) {
                 boolean enabled = LightOverlayState.toggle();
-                minecraft.ingameGUI.setRecordPlaying(new ChatComponentTranslation(enabled
-                        ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
+                showMessage(new ChatComponentTranslation(enabled
+                        ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"));
             }
         }
     }
@@ -62,10 +62,10 @@ public final class AutoTorchClient {
         // 长按破坏方块会连续触发事件，只在 START 阶段记录一次 A 点。
         if (start) {
             SelectionState.setFirst(pos);
-            Minecraft.getMinecraft().ingameGUI.setRecordPlaying(
+            showMessage(
                     new ChatComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                                     ? "message.autotorch.selected_center" : "message.autotorch.selected_a",
-                            formatPosition(pos)), false
+                            formatPosition(pos))
             );
         }
         return true;
@@ -83,23 +83,27 @@ public final class AutoTorchClient {
             AreaZone draft = SelectionState.draft(pos);
             long maxRadiusSquared = (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
             if (draft.radiusSquared() > maxRadiusSquared) {
-                Minecraft.getMinecraft().ingameGUI.setRecordPlaying(
+                showMessage(
                         new ChatComponentTranslation("message.autotorch.sphere_radius_too_large",
-                                AreaZone.MAX_SPHERE_RADIUS).setChatStyle(new net.minecraft.util.ChatStyle().setColor(EnumChatFormatting.RED)), false
+                                AreaZone.MAX_SPHERE_RADIUS).setChatStyle(new net.minecraft.util.ChatStyle().setColor(EnumChatFormatting.RED))
                 );
                 return true;
             }
         }
-        Minecraft.getMinecraft().ingameGUI.setRecordPlaying(
+        showMessage(
                 new ChatComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                                 ? "message.autotorch.selected_radius" : "message.autotorch.selected_b",
-                        formatPosition(pos)), false
+                        formatPosition(pos))
         );
         return true;
     }
 
     private static String formatPosition(BlockPos pos) {
         return pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+    }
+
+    private static void showMessage(net.minecraft.util.IChatComponent message) {
+        Minecraft.getMinecraft().ingameGUI.setRecordPlayingMessage(message.getFormattedText());
     }
 
     private void syncSelectionToolSetting(Minecraft minecraft) {

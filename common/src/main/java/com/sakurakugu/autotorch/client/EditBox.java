@@ -4,13 +4,13 @@ import java.util.function.Consumer;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiTextField;
 
-/** 为 1.8.9 文本框提供当前界面使用的命名和布局接口。 */
+/** 为 1.7.10 文本框提供当前界面使用的命名和布局接口。 */
 final class EditBox extends GuiTextField implements Widget {
     public boolean visible = true;
     private Consumer<String> responder = value -> {};
     EditBox(FontRenderer font, int x, int y, int width, int height, String ignored) {
         // 输入框上下各收缩一像素，与同一行按钮的可见高度一致。
-        super(0, font, x, y + 1, width, height - 2);
+        super(font, x, y + 1, width, height - 2);
     }
 
     void setMaxLength(int length) { setMaxStringLength(length); }

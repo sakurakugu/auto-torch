@@ -10,18 +10,16 @@ import java.util.stream.Collectors;
 
 import com.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.EnumFacing;
+import com.sakurakugu.autotorch.compat.BlockPos;
+import com.sakurakugu.autotorch.compat.WorldAccess;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.world.WorldServer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
-import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.item.Item;
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
-import net.minecraft.block.state.IBlockState;
 
 /** 单个玩家的增量照明任务，通过每刻预算避免大选区阻塞服务端线程。 */
 final class LightingTask {
@@ -133,7 +131,7 @@ final class LightingTask {
             if (consumeTorches && !hasTorch(player)) {
                 return finish(player, "message.autotorch.out_of_torches", scannedThisTick, placedThisTick, placed);
             }
-            if (!level.setBlockState(torchPos, Blocks.torch.getDefaultState(), UPDATE_ALL)) {
+            if (!WorldAccess.setTorch(level, torchPos, UPDATE_ALL)) {
                 continue;
             }
             if (consumeTorches) {
@@ -196,20 +194,19 @@ final class LightingTask {
     }
 
     private boolean isPotentialSpawnPosition(BlockPos feet) {
-        if (isExcluded(feet) || !level.isAirBlock(feet) || !level.isAirBlock(feet.up())) {
+        if (isExcluded(feet) || !WorldAccess.isAir(level, feet) || !WorldAccess.isAir(level, feet.up())) {
             return false;
         }
-        if (level.getBlockState(feet).getBlock().getMaterial().isLiquid()
-                || level.getLightFor(EnumSkyBlock.BLOCK, feet) > lightThreshold) {
+        if (WorldAccess.block(level, feet).getMaterial().isLiquid()
+                || WorldAccess.blockLight(level, feet) > lightThreshold) {
             return false;
         }
-        if (undergroundOnly && level.getLightFor(EnumSkyBlock.SKY, feet) > 0) {
+        if (undergroundOnly && WorldAccess.skyLight(level, feet) > 0) {
             return false;
         }
 
         BlockPos floorPos = feet.down();
-        IBlockState floor = level.getBlockState(floorPos);
-        return floor.getBlock().isSideSolid(level, floorPos, EnumFacing.UP);
+        return WorldAccess.isTopSolid(level, floorPos);
     }
 
     private BlockPos findTorchPosition(EntityPlayerMP player, BlockPos darkPosition) {
@@ -224,15 +221,14 @@ final class LightingTask {
             if (!insideSelection(candidate) || isExcluded(candidate) || !isChunkLoaded(candidate)) {
                 continue;
             }
-            if (!level.isAirBlock(candidate)
-                    || level.getBlockState(candidate).getBlock().getMaterial().isLiquid()) {
+            if (!WorldAccess.isAir(level, candidate)
+                    || WorldAccess.block(level, candidate).getMaterial().isLiquid()) {
                 continue;
             }
 
             BlockPos floorPos = candidate.down();
-            IBlockState floor = level.getBlockState(floorPos);
-            if (floor.getBlock().isSideSolid(level, floorPos, EnumFacing.UP)
-                    && level.isBlockModifiable(player, candidate)) {
+            if (WorldAccess.isTopSolid(level, floorPos)
+                    && level.canMineBlock(player, candidate.getX(), candidate.getY(), candidate.getZ())) {
                 return candidate.getImmutable();
             }
         }
@@ -244,7 +240,7 @@ final class LightingTask {
     }
 
     private boolean isChunkLoaded(BlockPos pos) {
-        return level.isBlockLoaded(pos);
+        return WorldAccess.exists(level, pos);
     }
 
     private boolean isExcluded(BlockPos pos) {

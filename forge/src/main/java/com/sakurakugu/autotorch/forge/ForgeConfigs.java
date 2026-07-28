@@ -17,7 +17,7 @@ import net.minecraftforge.common.config.Configuration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-/** Forge 1.8.9 的 TOML 配置后端。 */
+/** Forge 1.7.10 的 TOML 配置后端。 */
 final class ForgeConfigs {
     static final Backend CLIENT = new Backend(ConfigDefinitions.CLIENT);
     static final Backend SERVER = new Backend(ConfigDefinitions.SERVER);

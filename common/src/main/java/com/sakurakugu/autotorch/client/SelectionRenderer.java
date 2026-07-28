@@ -6,15 +6,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.minecraft.client.renderer.WorldRenderer;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.Tessellator;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import java.util.HashSet;
 import java.util.Set;
-import net.minecraft.util.BlockPos;
+import com.sakurakugu.autotorch.compat.BlockPos;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.Vec3;
 import org.lwjgl.opengl.GL11;
@@ -103,13 +101,12 @@ public final class SelectionRenderer {
         }
         boolean lines = data.displayMode() == SelectionState.DisplayMode.LINES;
         setupRenderState(lines);
-        Tessellator tesselator = Tessellator.getInstance();
-        WorldRenderer builder = tesselator.getWorldRenderer();
-        builder.begin(lines ? GL11.GL_LINES : GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
-        builder.setTranslation(-camera.xCoord, -camera.yCoord, -camera.zCoord);
-        renderZones(Pose.INSTANCE, new VertexConsumer(builder), data);
+        Tessellator tesselator = Tessellator.instance;
+        tesselator.startDrawing(lines ? GL11.GL_LINES : GL11.GL_QUADS);
+        tesselator.setTranslation(-camera.xCoord, -camera.yCoord, -camera.zCoord);
+        renderZones(Pose.INSTANCE, new VertexConsumer(tesselator), data);
         tesselator.draw();
-        builder.setTranslation(0.0D, 0.0D, 0.0D);
+        tesselator.setTranslation(0.0D, 0.0D, 0.0D);
         clearRenderState(lines);
     }
 
@@ -194,7 +191,7 @@ public final class SelectionRenderer {
     }
 
     private static AxisAlignedBB fullBlockBounds(AreaZone zone) {
-        return new AxisAlignedBB(
+        return AxisAlignedBB.getBoundingBox(
                 zone.min().getX(), zone.min().getY(), zone.min().getZ(),
                 zone.max().getX() + 1, zone.max().getY() + 1, zone.max().getZ() + 1
         );
@@ -536,24 +533,37 @@ public final class SelectionRenderer {
     }
 
     private static final class VertexConsumer {
-        private final WorldRenderer builder;
+        private final Tessellator builder;
+        private double x;
+        private double y;
+        private double z;
+        private int red;
+        private int green;
+        private int blue;
+        private int alpha;
 
-        private VertexConsumer(WorldRenderer builder) {
+        private VertexConsumer(Tessellator builder) {
             this.builder = builder;
         }
 
         private VertexConsumer vertex(Object ignored, float x, float y, float z) {
-            builder.pos(x, y, z);
+            this.x = x;
+            this.y = y;
+            this.z = z;
             return this;
         }
 
         private VertexConsumer color(int red, int green, int blue, int alpha) {
-            builder.color(red, green, blue, alpha);
+            this.red = red;
+            this.green = green;
+            this.blue = blue;
+            this.alpha = alpha;
             return this;
         }
 
         private void endVertex() {
-            builder.endVertex();
+            builder.setColorRGBA(red, green, blue, alpha);
+            builder.addVertex(x, y, z);
         }
     }
 

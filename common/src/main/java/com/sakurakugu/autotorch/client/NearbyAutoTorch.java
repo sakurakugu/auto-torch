@@ -3,10 +3,9 @@ package com.sakurakugu.autotorch.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
 import net.minecraft.client.entity.EntityPlayerSP;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.EnumFacing;
+import com.sakurakugu.autotorch.compat.BlockPos;
+import com.sakurakugu.autotorch.compat.WorldAccess;
 import net.minecraft.init.Blocks;
-import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.AxisAlignedBB;
@@ -43,7 +42,6 @@ public final class NearbyAutoTorch {
                 || minecraft.thePlayer == null
                 || minecraft.playerController == null
                 || minecraft.currentScreen != null
-                || minecraft.thePlayer.isSpectator()
                 || !minecraft.thePlayer.isEntityAlive()) {
             return;
         }
@@ -63,7 +61,7 @@ public final class NearbyAutoTorch {
     }
 
     private static BlockPos findTarget(World level, EntityPlayerSP player) {
-        BlockPos origin = player.getPosition();
+        BlockPos origin = new BlockPos(player);
         BlockPos best = null;
         double bestDistance = Double.MAX_VALUE;
         int threshold = ClientConfig.nearbyAutoTorchThreshold();
@@ -90,24 +88,26 @@ public final class NearbyAutoTorch {
     }
 
     private static boolean isValidTarget(World level, EntityPlayerSP player, BlockPos target) {
-        if (!level.isAirBlock(target)
-                || level.getBlockState(target).getBlock().getMaterial().isLiquid()) {
+        if (!WorldAccess.isAir(level, target)
+                || WorldAccess.block(level, target).getMaterial().isLiquid()) {
             return false;
         }
         BlockPos floorPos = target.down();
-        if (!level.getBlockState(floorPos).getBlock().isSideSolid(level, floorPos, EnumFacing.UP)
-                || player.getEntityBoundingBox().intersectsWith(
-                        new AxisAlignedBB(target, target.add(1, 1, 1)))) {
+        if (!WorldAccess.isTopSolid(level, floorPos)
+                || player.boundingBox.intersectsWith(AxisAlignedBB.getBoundingBox(
+                        target.getX(), target.getY(), target.getZ(),
+                        target.getX() + 1, target.getY() + 1, target.getZ() + 1))) {
             return false;
         }
         Vec3 hitLocation = centerOf(target.down()).addVector(0.0, 0.5, 0.0);
-        return player.getPositionEyes(1.0F).squareDistanceTo(hitLocation) <= 20.25;
+        Vec3 eyes = Vec3.createVectorHelper(player.posX, player.posY + player.getEyeHeight(), player.posZ);
+        return eyes.squareDistanceTo(hitLocation) <= 20.25;
     }
 
     private static int measuredLight(World level, BlockPos position) {
-        int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, position);
+        int blockLight = WorldAccess.blockLight(level, position);
         return ClientConfig.includesSkyLight()
-                ? Math.max(blockLight, level.getLightFor(EnumSkyBlock.SKY, position))
+                ? Math.max(blockLight, WorldAccess.skyLight(level, position))
                 : blockLight;
     }
 
@@ -143,7 +143,8 @@ public final class NearbyAutoTorch {
 
         BlockPos support = target.down();
         boolean placed = minecraft.playerController.onPlayerRightClick(
-                player, minecraft.theWorld, player.getHeldItem(), support, EnumFacing.UP,
+                player, minecraft.theWorld, player.getHeldItem(),
+                support.getX(), support.getY(), support.getZ(), 1,
                 centerOf(support).addVector(0.0, 0.5, 0.0));
         if (placed) {
             player.swingItem();
@@ -157,7 +158,7 @@ public final class NearbyAutoTorch {
     }
 
     private static Vec3 centerOf(BlockPos pos) {
-        return new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        return Vec3.createVectorHelper(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
     }
 
     private static final class TorchSource {

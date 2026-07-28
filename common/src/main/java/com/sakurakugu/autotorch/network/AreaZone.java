@@ -2,7 +2,7 @@ package com.sakurakugu.autotorch.network;
 
 import com.sakurakugu.autotorch.AutoTorchRules;
 import java.util.Objects;
-import net.minecraft.util.BlockPos;
+import com.sakurakugu.autotorch.compat.BlockPos;
 
 /** 由 A/B 两点定义的球形或轴对齐长方体区域。 */
 public final class AreaZone {

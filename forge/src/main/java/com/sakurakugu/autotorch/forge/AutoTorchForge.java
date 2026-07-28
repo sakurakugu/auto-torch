@@ -7,15 +7,15 @@ import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
-import net.minecraftforge.fml.common.gameevent.PlayerEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.FMLCommonHandler;
+import cpw.mods.fml.common.Mod;
+import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import cpw.mods.fml.common.gameevent.PlayerEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.FMLCommonHandler;
 
 @Mod(modid = AutoTorch.MOD_ID, useMetadata = true,
-        acceptedMinecraftVersions = "[1.8.9]", dependencies = "required-after:Forge@[11,)")
+        acceptedMinecraftVersions = "[1.7.10]", dependencies = "required-after:Forge@[10,)")
 public final class AutoTorchForge {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
@@ -24,11 +24,15 @@ public final class AutoTorchForge {
         com.sakurakugu.autotorch.client.ClientConfig.install(ForgeConfigs.CLIENT);
         ForgeNetworking.initialize();
         MinecraftForge.EVENT_BUS.register(this);
+        FMLCommonHandler.instance().bus().register(this);
         if (event.getSide().isClient()) AutoTorchForgeClient.initialize();
     }
 
     @SubscribeEvent public void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END && FMLCommonHandler.instance().getMinecraftServerInstance() != null) LightingTaskManager.onServerTick(FMLCommonHandler.instance().getMinecraftServerInstance());
+        if (event.phase == TickEvent.Phase.END && FMLCommonHandler.instance().getMinecraftServerInstance() != null) {
+            ForgeNetworking.drainServerTasks();
+            LightingTaskManager.onServerTick(FMLCommonHandler.instance().getMinecraftServerInstance());
+        }
     }
     @SubscribeEvent public void onInteract(PlayerInteractEvent event) {
         if ((event.action == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK

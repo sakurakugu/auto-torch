@@ -6,19 +6,23 @@ import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.network.*;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.network.PacketBuffer;
-import net.minecraftforge.fml.common.network.NetworkRegistry;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
-import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
-import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
-import net.minecraftforge.fml.relauncher.Side;
+import cpw.mods.fml.common.network.NetworkRegistry;
+import cpw.mods.fml.common.network.simpleimpl.IMessage;
+import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
+import cpw.mods.fml.common.network.simpleimpl.MessageContext;
+import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
+import cpw.mods.fml.relauncher.Side;
 
-/** Forge 1.8.9 的 SimpleNetworkWrapper 适配。 */
+/** Forge 1.7.10 的 SimpleNetworkWrapper 适配。 */
 final class ForgeNetworking {
     private static final SimpleNetworkWrapper CHANNEL = NetworkRegistry.INSTANCE.newSimpleChannel(AutoTorch.MOD_ID + ":main");
+    private static final Queue<Runnable> SERVER_TASKS = new ConcurrentLinkedQueue<>();
+    private static final Queue<Runnable> CLIENT_TASKS = new ConcurrentLinkedQueue<>();
     private ForgeNetworking() {}
     static void initialize() {
         CHANNEL.registerMessage(StartHandler.class, StartMessage.class, 0, Side.SERVER);
@@ -35,6 +39,14 @@ final class ForgeNetworking {
         if (payload instanceof ServerConfigPayload) CHANNEL.sendTo(new ConfigMessage((ServerConfigPayload) payload), player);
     }
 
+    static void drainServerTasks() { drain(SERVER_TASKS); }
+    static void drainClientTasks() { drain(CLIENT_TASKS); }
+
+    private static void drain(Queue<Runnable> tasks) {
+        Runnable task;
+        while ((task = tasks.poll()) != null) task.run();
+    }
+
     public abstract static class Message<T> implements IMessage {
         T payload;
         Message() {}
@@ -48,8 +60,8 @@ final class ForgeNetworking {
     public static final class CancelMessage extends Message<CancelLightingPayload> { public CancelMessage() {} CancelMessage(CancelLightingPayload p){super(p);} CancelLightingPayload decode(PacketBuffer b){return CancelLightingPayload.decode(b);} void encode(CancelLightingPayload p,PacketBuffer b){p.write(b);} }
     public static final class SelectionMessage extends Message<SetSelectionToolPayload> { public SelectionMessage() {} SelectionMessage(SetSelectionToolPayload p){super(p);} SetSelectionToolPayload decode(PacketBuffer b){return SetSelectionToolPayload.decode(b);} void encode(SetSelectionToolPayload p,PacketBuffer b){p.write(b);} }
     public static final class ConfigMessage extends Message<ServerConfigPayload> { public ConfigMessage() {} ConfigMessage(ServerConfigPayload p){super(p);} ServerConfigPayload decode(PacketBuffer b){return ServerConfigPayload.decode(b);} void encode(ServerConfigPayload p,PacketBuffer b){p.write(b);} }
-    public static final class StartHandler implements IMessageHandler<StartMessage, IMessage> { public IMessage onMessage(StartMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; p.mcServer.addScheduledTask(() -> LightingTaskManager.start(p,m.payload)); return null; } }
-    public static final class CancelHandler implements IMessageHandler<CancelMessage, IMessage> { public IMessage onMessage(CancelMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; p.mcServer.addScheduledTask(() -> LightingTaskManager.cancel(p)); return null; } }
-    public static final class SelectionHandler implements IMessageHandler<SelectionMessage, IMessage> { public IMessage onMessage(SelectionMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; p.mcServer.addScheduledTask(() -> SelectionToolEvents.setEnabled(p,m.payload.enabled())); return null; } }
-    public static final class ConfigHandler implements IMessageHandler<ConfigMessage, IMessage> { public IMessage onMessage(ConfigMessage m, MessageContext c){ net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> ServerConfigState.update(m.payload)); return null; } }
+    public static final class StartHandler implements IMessageHandler<StartMessage, IMessage> { public IMessage onMessage(StartMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; SERVER_TASKS.add(() -> LightingTaskManager.start(p,m.payload)); return null; } }
+    public static final class CancelHandler implements IMessageHandler<CancelMessage, IMessage> { public IMessage onMessage(CancelMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; SERVER_TASKS.add(() -> LightingTaskManager.cancel(p)); return null; } }
+    public static final class SelectionHandler implements IMessageHandler<SelectionMessage, IMessage> { public IMessage onMessage(SelectionMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; SERVER_TASKS.add(() -> SelectionToolEvents.setEnabled(p,m.payload.enabled())); return null; } }
+    public static final class ConfigHandler implements IMessageHandler<ConfigMessage, IMessage> { public IMessage onMessage(ConfigMessage m, MessageContext c){ CLIENT_TASKS.add(() -> ServerConfigState.update(m.payload)); return null; } }
 }

@@ -7,7 +7,7 @@ import java.util.List;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.world.World;
-import net.minecraft.util.BlockPos;
+import com.sakurakugu.autotorch.compat.BlockPos;
 
 /** 保存当前客户端世界中的临时选区；这些数据不会跨世界持久化。 */
 public final class SelectionState {

@@ -33,8 +33,8 @@ class LightingTaskTest {
         ChatComponentTranslation message = new ChatComponentTranslation(
                 "message.autotorch.progress", bar, 75, 16);
 
-        IChatComponent decoded = IChatComponent.Serializer.jsonToComponent(
-                IChatComponent.Serializer.componentToJson(message));
+        IChatComponent decoded = IChatComponent.Serializer.func_150699_a(
+                IChatComponent.Serializer.func_150696_a(message));
 
         ChatComponentTranslation decodedTranslation = assertInstanceOf(ChatComponentTranslation.class, decoded);
         assertEquals(bar, decodedTranslation.getFormatArgs()[0]);

@@ -12,7 +12,7 @@ import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
-import net.minecraft.util.BlockPos;
+import com.sakurakugu.autotorch.compat.BlockPos;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
@@ -33,12 +33,12 @@ public final class LightingTaskManager {
     }
 
     static void sendSystemMessage(EntityPlayerMP player, IChatComponent message, boolean overlay) {
-        player.playerNetServerHandler.sendPacket(new S02PacketChat(message, (byte) (overlay ? 2 : 0)));
+        player.playerNetServerHandler.sendPacket(new S02PacketChat(message, !overlay));
     }
 
     public static void start(EntityPlayerMP player, StartLightingPayload payload) {
         // 网络载荷不可信，所有会影响扫描范围和资源消耗的参数都在服务端校验。
-        if (!player.isAllowEdit()) {
+        if (!player.capabilities.allowEdit) {
             sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.no_build_permission"));
             return;
         }
@@ -164,7 +164,7 @@ public final class LightingTaskManager {
 
         for (UUID playerId : players) {
             LightingTask task = TASKS.get(playerId);
-            EntityPlayerMP player = server.getConfigurationManager().getPlayerByUUID(playerId);
+            EntityPlayerMP player = findPlayer(server, playerId);
             if (task != null && player != null) {
                 task.tickProgress(player);
             }
@@ -173,7 +173,7 @@ public final class LightingTaskManager {
         for (int offset = 0; offset < taskCount && scanRemaining > 0 && placeRemaining > 0; offset++) {
             UUID playerId = players.get((roundRobinStart + offset) % taskCount);
             LightingTask task = TASKS.get(playerId);
-            EntityPlayerMP player = server.getConfigurationManager().getPlayerByUUID(playerId);
+            EntityPlayerMP player = findPlayer(server, playerId);
             if (task == null || player == null) {
                 completed.add(playerId);
                 continue;
@@ -193,6 +193,14 @@ public final class LightingTaskManager {
         }
         completed.forEach(TASKS::remove);
         roundRobinStart = (roundRobinStart + 1) % Math.max(1, taskCount);
+    }
+
+    private static EntityPlayerMP findPlayer(MinecraftServer server, UUID playerId) {
+        for (Object entry : server.getConfigurationManager().playerEntityList) {
+            EntityPlayerMP player = (EntityPlayerMP) entry;
+            if (playerId.equals(player.getUniqueID())) return player;
+        }
+        return null;
     }
 
 }

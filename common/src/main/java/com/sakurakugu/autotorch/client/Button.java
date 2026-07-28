@@ -3,7 +3,7 @@ package com.sakurakugu.autotorch.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 
-/** 为 1.8.9 的 GuiButton 补齐界面业务使用的控件接口。 */
+/** 为 1.7.10 的 GuiButton 补齐界面业务使用的控件接口。 */
 class Button extends GuiButton implements Widget {
     interface OnPress { void onPress(Button button); }
 
@@ -38,7 +38,7 @@ class Button extends GuiButton implements Widget {
 
     void setMessage(String message) { displayString = message; }
     String getMessage() { return displayString; }
-    boolean isHovered() { return hovered; }
+    boolean isHovered() { return func_146115_a(); }
     boolean isFocused() { return false; }
     static void fill(int left, int top, int right, int bottom, int color) {
         drawRect(left, top, right, bottom, color);

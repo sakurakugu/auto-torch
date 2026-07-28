@@ -4,7 +4,7 @@ plugins {
     id 'net.minecraftforge.renamer'
 }
 
-// Forge 1.8.9 的 CoreMod 引擎依赖 JDK 8 自带的 Nashorn。
+// Forge 1.7.10 的 CoreMod 引擎依赖 JDK 8 自带的 Nashorn。
 tasks.withType(JavaExec).configureEach {
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(8)

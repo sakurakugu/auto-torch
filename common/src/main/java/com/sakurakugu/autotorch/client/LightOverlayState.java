@@ -8,11 +8,9 @@ import com.sakurakugu.autotorch.AutoTorchRules;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.world.EnumSkyBlock;
+import com.sakurakugu.autotorch.compat.BlockPos;
+import com.sakurakugu.autotorch.compat.WorldAccess;
 import net.minecraft.block.BlockLeaves;
-import net.minecraft.block.state.IBlockState;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
@@ -110,7 +108,7 @@ public final class LightOverlayState {
             return;
         }
 
-        BlockPos playerPos = minecraft.thePlayer.getPosition();
+        BlockPos playerPos = new BlockPos(minecraft.thePlayer);
         if (scanCenter == null) {
             beginScan(playerPos);
         }
@@ -179,33 +177,32 @@ public final class LightOverlayState {
     }
 
     private static Marker markerAt(World level, BlockPos feet) {
-        if (!level.isBlockLoaded(feet)) {
+        if (!WorldAccess.exists(level, feet)) {
             return null;
         }
-        // 1.8.9 没有溺尸；保留配置字段以兼容已有客户端配置，但不生成溺尸标记。
-        if (level.getBlockState(feet).getBlock().getMaterial().isLiquid()
-                || level.getBlockState(feet.up()).getBlock().getMaterial().isLiquid()) {
+        // 1.7.10 没有溺尸；保留配置字段以兼容已有客户端配置，但不生成溺尸标记。
+        if (WorldAccess.block(level, feet).getMaterial().isLiquid()
+                || WorldAccess.block(level, feet.up()).getMaterial().isLiquid()) {
             return null;
         }
 
-        IBlockState feetState = level.getBlockState(feet);
-        IBlockState headState = level.getBlockState(feet.up());
-        if (feetState.getBlock().getCollisionBoundingBox(level, feet, feetState) != null
-                || headState.getBlock().getCollisionBoundingBox(level, feet.up(), headState) != null) {
+        if (WorldAccess.block(level, feet).getCollisionBoundingBoxFromPool(
+                    level, feet.getX(), feet.getY(), feet.getZ()) != null
+                || WorldAccess.block(level, feet.up()).getCollisionBoundingBoxFromPool(
+                    level, feet.getX(), feet.getY() + 1, feet.getZ()) != null) {
             return null;
         }
 
         BlockPos floorPos = feet.down();
-        IBlockState floor = level.getBlockState(floorPos);
-        if (floor.getBlock() instanceof BlockLeaves
-                || !floor.getBlock().isSideSolid(level, floorPos, EnumFacing.UP)) {
+        if (WorldAccess.block(level, floorPos) instanceof BlockLeaves
+                || !WorldAccess.isTopSolid(level, floorPos)) {
             return null;
         }
-        int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, feet);
+        int blockLight = WorldAccess.blockLight(level, feet);
         return new Marker(
                 feet.getImmutable(),
                 blockLight,
-                level.getLightFor(EnumSkyBlock.SKY, feet),
+                WorldAccess.skyLight(level, feet),
                 RiskType.NORMAL
         );
     }
@@ -213,8 +210,8 @@ public final class LightOverlayState {
     private static Marker marker(World level, BlockPos pos, RiskType riskType) {
         return new Marker(
                 pos.getImmutable(),
-                level.getLightFor(EnumSkyBlock.BLOCK, pos),
-                level.getLightFor(EnumSkyBlock.SKY, pos),
+                WorldAccess.blockLight(level, pos),
+                WorldAccess.skyLight(level, pos),
                 riskType
         );
     }

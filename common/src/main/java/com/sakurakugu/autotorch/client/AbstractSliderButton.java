@@ -2,7 +2,7 @@ package com.sakurakugu.autotorch.client;
 
 import net.minecraft.client.Minecraft;
 
-/** 使用 1.8.9 按钮输入实现离散数值滑块。 */
+/** 使用 1.7.10 按钮输入实现离散数值滑块。 */
 abstract class AbstractSliderButton extends Button {
     protected double value;
     private boolean dragging;
@@ -20,7 +20,7 @@ abstract class AbstractSliderButton extends Button {
 
     @Override
     protected void mouseDragged(Minecraft minecraft, int mouseX, int mouseY) {
-        // 1.8.9 绘制按钮时也会调用此方法，只有按住滑块后才更新数值。
+        // 1.7.10 绘制按钮时也会调用此方法，只有按住滑块后才更新数值。
         if (dragging) {
             updateFromMouse(mouseX);
         }
@@ -47,7 +47,7 @@ abstract class AbstractSliderButton extends Button {
         int handleColor = isHovered() ? 0xFFFFFFFF : 0xFFD0D0D0;
         fill(handleCenter - 3, yPosition + 2, handleCenter + 3, yPosition + height - 2, 0xFF606060);
         fill(handleCenter - 2, yPosition + 3, handleCenter + 2, yPosition + height - 3, handleColor);
-        drawCenteredString(Minecraft.getMinecraft().fontRendererObj, getMessage(),
+        drawCenteredString(Minecraft.getMinecraft().fontRenderer, getMessage(),
                 xPosition + width / 2, yPosition + (height - 8) / 2, 0xFFFFFFFF);
     }
 

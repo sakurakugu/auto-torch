@@ -1,6 +1,6 @@
 package com.sakurakugu.autotorch.forge;
 
-import net.minecraftforge.fml.common.Mod;
+import cpw.mods.fml.common.Mod;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,7 +12,7 @@ class AutoTorchForgeMetadataTest {
         Mod metadata = AutoTorchForge.class.getAnnotation(Mod.class);
 
         assertNotNull(metadata);
-        assertEquals("[1.8.9]", metadata.acceptedMinecraftVersions());
-        assertEquals("required-after:Forge@[11,)", metadata.dependencies());
+        assertEquals("[1.7.10]", metadata.acceptedMinecraftVersions());
+        assertEquals("required-after:Forge@[10,)", metadata.dependencies());
     }
 }

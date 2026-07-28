@@ -71,8 +71,8 @@ public final class StartLightingPayload implements AutoTorchPayload {
 
     private static void writeZone(PacketBuffer buffer, AreaZone zone) {
         buffer.writeByte(zone.shape().ordinal());
-        buffer.writeBlockPos(zone.first());
-        buffer.writeBlockPos(zone.second());
+        writePosition(buffer, zone.first());
+        writePosition(buffer, zone.second());
     }
 
     private static AreaZone readZone(PacketBuffer buffer) {
@@ -81,7 +81,18 @@ public final class StartLightingPayload implements AutoTorchPayload {
         if (shapeId >= shapes.length) {
             throw new DecoderException("Invalid Auto Torch area shape: " + shapeId);
         }
-        return new AreaZone(shapes[shapeId], buffer.readBlockPos(), buffer.readBlockPos());
+        return new AreaZone(shapes[shapeId], readPosition(buffer), readPosition(buffer));
+    }
+
+    private static void writePosition(PacketBuffer buffer, com.sakurakugu.autotorch.compat.BlockPos pos) {
+        buffer.writeInt(pos.getX());
+        buffer.writeInt(pos.getY());
+        buffer.writeInt(pos.getZ());
+    }
+
+    private static com.sakurakugu.autotorch.compat.BlockPos readPosition(PacketBuffer buffer) {
+        return new com.sakurakugu.autotorch.compat.BlockPos(
+                buffer.readInt(), buffer.readInt(), buffer.readInt());
     }
 
     private static List<AreaZone> readExclusions(PacketBuffer buffer) {
