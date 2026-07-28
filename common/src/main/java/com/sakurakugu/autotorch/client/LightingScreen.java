@@ -190,7 +190,7 @@ public final class LightingScreen extends Screen {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage().getFormattedText());
         }), new TextComponentTranslation("screen.autotorch.drowned_detection.tooltip")));
-        // Minecraft 1.10.2 尚未加入溺尸，保留控件位置但禁止修改无效配置。
+        // Minecraft 1.9.4 尚未加入溺尸，保留控件位置但禁止修改无效配置。
         drownedDetectionButton.active = false;
 
         nearbyAutoTorchButton = addRenderableWidget(withTooltip(button(left, 326, 153, 20,
@@ -781,7 +781,8 @@ public final class LightingScreen extends Screen {
 
     private <T extends Button> T addRenderableWidget(T widget) {
         children.add(widget);
-        return addButton(widget);
+        buttonList.add(widget);
+        return widget;
     }
 
     private EditBox addRenderableWidget(EditBox widget) {

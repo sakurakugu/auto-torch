@@ -12,7 +12,7 @@ class AutoTorchForgeMetadataTest {
         Mod metadata = AutoTorchForge.class.getAnnotation(Mod.class);
 
         assertNotNull(metadata);
-        assertEquals("[1.10.2]", metadata.acceptedMinecraftVersions());
+        assertEquals("[1.9.4]", metadata.acceptedMinecraftVersions());
         assertEquals("required-after:Forge@[12,)", metadata.dependencies());
     }
 }

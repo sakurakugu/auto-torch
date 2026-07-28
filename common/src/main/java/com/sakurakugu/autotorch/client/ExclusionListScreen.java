@@ -23,7 +23,8 @@ public final class ExclusionListScreen extends Screen {
     }
 
     private <T extends Button> T addRenderableWidget(T widget) {
-        return addButton(widget);
+        buttonList.add(widget);
+        return widget;
     }
 
     @Override

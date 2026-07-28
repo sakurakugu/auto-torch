@@ -182,7 +182,7 @@ public final class LightOverlayState {
         if (!level.isBlockLoaded(feet)) {
             return null;
         }
-        // 1.10.2 没有溺尸；保留配置字段以兼容已有客户端配置，但不生成溺尸标记。
+        // 1.9.4 没有溺尸；保留配置字段以兼容已有客户端配置，但不生成溺尸标记。
         if (level.getBlockState(feet).getMaterial().isLiquid()
                 || level.getBlockState(feet.up()).getMaterial().isLiquid()) {
             return null;
