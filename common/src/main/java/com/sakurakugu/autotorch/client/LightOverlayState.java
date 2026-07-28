@@ -117,7 +117,7 @@ public final class LightOverlayState {
             return;
         }
 
-        BlockPos playerPos = minecraft.player.blockPosition();
+        BlockPos playerPos = minecraft.player.getCommandSenderBlockPosition();
         if (scanCenter == null) {
             beginScan(playerPos);
         }
@@ -244,8 +244,7 @@ public final class LightOverlayState {
     }
 
     private static boolean biomeAllowsDrowned(Biome biome) {
-        boolean drownedInSpawnList = biome.getMobSettings()
-                .getMobs(MobCategory.MONSTER).stream()
+        boolean drownedInSpawnList = biome.getMobs(MobCategory.MONSTER).stream()
                 .anyMatch(entry -> entry.type == EntityType.DROWNED);
         // 1.21.11及其以下的生物群系网络编解码不会向客户端同步怪物生成表。
         return drownedInSpawnList

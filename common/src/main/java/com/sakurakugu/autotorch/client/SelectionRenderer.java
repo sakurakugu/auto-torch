@@ -33,7 +33,7 @@ public final class SelectionRenderer {
             false,
             true,
             () -> {
-                // 1.16.5 使用固定渲染管线，纯色顶点绘制前必须关闭纹理。
+                // 1.16.5 及其以下版本使用固定渲染管线，纯色顶点绘制前必须关闭纹理。
                 RenderSystem.disableTexture();
                 RenderSystem.enableBlend();
                 RenderSystem.defaultBlendFunc();

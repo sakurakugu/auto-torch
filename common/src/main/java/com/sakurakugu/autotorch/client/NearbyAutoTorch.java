@@ -65,7 +65,7 @@ public final class NearbyAutoTorch {
     }
 
     private static BlockPos findTarget(ClientLevel level, LocalPlayer player) {
-        BlockPos origin = player.blockPosition();
+        BlockPos origin = player.getCommandSenderBlockPosition();
         BlockPos best = null;
         double bestDistance = Double.MAX_VALUE;
         int threshold = ClientConfig.nearbyAutoTorchThreshold();
@@ -79,7 +79,7 @@ public final class NearbyAutoTorch {
                             || isWaitingToRetry(candidate)) {
                         continue;
                     }
-                    double distance = player.distanceToSqr(Vec3.atCenterOf(candidate));
+                    double distance = player.distanceToSqr(centerOf(candidate));
                     if (distance < bestDistance) {
                         bestDistance = distance;
                         best = candidate.immutable();
@@ -98,7 +98,7 @@ public final class NearbyAutoTorch {
                 || player.getBoundingBox().intersects(new AABB(target))) {
             return false;
         }
-        Vec3 hitLocation = Vec3.atCenterOf(target.below()).add(0.0, 0.5, 0.0);
+        Vec3 hitLocation = centerOf(target.below()).add(0.0, 0.5, 0.0);
         return player.getEyePosition(1.0F).distanceToSqr(hitLocation) <= 20.25;
     }
 
@@ -140,7 +140,7 @@ public final class NearbyAutoTorch {
 
         BlockPos support = target.below();
         BlockHitResult hit = new BlockHitResult(
-                Vec3.atCenterOf(support).add(0.0, 0.5, 0.0), Direction.UP, support, false);
+                centerOf(support).add(0.0, 0.5, 0.0), Direction.UP, support, false);
         InteractionResult result = minecraft.gameMode.useItemOn(player, minecraft.level, torch.hand(), hit);
         if (result.shouldSwing()) {
             player.swing(torch.hand());
@@ -151,6 +151,10 @@ public final class NearbyAutoTorch {
         }
         lastAttemptPosition = target.immutable();
         lastAttemptAge = 0;
+    }
+
+    private static Vec3 centerOf(BlockPos pos) {
+        return new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
     }
 
     private static final class TorchSource {

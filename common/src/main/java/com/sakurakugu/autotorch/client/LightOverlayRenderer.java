@@ -1,5 +1,8 @@
 package com.sakurakugu.autotorch.client;
 
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.Arrays;
@@ -10,9 +13,20 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.phys.Vec3;
+import org.lwjgl.opengl.GL11;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或七段数字。 */
 public final class LightOverlayRenderer {
+    private static final RenderType WATER_VISIBLE_LINES = new RenderType(
+            "autotorch_water_visible_lines",
+            DefaultVertexFormat.POSITION_COLOR,
+            GL11.GL_LINES,
+            256,
+            false,
+            false,
+            LightOverlayRenderer::setupWaterVisibleRenderState,
+            LightOverlayRenderer::clearWaterVisibleRenderState
+    ) {};
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
     private static final int SAFE_COLOR = 0xE050E060;
@@ -67,6 +81,60 @@ public final class LightOverlayRenderer {
                 current.sourceMarkers(), current.displayMode(), filter, 8);
         renderGeometry(camera, poseStack, filtered, (stack, renderer) ->
                 renderer.render(stack.last(), buffers.getBuffer(renderType)));
+    }
+
+    public static void renderWaterVisible(
+            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, Predicate<Vec3> isVisibleTarget
+    ) {
+        renderFiltered(camera, poseStack, buffers, WATER_VISIBLE_LINES,
+                marker -> marker.riskType() == LightOverlayState.RiskType.DROWNED
+                        && isVisibleTarget.test(markerTarget(marker)));
+    }
+
+    public static RenderType waterVisibleRenderType() {
+        return WATER_VISIBLE_LINES;
+    }
+
+    private static Vec3 markerTarget(LightOverlayState.Marker marker) {
+        return new Vec3(
+                marker.pos().getX() + 0.5D,
+                marker.pos().getY() + SURFACE_OFFSET,
+                marker.pos().getZ() + 0.5D
+        );
+    }
+
+    private static void setupWaterVisibleRenderState() {
+        // 世界渲染回调会继承当前状态，纯色线条需要显式关闭纹理。
+        RenderSystem.disableTexture();
+        RenderSystem.enableBlend();
+        RenderSystem.blendFuncSeparate(
+                GlStateManager.SourceFactor.SRC_ALPHA,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SourceFactor.ONE,
+                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA
+        );
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
+        RenderSystem.disableCull();
+
+        RenderSystem.pushMatrix();
+        RenderSystem.scalef(0.99975586F, 0.99975586F, 0.99975586F);
+        RenderSystem.lineWidth(Math.max(
+                CROSS_LINE_WIDTH,
+                (float) Minecraft.getInstance().getWindow().getWidth() / 1920.0F * CROSS_LINE_WIDTH
+        ));
+    }
+
+    private static void clearWaterVisibleRenderState() {
+        RenderSystem.lineWidth(1.0F);
+        RenderSystem.popMatrix();
+
+        RenderSystem.enableCull();
+        RenderSystem.depthMask(true);
+        RenderSystem.enableDepthTest();
+        RenderSystem.disableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableTexture();
     }
 
     private static void renderGeometry(

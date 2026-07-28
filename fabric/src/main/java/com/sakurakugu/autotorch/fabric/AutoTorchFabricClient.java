@@ -13,19 +13,21 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.loader.api.FabricLoader;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import com.mojang.blaze3d.vertex.PoseStack;
 
 public final class AutoTorchFabricClient implements ClientModInitializer {
     @Override
@@ -69,17 +71,27 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             return InteractionResult.PASS;
         });
 
-        WorldRenderEvents.BEFORE_ENTITIES.register(context -> {
-            Vec3 camera = context.camera().getPosition();
-            SelectionRenderer.extract(context.camera().getBlockPosition());
-            LightOverlayRenderer.extract();
-            PoseStack poseStack = context.matrixStack();
-            MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
-            SelectionRenderer.render(camera, poseStack, buffers);
-            LightOverlayRenderer.render(camera, poseStack, buffers);
-            // 自定义几何必须在当前相机模型视图仍有效时提交，不能留到共享缓冲区稍后冲刷。
-            buffers.endBatch(RenderType.lines());
-            buffers.endBatch(SelectionRenderer.faceRenderType());
-        });
+    }
+
+    public static void renderWorld(PoseStack poseStack, Camera camera) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Vec3 cameraPosition = camera.getPosition();
+        SelectionRenderer.extract(camera.getBlockPosition());
+        LightOverlayRenderer.extract();
+        MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
+        SelectionRenderer.render(cameraPosition, poseStack, buffers);
+        LightOverlayRenderer.render(cameraPosition, poseStack, buffers);
+        // 自定义几何必须在当前相机模型视图仍有效时提交，不能留到共享缓冲区稍后冲刷。
+        buffers.endBatch(RenderType.lines());
+        buffers.endBatch(SelectionRenderer.faceRenderType());
+        if (minecraft.level != null && minecraft.level.getFluidState(camera.getBlockPosition()).isEmpty()) {
+            LightOverlayRenderer.renderWaterVisible(
+                    cameraPosition, poseStack, buffers, target ->
+                            minecraft.level.clip(new ClipContext(
+                                    cameraPosition, target, ClipContext.Block.COLLIDER,
+                                    ClipContext.Fluid.NONE, camera.getEntity()
+                            )).getType() == HitResult.Type.MISS);
+            buffers.endBatch(LightOverlayRenderer.waterVisibleRenderType());
+        }
     }
 }

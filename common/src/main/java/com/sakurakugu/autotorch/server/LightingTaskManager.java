@@ -133,7 +133,7 @@ public final class LightingTaskManager {
 
     public static void cancel(ServerPlayer player) {
         if (TASKS.remove(player.getUUID()) != null) {
-            sendSystemMessage(player, TextComponent.EMPTY, true);
+            sendSystemMessage(player, new TextComponent(""), true);
             sendSystemMessage(player, new TranslatableComponent("message.autotorch.cancelled"));
         } else {
             sendSystemMessage(player, new TranslatableComponent("message.autotorch.no_task"));

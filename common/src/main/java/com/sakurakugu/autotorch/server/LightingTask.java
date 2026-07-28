@@ -191,7 +191,7 @@ final class LightingTask {
             int placedThisTick,
             Object... messageArguments
     ) {
-        player.displayClientMessage(TextComponent.EMPTY, true);
+        player.displayClientMessage(new TextComponent(""), true);
         player.displayClientMessage(new TranslatableComponent(messageKey, messageArguments), false);
         return new TickResult(true, scannedThisTick, placedThisTick);
     }

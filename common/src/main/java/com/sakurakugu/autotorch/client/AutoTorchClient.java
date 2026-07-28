@@ -36,7 +36,8 @@ public final class AutoTorchClient {
 
     public void tick() {
         Minecraft minecraft = Minecraft.getInstance();
-        BlockPos currentPosition = minecraft.player == null ? BlockPos.ZERO : minecraft.player.blockPosition();
+        BlockPos currentPosition = minecraft.player == null
+                ? BlockPos.ZERO : minecraft.player.getCommandSenderBlockPosition();
         // 切换世界或退出存档时重置选区，避免把旧维度坐标带入新世界。
         SelectionState.updateLevel(minecraft.level, currentPosition);
         LightOverlayState.tick(minecraft);

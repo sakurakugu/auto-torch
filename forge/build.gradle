@@ -4,6 +4,13 @@ plugins {
     id 'net.minecraftforge.renamer'
 }
 
+// Forge 1.15.2 的 CoreMod 引擎依赖 JDK 8 自带的 Nashorn。
+tasks.withType(JavaExec).configureEach {
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+
 base {
     archivesName = "${mod_id}-${minecraft_version}-forge"
 }
@@ -29,8 +36,6 @@ minecraft {
         configureEach {
             workingDir = layout.projectDirectory.dir('run')
             systemProperty 'eventbus.api.strictRuntimeChecks', 'true'
-            // Forge 1.18.2 及其以下版本的旧版启动器需要通过反射调用 BootstrapLauncher。
-            jvmArgs '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED'
         }
         register('client')
         register('server') { args '--nogui' }

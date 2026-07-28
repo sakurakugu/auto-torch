@@ -1,26 +1,21 @@
 package com.sakurakugu.autotorch.forge;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
-import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ActiveRenderInfo;
 import net.minecraft.client.renderer.IRenderTypeBuffer;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.ActionResultType;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceContext;
 import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
@@ -30,19 +25,8 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import org.lwjgl.opengl.GL11;
 
 final class AutoTorchForgeClient {
-    private static final RenderType WATER_VISIBLE_LINES = new RenderType(
-            "autotorch_water_visible_lines",
-            DefaultVertexFormats.POSITION_COLOR,
-            GL11.GL_LINES,
-            256,
-            false,
-            false,
-            AutoTorchForgeClient::setupWaterVisibleRenderState,
-            AutoTorchForgeClient::clearWaterVisibleRenderState
-    ) {};
     private final AutoTorchClient client = new AutoTorchClient();
     private BlockPos selectionClickPos;
 
@@ -63,10 +47,8 @@ final class AutoTorchForgeClient {
     }
 
     private void registerKeys(FMLClientSetupEvent event) {
-        event.enqueueWork(() -> {
-            ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
-            ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
-        });
+        ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
+        ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
     }
 
     private void onTick(TickEvent.ClientTickEvent event) {
@@ -102,7 +84,7 @@ final class AutoTorchForgeClient {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) return;
         ActiveRenderInfo levelCamera = minecraft.gameRenderer.getMainCamera();
-        Vector3d camera = levelCamera.getPosition();
+        Vec3d camera = levelCamera.getPosition();
         SelectionRenderer.extract(levelCamera.getBlockPosition());
         LightOverlayRenderer.extract();
 
@@ -112,64 +94,14 @@ final class AutoTorchForgeClient {
         LightOverlayRenderer.render(camera, poseStack, buffers);
         buffers.endBatch(RenderType.lines());
         buffers.endBatch(SelectionRenderer.faceRenderType());
-        if (!Minecraft.useShaderTransparency()
-                && minecraft.level.getFluidState(levelCamera.getBlockPosition()).isEmpty()) {
-            LightOverlayRenderer.renderFiltered(camera, poseStack, buffers, WATER_VISIBLE_LINES,
-                    marker -> isVisibleDrownedMarker(minecraft, camera, levelCamera.getEntity(), marker));
-            buffers.endBatch(WATER_VISIBLE_LINES);
+        if (minecraft.level.getFluidState(levelCamera.getBlockPosition()).isEmpty()) {
+            LightOverlayRenderer.renderWaterVisible(
+                    camera, poseStack, buffers, target ->
+                            minecraft.level.clip(new RayTraceContext(
+                                    camera, target, RayTraceContext.BlockMode.COLLIDER,
+                                    RayTraceContext.FluidMode.NONE, levelCamera.getEntity()
+                            )).getType() == RayTraceResult.Type.MISS);
+            buffers.endBatch(LightOverlayRenderer.waterVisibleRenderType());
         }
-    }
-
-    private static boolean isVisibleDrownedMarker(
-            Minecraft minecraft, Vector3d camera, net.minecraft.entity.Entity cameraEntity,
-            LightOverlayState.Marker marker
-    ) {
-        if (marker.riskType() != LightOverlayState.RiskType.DROWNED) {
-            return false;
-        }
-        Vector3d target = new Vector3d(
-                marker.pos().getX() + 0.5D,
-                marker.pos().getY() + 0.0125D,
-                marker.pos().getZ() + 0.5D
-        );
-        // 忽略流体进行射线检测，水下标记只穿过水面，不穿过实体方块。
-        return minecraft.level.clip(new RayTraceContext(
-                camera, target, RayTraceContext.BlockMode.COLLIDER,
-                RayTraceContext.FluidMode.NONE, cameraEntity
-        )).getType() == RayTraceResult.Type.MISS;
-    }
-
-    private static void setupWaterVisibleRenderState() {
-        // RenderWorldLastEvent 会继承世界渲染状态，纯色线条需要显式关闭纹理。
-        RenderSystem.disableTexture();
-        RenderSystem.enableBlend();
-        RenderSystem.blendFuncSeparate(
-                GlStateManager.SourceFactor.SRC_ALPHA,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
-                GlStateManager.SourceFactor.ONE,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA
-        );
-        RenderSystem.disableDepthTest();
-        RenderSystem.depthMask(false);
-        RenderSystem.disableCull();
-
-        RenderSystem.pushMatrix();
-        RenderSystem.scalef(0.99975586F, 0.99975586F, 0.99975586F);
-        RenderSystem.lineWidth(Math.max(
-                2.5F,
-                (float) Minecraft.getInstance().getWindow().getWidth() / 1920.0F * 2.5F
-        ));
-    }
-
-    private static void clearWaterVisibleRenderState() {
-        RenderSystem.lineWidth(1.0F);
-        RenderSystem.popMatrix();
-
-        RenderSystem.enableCull();
-        RenderSystem.depthMask(true);
-        RenderSystem.enableDepthTest();
-        RenderSystem.disableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableTexture();
     }
 }
