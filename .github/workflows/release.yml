@@ -89,11 +89,18 @@ jobs:
           while read -r ref sha; do
             branch="${ref#origin/}"
             minecraft="${branch#mc/}"
+            java_version="$(git show "${sha}:build.gradle" | sed -n \
+              's/.*java\.toolchain\.languageVersion = JavaLanguageVersion\.of(\([0-9][0-9]*\)).*/\1/p' | head -n 1)"
+            test -n "$java_version" || {
+              echo "Cannot determine Java version from $branch/build.gradle"
+              exit 1
+            }
             all_targets="$(jq -c \
               --arg branch "$branch" \
               --arg minecraft "$minecraft" \
               --arg sha "$sha" \
-              '. + [{branch: $branch, minecraft: $minecraft, sha: $sha}]' <<< "$all_targets")"
+              --arg java "$java_version" \
+              '. + [{branch: $branch, minecraft: $minecraft, sha: $sha, java: $java}]' <<< "$all_targets")"
           done < <(git for-each-ref \
             --sort=version:refname \
             --format='%(refname:short) %(objectname)' \
@@ -141,10 +148,10 @@ jobs:
           ref: ${{ matrix.target.sha }}
           fetch-depth: 0
 
-      - name: Setup JDK 25
+      - name: Setup JDK
         uses: actions/setup-java@v5
         with:
-          java-version: "25"
+          java-version: ${{ matrix.target.minecraft == '1.20.1' && '21' || '25' }}
           distribution: "temurin"
 
       - name: Setup Gradle
@@ -187,8 +194,9 @@ jobs:
           MINECRAFT_VERSION: ${{ steps.versions.outputs.minecraft_version }}
         run: |
           mkdir release
-          # 统一三个加载器的文件名，供发布阶段按约定路径读取。
+          # 根据当前分支实际包含的加载器收集产物。
           for loader in fabric forge neoforge; do
+            test -d "$loader" || continue
             source_file="$loader/build/libs/$MOD_ID-$MINECRAFT_VERSION-$loader-$MOD_VERSION.jar"
             target_file="release/$MOD_ID-v$MOD_VERSION-mc$MINECRAFT_VERSION-$loader.jar"
             test -f "$source_file" || { echo "Missing artifact: $source_file"; exit 1; }
@@ -265,7 +273,7 @@ jobs:
 
           {
             printf '## Auto Torch v%s\n\n' "$RELEASE_VERSION"
-            printf '适用于 **Minecraft %s / NeoForge、Forge、Fabric**。\n\n' "$MINECRAFT_RANGE"
+            printf '适用于 **Minecraft %s / Forge，部分版本支持 Fabric 和 NeoForge**。\n\n' "$MINECRAFT_RANGE"
 
             # 固定章节顺序，没有内容的类型不输出。
             for type in 新增 修复 优化 性能 适配 更新 重构 删除 回退 文档 构建 集成 测试 样式 杂项 合并 其他; do
@@ -295,7 +303,7 @@ jobs:
             gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_NAME" --notes-file release-notes.md
           fi
 
-  # 将每个 Minecraft 版本的三个加载器产物发布到平台，并上传到 GitHub Release。
+  # 将每个 Minecraft 版本已构建的加载器产物发布到平台，并上传到 GitHub Release。
   publish:
     needs:
       - prepare
@@ -314,6 +322,23 @@ jobs:
           name: release-mc-${{ matrix.target.minecraft }}
           path: release
 
+      - name: Detect available loaders
+        id: loaders
+        shell: bash
+        env:
+          MOD_VERSION: ${{ needs.prepare.outputs.release_version }}
+          MINECRAFT_VERSION: ${{ matrix.target.minecraft }}
+        run: |
+          # 发布步骤只处理当前分支实际生成的加载器产物。
+          for loader in fabric forge neoforge; do
+            file="release/autotorch-v$MOD_VERSION-mc$MINECRAFT_VERSION-$loader.jar"
+            if test -f "$file"; then
+              echo "$loader=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$loader=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
       - name: Download release notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -331,6 +356,7 @@ jobs:
 
       # 使用固定提交而不是浮动标签，避免第三方 Action 更新导致发布行为意外变化。
       - name: Publish Fabric for Minecraft ${{ matrix.target.minecraft }}
+        if: steps.loaders.outputs.fabric == 'true'
         uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3
         with:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
@@ -346,11 +372,12 @@ jobs:
           game-versions: ${{ matrix.target.minecraft }}
           game-version-filter: none
           environment: client | server?
-          java: Java 25
+          java: Java ${{ matrix.target.java }}
           dependencies: fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
 
       # Forge 和 NeoForge 不依赖 Fabric API，因此不声明额外依赖。
       - name: Publish Forge for Minecraft ${{ matrix.target.minecraft }}
+        if: steps.loaders.outputs.forge == 'true'
         uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3
         with:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
@@ -366,9 +393,10 @@ jobs:
           game-versions: ${{ matrix.target.minecraft }}
           game-version-filter: none
           environment: client | server?
-          java: Java 25
+          java: Java ${{ matrix.target.java }}
 
       - name: Publish NeoForge for Minecraft ${{ matrix.target.minecraft }}
+        if: steps.loaders.outputs.neoforge == 'true'
         uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3
         with:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
@@ -384,4 +412,4 @@ jobs:
           game-versions: ${{ matrix.target.minecraft }}
           game-version-filter: none
           environment: client | server?
-          java: Java 25
+          java: Java ${{ matrix.target.java }}
