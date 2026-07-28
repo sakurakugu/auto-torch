@@ -273,7 +273,7 @@ jobs:
 
           {
             printf '## Auto Torch v%s\n\n' "$RELEASE_VERSION"
-            printf '适用于 **Minecraft %s / Forge，部分版本支持 Fabric 和 NeoForge**。\n\n' "$MINECRAFT_RANGE"
+            printf '适用于 **Minecraft %s / NeoForge、Forge、Fabric**。\n\n' "$MINECRAFT_RANGE"
 
             # 固定章节顺序，没有内容的类型不输出。
             for type in 新增 修复 优化 性能 适配 更新 重构 删除 回退 文档 构建 集成 测试 样式 杂项 合并 其他; do
