@@ -113,7 +113,7 @@ public final class LightOverlayRenderer {
     }
 
     private static void renderGeometry(Vec3d camera, RenderData data, boolean waterVisible) {
-        if (data == null || data.lineCount() == 0 || Minecraft.getMinecraft().world == null) {
+        if (data == null || data.lineCount() == 0 || Minecraft.getMinecraft().theWorld == null) {
             return;
         }
         if (waterVisible) {

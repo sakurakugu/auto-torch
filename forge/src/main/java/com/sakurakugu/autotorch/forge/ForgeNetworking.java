@@ -16,7 +16,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.relauncher.Side;
 
-/** Forge 1.11.2 的 SimpleNetworkWrapper 适配。 */
+/** Forge 1.10.2 的 SimpleNetworkWrapper 适配。 */
 final class ForgeNetworking {
     private static final SimpleNetworkWrapper CHANNEL = NetworkRegistry.INSTANCE.newSimpleChannel(AutoTorch.MOD_ID + ":main");
     private ForgeNetworking() {}

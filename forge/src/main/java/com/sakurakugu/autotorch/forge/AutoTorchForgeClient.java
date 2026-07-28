@@ -35,17 +35,17 @@ final class AutoTorchForgeClient {
     }
     @SubscribeEvent public void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
         boolean start = selectionClickPos == null || !selectionClickPos.equals(event.getPos());
-        if (event.getEntityPlayer() != null && event.getEntityPlayer().world instanceof WorldClient && client.onLeftClick((WorldClient) event.getEntityPlayer().world, event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos(), start)) {
+        if (event.getEntityPlayer() != null && event.getEntityPlayer().worldObj instanceof WorldClient && client.onLeftClick((WorldClient) event.getEntityPlayer().worldObj, event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos(), start)) {
             selectionClickPos = event.getPos(); event.setCanceled(true);
         }
     }
     @SubscribeEvent public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getEntityPlayer() != null && event.getEntityPlayer().world instanceof WorldClient && client.onRightClick((WorldClient) event.getEntityPlayer().world, event.getHand(), event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos())) {
+        if (event.getEntityPlayer() != null && event.getEntityPlayer().worldObj instanceof WorldClient && client.onRightClick((WorldClient) event.getEntityPlayer().worldObj, event.getHand(), event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos())) {
             event.setCanceled(true);
         }
     }
     @SubscribeEvent public void onRender(RenderWorldLastEvent event) {
-        Minecraft minecraft = Minecraft.getMinecraft(); if (minecraft.world == null) return;
+        Minecraft minecraft = Minecraft.getMinecraft(); if (minecraft.theWorld == null) return;
         Entity view = minecraft.getRenderViewEntity(); if (view == null) return;
         float partial = event.getPartialTicks();
         Vec3d origin = new Vec3d(view.lastTickPosX + (view.posX - view.lastTickPosX) * partial, view.lastTickPosY + (view.posY - view.lastTickPosY) * partial, view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partial);

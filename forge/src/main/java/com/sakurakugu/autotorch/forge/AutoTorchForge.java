@@ -16,7 +16,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 
 @Mod(modid = AutoTorch.MOD_ID, useMetadata = true,
-        acceptedMinecraftVersions = "[1.11.2]", dependencies = "required-after:forge@[13,)")
+        acceptedMinecraftVersions = "[1.10.2]", dependencies = "required-after:Forge@[12,)")
 public final class AutoTorchForge {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {

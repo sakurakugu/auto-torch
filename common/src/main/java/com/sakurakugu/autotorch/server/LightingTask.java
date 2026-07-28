@@ -12,7 +12,6 @@ import com.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.WorldServer;
@@ -20,7 +19,6 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.item.Item;
-import net.minecraft.util.text.Style;
 import net.minecraft.block.Block;
 import net.minecraft.init.Blocks;
 import net.minecraft.block.state.IBlockState;
@@ -170,18 +168,9 @@ final class LightingTask {
         int percent = (int) Math.min(100L, scanned * 100L / total);
         int passFilled = (int) Math.min(PROGRESS_BAR_LENGTH,
                 scanIndex * PROGRESS_BAR_LENGTH / volume);
-        ITextComponent bar;
-        if (pass == 0) {
-            bar = new TextComponentString(progressBar(passFilled)).setStyle(new Style().setColor(TextFormatting.GRAY))
-                    .appendSibling(new TextComponentString(progressBar(PROGRESS_BAR_LENGTH - passFilled))
-                            .setStyle(new Style().setColor(TextFormatting.DARK_GRAY)));
-        } else {
-            // 第二轮从左向右用绿色覆盖第一轮已经铺满的灰色进度条。
-            bar = new TextComponentString(progressBar(passFilled)).setStyle(new Style().setColor(TextFormatting.GREEN))
-                    .appendSibling(new TextComponentString(progressBar(PROGRESS_BAR_LENGTH - passFilled))
-                            .setStyle(new Style().setColor(TextFormatting.GRAY)));
-        }
-        player.sendStatusMessage(new TextComponentTranslation("message.autotorch.progress", bar, percent, placed), true);
+        String bar = formattedProgressBar(pass, passFilled);
+        LightingTaskManager.sendSystemMessage(
+                player, new TextComponentTranslation("message.autotorch.progress", bar, percent, placed), true);
     }
 
     private static TickResult finish(
@@ -191,8 +180,8 @@ final class LightingTask {
             int placedThisTick,
             Object... messageArguments
     ) {
-        player.sendStatusMessage(new TextComponentString(""), true);
-        player.sendStatusMessage(new TextComponentTranslation(messageKey, messageArguments), false);
+        LightingTaskManager.sendSystemMessage(player, new TextComponentString(""), true);
+        LightingTaskManager.sendSystemMessage(player, new TextComponentTranslation(messageKey, messageArguments));
         return new TickResult(true, scannedThisTick, placedThisTick);
     }
 
@@ -299,7 +288,8 @@ final class LightingTask {
 
     private static boolean hasTorch(EntityPlayerMP player) {
         for (int slot = 0; slot < player.inventory.getSizeInventory(); slot++) {
-            if (player.inventory.getStackInSlot(slot).getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
+            ItemStack stack = player.inventory.getStackInSlot(slot);
+            if (stack != null && stack.getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
                 return true;
             }
         }
@@ -309,8 +299,11 @@ final class LightingTask {
     private static void consumeTorch(EntityPlayerMP player) {
         for (int slot = 0; slot < player.inventory.getSizeInventory(); slot++) {
             ItemStack stack = player.inventory.getStackInSlot(slot);
-            if (stack.getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
-                stack.shrink(1);
+            if (stack != null && stack.getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
+                stack.stackSize--;
+                if (stack.stackSize <= 0) {
+                    player.inventory.setInventorySlotContents(slot, null);
+                }
                 player.inventory.markDirty();
                 return;
             }
@@ -348,6 +341,14 @@ final class LightingTask {
         StringBuilder result = new StringBuilder(length);
         for (int i = 0; i < length; i++) result.append('|');
         return result.toString();
+    }
+
+    static String formattedProgressBar(int pass, int filled) {
+        TextFormatting filledColor = pass == 0 ? TextFormatting.GRAY : TextFormatting.GREEN;
+        TextFormatting remainingColor = pass == 0 ? TextFormatting.DARK_GRAY : TextFormatting.GRAY;
+        return filledColor + progressBar(filled)
+                + remainingColor + progressBar(PROGRESS_BAR_LENGTH - filled)
+                + TextFormatting.RESET;
     }
 
     static final class TickResult {

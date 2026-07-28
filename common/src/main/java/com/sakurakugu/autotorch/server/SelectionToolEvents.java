@@ -16,7 +16,7 @@ public final class SelectionToolEvents {
     }
 
     public static boolean handlesInteraction(EntityPlayerMP player, ItemStack stack) {
-        return isEnabled(player.getUniqueID()) && stack.getItem() == Items.WOODEN_AXE;
+        return isEnabled(player.getUniqueID()) && stack != null && stack.getItem() == Items.WOODEN_AXE;
     }
 
     public static void setEnabled(EntityPlayerMP player, boolean enabled) {

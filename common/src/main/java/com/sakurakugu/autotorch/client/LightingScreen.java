@@ -64,8 +64,8 @@ public final class LightingScreen extends Screen {
     @Override
     protected void init() {
         tooltips.clear();
-        BlockPos playerPos = minecraft.player == null
-                ? BlockPos.ORIGIN : minecraft.player.getPosition();
+        BlockPos playerPos = minecraft.thePlayer == null
+                ? BlockPos.ORIGIN : minecraft.thePlayer.getPosition();
         int left = panelLeft();
 
         shapeButton = addRenderableWidget(button(left, 20, 126, 20, shapeMessage(), button -> {
@@ -190,7 +190,7 @@ public final class LightingScreen extends Screen {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage().getFormattedText());
         }), new TextComponentTranslation("screen.autotorch.drowned_detection.tooltip")));
-        // Minecraft 1.11.2 尚未加入溺尸，保留控件位置但禁止修改无效配置。
+        // Minecraft 1.10.2 尚未加入溺尸，保留控件位置但禁止修改无效配置。
         drownedDetectionButton.active = false;
 
         nearbyAutoTorchButton = addRenderableWidget(withTooltip(button(left, 326, 153, 20,
@@ -652,7 +652,7 @@ public final class LightingScreen extends Screen {
     }
 
     private static boolean isCreativePlayer() {
-        return Minecraft.getMinecraft().player != null && Minecraft.getMinecraft().player.isCreative();
+        return Minecraft.getMinecraft().thePlayer != null && Minecraft.getMinecraft().thePlayer.isCreative();
     }
 
     private static boolean isSingleplayerOwner() {
@@ -688,8 +688,8 @@ public final class LightingScreen extends Screen {
     }
 
     private BlockPos currentPosition() {
-        return minecraft.player == null
-                ? BlockPos.ORIGIN : minecraft.player.getPosition();
+        return minecraft.thePlayer == null
+                ? BlockPos.ORIGIN : minecraft.thePlayer.getPosition();
     }
 
     private static void setPosition(EditBox[] boxes, BlockPos pos) {

@@ -4,7 +4,7 @@ import java.util.function.Consumer;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiTextField;
 
-/** 为 1.11.2 文本框提供当前界面使用的命名和布局接口。 */
+/** 为 1.10.2 文本框提供当前界面使用的命名和布局接口。 */
 final class EditBox extends GuiTextField implements Widget {
     public boolean visible = true;
     private Consumer<String> responder = value -> {};

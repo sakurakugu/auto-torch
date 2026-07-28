@@ -45,26 +45,26 @@ public final class ServerConfigPayload implements AutoTorchPayload {
     public static ServerConfigPayload decode(PacketBuffer buffer) {
         return new ServerConfigPayload(
                 buffer.readBoolean(),
-                buffer.readVarInt(),
-                buffer.readVarInt(),
-                buffer.readVarInt(),
-                buffer.readVarInt(),
+                buffer.readVarIntFromBuffer(),
+                buffer.readVarIntFromBuffer(),
+                buffer.readVarIntFromBuffer(),
+                buffer.readVarIntFromBuffer(),
                 buffer.readBoolean(),
-                buffer.readVarInt(),
-                buffer.readVarInt()
+                buffer.readVarIntFromBuffer(),
+                buffer.readVarIntFromBuffer()
         );
     }
 
     @Override
     public void write(PacketBuffer buffer) {
         buffer.writeBoolean(survivalConsumesTorches);
-        buffer.writeVarInt(maxBoxAxisLength);
-        buffer.writeVarInt(maxSphereRadius);
-        buffer.writeVarInt(maxExclusions);
-        buffer.writeVarInt(maxTorchesPerTask);
+        buffer.writeVarIntToBuffer(maxBoxAxisLength);
+        buffer.writeVarIntToBuffer(maxSphereRadius);
+        buffer.writeVarIntToBuffer(maxExclusions);
+        buffer.writeVarIntToBuffer(maxTorchesPerTask);
         buffer.writeBoolean(allowsUnlimitedTorches);
-        buffer.writeVarInt(minSpacing);
-        buffer.writeVarInt(maxSpacing);
+        buffer.writeVarIntToBuffer(minSpacing);
+        buffer.writeVarIntToBuffer(maxSpacing);
     }
 
     public static ServerConfigPayload current() {

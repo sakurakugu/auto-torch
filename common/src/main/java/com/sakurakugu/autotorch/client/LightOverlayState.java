@@ -101,16 +101,16 @@ public final class LightOverlayState {
     }
 
     public static void tick(Minecraft minecraft) {
-        World currentLevel = minecraft.world;
+        World currentLevel = minecraft.theWorld;
         if (currentLevel != level) {
             level = currentLevel;
             clearScan();
         }
-        if (!enabled || currentLevel == null || minecraft.player == null) {
+        if (!enabled || currentLevel == null || minecraft.thePlayer == null) {
             return;
         }
 
-        BlockPos playerPos = minecraft.player.getPosition();
+        BlockPos playerPos = minecraft.thePlayer.getPosition();
         if (scanCenter == null) {
             beginScan(playerPos);
         }
@@ -182,7 +182,7 @@ public final class LightOverlayState {
         if (!level.isBlockLoaded(feet)) {
             return null;
         }
-        // 1.11.2 没有溺尸；保留配置字段以兼容已有客户端配置，但不生成溺尸标记。
+        // 1.10.2 没有溺尸；保留配置字段以兼容已有客户端配置，但不生成溺尸标记。
         if (level.getBlockState(feet).getMaterial().isLiquid()
                 || level.getBlockState(feet.up()).getMaterial().isLiquid()) {
             return null;

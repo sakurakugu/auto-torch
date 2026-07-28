@@ -46,9 +46,9 @@ public final class StartLightingPayload implements AutoTorchPayload {
     public static StartLightingPayload decode(PacketBuffer buffer) {
         return new StartLightingPayload(
                 readZone(buffer),
-                buffer.readVarInt(),
-                buffer.readVarInt(),
-                buffer.readVarInt(),
+                buffer.readVarIntFromBuffer(),
+                buffer.readVarIntFromBuffer(),
+                buffer.readVarIntFromBuffer(),
                 buffer.readBoolean(),
                 buffer.readBoolean(),
                 readExclusions(buffer)
@@ -58,12 +58,12 @@ public final class StartLightingPayload implements AutoTorchPayload {
     @Override
     public void write(PacketBuffer buffer) {
         writeZone(buffer, selection);
-        buffer.writeVarInt(maxTorches);
-        buffer.writeVarInt(minSpacing);
-        buffer.writeVarInt(lightThreshold);
+        buffer.writeVarIntToBuffer(maxTorches);
+        buffer.writeVarIntToBuffer(minSpacing);
+        buffer.writeVarIntToBuffer(lightThreshold);
         buffer.writeBoolean(consumeTorches);
         buffer.writeBoolean(undergroundOnly);
-        buffer.writeVarInt(exclusions.size());
+        buffer.writeVarIntToBuffer(exclusions.size());
         for (AreaZone exclusion : exclusions) {
             writeZone(buffer, exclusion);
         }
@@ -85,7 +85,7 @@ public final class StartLightingPayload implements AutoTorchPayload {
     }
 
     private static List<AreaZone> readExclusions(PacketBuffer buffer) {
-        int count = buffer.readVarInt();
+        int count = buffer.readVarIntFromBuffer();
         // 在分配列表前限制数量，防止恶意数据包造成过量内存分配。
         if (count < 0 || count > MAX_EXCLUSIONS) {
             throw new DecoderException("Invalid Auto Torch exclusion count: " + count);

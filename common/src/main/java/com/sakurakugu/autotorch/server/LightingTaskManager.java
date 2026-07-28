@@ -17,6 +17,7 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.network.play.server.SPacketChat;
 import net.minecraft.server.MinecraftServer;
 
 /** 按玩家管理照明任务，并在每个服务端刻推进任务。 */
@@ -27,12 +28,12 @@ public final class LightingTaskManager {
     private LightingTaskManager() {
     }
 
-    private static void sendSystemMessage(EntityPlayerMP player, ITextComponent message) {
-        player.sendStatusMessage(message, false);
+    static void sendSystemMessage(EntityPlayerMP player, ITextComponent message) {
+        sendSystemMessage(player, message, false);
     }
 
-    private static void sendSystemMessage(EntityPlayerMP player, ITextComponent message, boolean overlay) {
-        player.sendStatusMessage(message, overlay);
+    static void sendSystemMessage(EntityPlayerMP player, ITextComponent message, boolean overlay) {
+        player.connection.sendPacket(new SPacketChat(message, (byte) (overlay ? 2 : 0)));
     }
 
     public static void start(EntityPlayerMP player, StartLightingPayload payload) {

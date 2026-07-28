@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md)
 
-An automatic torch placement and light level overlay mod for Minecraft 1.11.2-26.2 on Forge.
+An automatic torch placement and light level overlay mod for Minecraft 1.10.2-26.2 on Forge.
 
 ![Icon](./common/src/main/resources/autotorch.png)
 

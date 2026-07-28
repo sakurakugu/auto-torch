@@ -3,7 +3,7 @@ package com.sakurakugu.autotorch.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 
-/** 为 1.11.2 的 GuiButton 补齐界面业务使用的控件接口。 */
+/** 为 1.10.2 的 GuiButton 补齐界面业务使用的控件接口。 */
 class Button extends GuiButton implements Widget {
     interface OnPress { void onPress(Button button); }
 

@@ -32,22 +32,22 @@ public final class AutoTorchClient {
 
     public void tick() {
         Minecraft minecraft = Minecraft.getMinecraft();
-        BlockPos currentPosition = minecraft.player == null
-                ? BlockPos.ORIGIN : minecraft.player.getPosition();
+        BlockPos currentPosition = minecraft.thePlayer == null
+                ? BlockPos.ORIGIN : minecraft.thePlayer.getPosition();
         // 切换世界或退出存档时重置选区，避免把旧维度坐标带入新世界。
-        SelectionState.updateLevel(minecraft.world, currentPosition);
+        SelectionState.updateLevel(minecraft.theWorld, currentPosition);
         LightOverlayState.tick(minecraft);
         NearbyAutoTorch.tick(minecraft);
         syncSelectionToolSetting(minecraft);
         while (OPEN_SCREEN.isPressed()) {
-            if (minecraft.player != null && minecraft.currentScreen == null) {
+            if (minecraft.thePlayer != null && minecraft.currentScreen == null) {
                 minecraft.displayGuiScreen(new LightingScreen());
             }
         }
         while (TOGGLE_LIGHT_OVERLAY.isPressed()) {
-            if (minecraft.player != null) {
+            if (minecraft.thePlayer != null) {
                 boolean enabled = LightOverlayState.toggle();
-                minecraft.ingameGUI.setOverlayMessage(new TextComponentTranslation(enabled
+                minecraft.ingameGUI.setRecordPlaying(new TextComponentTranslation(enabled
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
             }
         }
@@ -56,13 +56,14 @@ public final class AutoTorchClient {
     public boolean onLeftClick(World level, ItemStack stack, BlockPos pos, boolean start) {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
                 || !level.isRemote
+                || stack == null
                 || stack.getItem() != Items.WOODEN_AXE) {
             return false;
         }
         // 长按破坏方块会连续触发事件，只在 START 阶段记录一次 A 点。
         if (start) {
             SelectionState.setFirst(pos);
-            Minecraft.getMinecraft().ingameGUI.setOverlayMessage(
+            Minecraft.getMinecraft().ingameGUI.setRecordPlaying(
                     new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                                     ? "message.autotorch.selected_center" : "message.autotorch.selected_a",
                             formatPosition(pos)), false
@@ -75,6 +76,7 @@ public final class AutoTorchClient {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
                 || !level.isRemote
                 || hand != EnumHand.MAIN_HAND
+                || stack == null
                 || stack.getItem() != Items.WOODEN_AXE) {
             return false;
         }
@@ -83,14 +85,14 @@ public final class AutoTorchClient {
             AreaZone draft = SelectionState.draft(pos);
             long maxRadiusSquared = (long) AreaZone.MAX_SPHERE_RADIUS * AreaZone.MAX_SPHERE_RADIUS;
             if (draft.radiusSquared() > maxRadiusSquared) {
-                Minecraft.getMinecraft().ingameGUI.setOverlayMessage(
+                Minecraft.getMinecraft().ingameGUI.setRecordPlaying(
                         new TextComponentTranslation("message.autotorch.sphere_radius_too_large",
                                 AreaZone.MAX_SPHERE_RADIUS).setStyle(new net.minecraft.util.text.Style().setColor(TextFormatting.RED)), false
                 );
                 return true;
             }
         }
-        Minecraft.getMinecraft().ingameGUI.setOverlayMessage(
+        Minecraft.getMinecraft().ingameGUI.setRecordPlaying(
                 new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                                 ? "message.autotorch.selected_radius" : "message.autotorch.selected_b",
                         formatPosition(pos)), false
@@ -103,12 +105,12 @@ public final class AutoTorchClient {
     }
 
     private void syncSelectionToolSetting(Minecraft minecraft) {
-        if (minecraft.world == null) {
+        if (minecraft.theWorld == null) {
             selectionToolSyncedLevel = null;
-        } else if (minecraft.player != null && minecraft.world != selectionToolSyncedLevel) {
+        } else if (minecraft.thePlayer != null && minecraft.theWorld != selectionToolSyncedLevel) {
             PlatformNetworking.sendToServer(
                     new SetSelectionToolPayload(ClientConfig.isWoodenAxeSelectionEnabled()));
-            selectionToolSyncedLevel = minecraft.world;
+            selectionToolSyncedLevel = minecraft.theWorld;
         }
     }
 }
