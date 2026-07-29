@@ -205,4 +205,5 @@ Lowering `scanBudgetPerTaskTick` and `globalScanBudgetPerTick` reduces the per-t
 
 ## Other
 
-A Bedrock Edition port was started, but Bedrock proved less developer-friendly than Java Edition for custom rendering, UI configuration, and related features, so the port has been canceled. Anyone interested is welcome to create their own port.
+- A Bedrock Edition port was started, but Bedrock proved less developer-friendly than Java Edition for custom rendering, UI configuration, and related features, so the port has been canceled. Anyone interested is welcome to create their own port.
+- Minecraft Java Edition versions earlier than 1.7.10 are not planned to be supported because doing so would require extensive changes, and no official Forge downloads for those versions could be found.
