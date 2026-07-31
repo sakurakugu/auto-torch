@@ -1,0 +1,68 @@
+import groovy.json.JsonSlurper
+
+def sourceDirectory = project.ext.legacyLangSourceDir
+def outputDirectory = layout.buildDirectory.dir("generated/legacyLang")
+def targetModId = project.ext.legacyLangModId
+
+def generateLegacyLang = tasks.register("generateLegacyLang") {
+    inputs.files(fileTree(sourceDirectory) {
+        include "*.json"
+    })
+    outputs.dir(outputDirectory)
+
+    doLast {
+        def outputRoot = outputDirectory.get().asFile
+        delete outputRoot
+
+        fileTree(sourceDirectory).matching {
+            include "*.json"
+        }.files.sort().each { jsonFile ->
+            def translations = new JsonSlurper().parse(jsonFile, "UTF-8")
+
+            if (!(translations instanceof Map)) {
+                throw new GradleException(
+                        "${jsonFile.name} 的根节点必须是 JSON 对象"
+                )
+            }
+
+            def outputFile = new File(
+                    outputRoot,
+                    "assets/${targetModId}/lang/" +
+                            jsonFile.name.replaceFirst(/\.json$/, ".lang")
+            )
+
+            outputFile.parentFile.mkdirs()
+
+            def content = new StringBuilder()
+
+            translations.keySet().sort().each { key ->
+                def value = translations[key]
+
+                if (!(key instanceof String) || !(value instanceof String)) {
+                    throw new GradleException(
+                            "${jsonFile.name} 中的翻译键和值必须是字符串"
+                    )
+                }
+
+                if (key.contains("=") || key.contains("\r") || key.contains("\n")) {
+                    throw new GradleException(
+                            "${jsonFile.name} 包含不合法的翻译键：${key}"
+                    )
+                }
+
+                if (value.contains("\r") || value.contains("\n")) {
+                    throw new GradleException(
+                            "${jsonFile.name} 中的 ${key} 包含换行符"
+                    )
+                }
+
+                content.append(key)
+                        .append("=")
+                        .append(value)
+                        .append("\n")
+            }
+
+            outputFile.setText(content.toString(), "UTF-8")
+        }
+    }
+}
