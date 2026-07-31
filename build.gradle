@@ -3,6 +3,13 @@ plugins {
     id 'net.minecraftforge.renamer' version '1.1.2' apply false
 }
 
+// 将 json 翻译文件转换为 lang 文件
+ext.legacyLangModId = mod_id
+ext.legacyLangSourceDir =
+        rootProject.file("common/src/main/resources/assets/${mod_id}/lang")
+
+apply from: rootProject.file("gradle/legacy-lang.gradle")
+
 ext.minecraft_version_range = "[${minecraft_version}]"
 
 allprojects {
