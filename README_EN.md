@@ -66,6 +66,24 @@ Run a development client with:
 
 On Windows, you can also run `tools\1.一键启动mc脚本.ps1`.
 
+## Contributing Translations
+
+Contributions that add or improve translations are welcome. Language files are located in `common/src/main/resources/assets/autotorch/lang/`.
+
+Different Minecraft versions use different maintenance branches and language file formats:
+
+| Minecraft Version                    | Pull Request Target Branch | Language File Format |
+| ------------------------------------ | -------------------------- | -------------------- |
+| Current development version (latest) | `main`                     | `.json`              |
+| 1.7.10~1.12.2                        | `mc/<version>`             | `.lang`              |
+| 1.13.2 and later                     | `mc/<version>`             | `.json`              |
+
+When contributing a translation, submit the `.json` file in a pull request targeting `main`. Do not submit it directly to another `mc/x.x.x` branch; it will be merged and converted to a `.lang` file manually when necessary.
+
+1. Fork this repository and create a new branch from `main`.
+2. Copy `zh_cn.json` on that branch, then translate it manually or with the help of AI.
+3. Commit the translated file and make sure it uses UTF-8 encoding.
+
 ## Features
 
 ### Nearby Automatic Torch Placement
