@@ -18,6 +18,8 @@ base {
 sourceSets.main {
     java.srcDir project.rootProject.file('common/src/main/java')
     resources.srcDir project.rootProject.file('common/src/main/resources')
+    resources.srcDir rootProject.tasks.named('generateLegacyLang')
+    resources.exclude "assets/${mod_id}/lang/*.json"
 }
 
 sourceSets.test {
