@@ -47,6 +47,8 @@ other/
 tmp/
 temp/
 
+TODO.md
+
 ### Python ###
 *.pyc
 
