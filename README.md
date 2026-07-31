@@ -2,7 +2,9 @@
 
 [English](README_EN.md) | 简体中文
 
-适用于 Minecraft 1.7.10~26.2 / Forge 和 Fabric 的自动插火把和光照显示模组。
+适用于 Minecraft 1.15.2 / Forge 和 Fabric 的自动插火把和光照显示模组。
+
+> 其他版本支持见分支 `mc/<对应版本号>`
 
 ![icon](./common/src/main/resources/autotorch.png)
 
