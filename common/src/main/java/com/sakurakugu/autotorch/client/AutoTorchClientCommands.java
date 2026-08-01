@@ -44,6 +44,9 @@ public final class AutoTorchClientCommands {
 
     /** 旧版加载器没有客户端命令事件时，从聊天发送入口执行本地命令。 */
     public static boolean tryExecute(String message) {
+        if (message.equals("/autotorch serverconfig") || message.startsWith("/autotorch serverconfig ")) {
+            return false;
+        }
         if (!message.equals("/autotorch") && !message.startsWith("/autotorch ")) {
             return false;
         }
