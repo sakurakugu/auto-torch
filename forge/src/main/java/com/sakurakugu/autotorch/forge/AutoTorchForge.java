@@ -29,7 +29,7 @@ public final class AutoTorchForge {
         ServerConfig.install(ForgeConfigs.SERVER);
         ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
         ForgeNetworking.initialize();
-        RegisterCommandsEvent.BUS.addListener(event -> AutoTorchServerCommands.register(event.getDispatcher(),
+        MinecraftForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> AutoTorchServerCommands.register(event.getDispatcher(),
                 server -> server.getPlayerList().getPlayers().forEach(player ->
                         ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current()))));
 
