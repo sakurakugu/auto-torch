@@ -7,6 +7,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
@@ -31,6 +32,7 @@ import net.minecraft.world.phys.Vec3;
 
 /** 注册只在本地执行的 Auto Torch 客户端命令。 */
 public final class AutoTorchClientCommands {
+    private static final CommandDispatcher<Object> DISPATCHER = new CommandDispatcher<>();
     private static final ChatFormatting STATUS_TITLE_COLOR = ChatFormatting.GOLD;
     private static final ChatFormatting STATUS_NEARBY_COLOR = ChatFormatting.GREEN;
     private static final ChatFormatting STATUS_OVERLAY_COLOR = ChatFormatting.AQUA;
@@ -39,6 +41,26 @@ public final class AutoTorchClientCommands {
     private static final ChatFormatting HELP_SEPARATOR_COLOR = ChatFormatting.AQUA;
 
     private AutoTorchClientCommands() {
+    }
+
+    static {
+        register(DISPATCHER);
+    }
+
+    /** 旧版加载器没有客户端命令事件时，从聊天发送入口执行本地命令。 */
+    public static boolean tryExecute(String message) {
+        if (message.equals("/autotorch serverconfig") || message.startsWith("/autotorch serverconfig ")) {
+            return false;
+        }
+        if (!message.equals("/autotorch") && !message.startsWith("/autotorch ")) {
+            return false;
+        }
+        try {
+            DISPATCHER.execute(message.substring(1), new Object());
+        } catch (CommandSyntaxException exception) {
+            chat(new TextComponent(exception.getMessage()));
+        }
+        return true;
     }
 
     public static <S> void register(CommandDispatcher<S> dispatcher) {
