@@ -14,7 +14,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.fml.event.server.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.config.ModConfig;
@@ -29,9 +29,7 @@ public final class AutoTorchForge {
         ServerConfig.install(ForgeConfigs.SERVER);
         ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
         ForgeNetworking.initialize();
-        MinecraftForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> AutoTorchServerCommands.register(event.getDispatcher(),
-                server -> server.getPlayerList().getPlayers().forEach(player ->
-                        ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current()))));
+        MinecraftForge.EVENT_BUS.addListener(this::onServerStarting);
 
         MinecraftForge.EVENT_BUS.addListener(this::onServerTick);
         MinecraftForge.EVENT_BUS.addListener(this::onLeftClick);
@@ -42,6 +40,12 @@ public final class AutoTorchForge {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             AutoTorchForgeClient.initialize(context);
         }
+    }
+
+    private void onServerStarting(FMLServerStartingEvent event) {
+        AutoTorchServerCommands.register(event.getCommandDispatcher(), server ->
+                server.getPlayerList().getPlayers().forEach(player ->
+                        ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current())));
     }
 
     private void onServerTick(TickEvent.ServerTickEvent event) {
