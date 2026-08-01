@@ -19,8 +19,6 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.commands.arguments.coordinates.Coordinates;
-import net.minecraft.commands.arguments.coordinates.LocalCoordinates;
-import net.minecraft.commands.arguments.coordinates.WorldCoordinates;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -216,20 +214,41 @@ public final class AutoTorchClientCommands {
     }
 
     private static <S> BlockPos position(CommandContext<S> context, String name) {
-        Coordinates coordinates = context.getArgument(name, Coordinates.class);
         Minecraft minecraft = Minecraft.getInstance();
         Vec3 origin = minecraft.player == null ? Vec3.ZERO : minecraft.player.position();
-        if (coordinates instanceof WorldCoordinates world) {
-            return BlockPos.containing(
-                    world.x().get(origin.x), world.y().get(origin.y), world.z().get(origin.z));
+        String input = context.getNodes().stream()
+                .filter(node -> node.getNode().getName().equals(name))
+                .findFirst()
+                .orElseThrow()
+                .getRange()
+                .get(context.getInput());
+        String[] values = input.trim().split("\\s+");
+        if (values[0].startsWith("^") && minecraft.player != null) {
+            double left = localCoordinate(values[0]);
+            double up = localCoordinate(values[1]);
+            double forwards = localCoordinate(values[2]);
+            var rotation = minecraft.player.getRotationVector();
+            float yaw = (rotation.y + 90.0F) * ((float) Math.PI / 180.0F);
+            float pitch = -rotation.x * ((float) Math.PI / 180.0F);
+            float upPitch = (-rotation.x + 90.0F) * ((float) Math.PI / 180.0F);
+            Vec3 forward = new Vec3(Math.cos(yaw) * Math.cos(pitch), Math.sin(pitch),
+                    Math.sin(yaw) * Math.cos(pitch));
+            Vec3 upVector = new Vec3(Math.cos(yaw) * Math.cos(upPitch), Math.sin(upPitch),
+                    Math.sin(yaw) * Math.cos(upPitch));
+            Vec3 leftVector = forward.cross(upVector).scale(-1.0D);
+            return BlockPos.containing(minecraft.player.getEyePosition()
+                    .add(leftVector.scale(left)).add(upVector.scale(up)).add(forward.scale(forwards)));
         }
-        if (coordinates instanceof LocalCoordinates local && minecraft.player != null) {
-            Vec3 offset = Vec3.applyLocalCoordinatesToRotation(
-                    minecraft.player.getRotationVector(),
-                    new Vec3(local.left(), local.up(), local.forwards()));
-            return BlockPos.containing(minecraft.player.getEyePosition().add(offset));
-        }
-        throw new IllegalArgumentException("Unsupported coordinate type");
+        return BlockPos.containing(worldCoordinate(values[0], origin.x),
+                worldCoordinate(values[1], origin.y), worldCoordinate(values[2], origin.z));
+    }
+
+    private static double worldCoordinate(String value, double origin) {
+        return value.startsWith("~") ? origin + localCoordinate(value) : Double.parseDouble(value);
+    }
+
+    private static double localCoordinate(String value) {
+        return value.length() == 1 ? 0.0D : Double.parseDouble(value.substring(1));
     }
 
     private static BlockPos playerPosition() {
