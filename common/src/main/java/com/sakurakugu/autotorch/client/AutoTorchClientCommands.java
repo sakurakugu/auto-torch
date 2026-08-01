@@ -22,6 +22,7 @@ import net.minecraft.commands.arguments.coordinates.Coordinates;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -236,11 +237,13 @@ public final class AutoTorchClientCommands {
             Vec3 upVector = new Vec3(Math.cos(yaw) * Math.cos(upPitch), Math.sin(upPitch),
                     Math.sin(yaw) * Math.cos(upPitch));
             Vec3 leftVector = forward.cross(upVector).scale(-1.0D);
-            return BlockPos.containing(minecraft.player.getEyePosition()
-                    .add(leftVector.scale(left)).add(upVector.scale(up)).add(forward.scale(forwards)));
+            Vec3 target = minecraft.player.getEyePosition()
+                    .add(leftVector.scale(left)).add(upVector.scale(up)).add(forward.scale(forwards));
+            return new BlockPos(Mth.floor(target.x), Mth.floor(target.y), Mth.floor(target.z));
         }
-        return BlockPos.containing(worldCoordinate(values[0], origin.x),
-                worldCoordinate(values[1], origin.y), worldCoordinate(values[2], origin.z));
+        return new BlockPos(Mth.floor(worldCoordinate(values[0], origin.x)),
+                Mth.floor(worldCoordinate(values[1], origin.y)),
+                Mth.floor(worldCoordinate(values[2], origin.z)));
     }
 
     private static double worldCoordinate(String value, double origin) {
