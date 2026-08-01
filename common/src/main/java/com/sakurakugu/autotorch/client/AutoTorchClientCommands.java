@@ -594,8 +594,8 @@ public final class AutoTorchClientCommands {
     }
 
     private static void chat(ITextComponent message) {
-        if (Minecraft.getMinecraft().player != null) {
-            Minecraft.getMinecraft().player.sendMessage(message);
+        if (Minecraft.getMinecraft().thePlayer != null) {
+            Minecraft.getMinecraft().thePlayer.sendMessage(message);
         }
     }
 
@@ -603,5 +603,6 @@ public final class AutoTorchClientCommands {
         return LiteralArgumentBuilder.literal(name);
     }
 }
+
 
 
