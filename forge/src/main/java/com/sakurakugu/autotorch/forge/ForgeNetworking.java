@@ -6,6 +6,9 @@ import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.network.TaskStatusPayload;
+import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
@@ -19,7 +22,7 @@ import net.minecraftforge.fml.network.simple.SimpleChannel;
 import java.util.Optional;
 
 final class ForgeNetworking {
-    private static final String PROTOCOL_VERSION = "5";
+    private static final String PROTOCOL_VERSION = "6";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(AutoTorch.MOD_ID + ":main"),
             () -> PROTOCOL_VERSION,
@@ -61,6 +64,22 @@ final class ForgeNetworking {
                 ServerConfigPayload::write, ServerConfigPayload::decode, (payload, supplier) -> {
                     NetworkEvent.Context context = supplier.get();
                     context.enqueueWork(() -> ServerConfigState.update(payload));
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(4, TaskStatusRequestPayload.class,
+                TaskStatusRequestPayload::write, TaskStatusRequestPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(() -> {
+                        if (context.getSender() != null) {
+                            sendToPlayer(context.getSender(), LightingTaskManager.status(context.getSender()));
+                        }
+                    });
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(5, TaskStatusPayload.class,
+                TaskStatusPayload::write, TaskStatusPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(() -> AutoTorchClientCommands.receiveTaskStatus(payload));
                     context.setPacketHandled(true);
                 }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }

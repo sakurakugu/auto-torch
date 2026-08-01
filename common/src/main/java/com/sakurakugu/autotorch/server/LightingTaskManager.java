@@ -11,6 +11,7 @@ import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
+import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
@@ -138,6 +139,13 @@ public final class LightingTaskManager {
         } else {
             sendSystemMessage(player, new TranslatableComponent("message.autotorch.no_task"));
         }
+    }
+
+    public static TaskStatusPayload status(ServerPlayer player) {
+        LightingTask task = TASKS.get(player.getUUID());
+        return task == null
+                ? new TaskStatusPayload(false, 0, 0)
+                : new TaskStatusPayload(true, task.progressPercent(), task.placedCount());
     }
 
     public static void onServerTick(MinecraftServer server) {
