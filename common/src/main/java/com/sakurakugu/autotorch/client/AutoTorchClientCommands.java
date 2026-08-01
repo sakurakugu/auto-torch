@@ -223,7 +223,7 @@ public final class AutoTorchClientCommands {
         String input = context.getNodes().stream()
                 .filter(node -> node.getNode().getName().equals(name))
                 .findFirst()
-                .orElseThrow()
+                .orElseThrow(() -> new IllegalArgumentException("Missing command argument: " + name))
                 .getRange()
                 .get(context.getInput());
         String[] values = input.trim().split("\\s+");
@@ -240,7 +240,7 @@ public final class AutoTorchClientCommands {
             Vec3 upVector = new Vec3(Math.cos(yaw) * Math.cos(upPitch), Math.sin(upPitch),
                     Math.sin(yaw) * Math.cos(upPitch));
             Vec3 leftVector = forward.cross(upVector).scale(-1.0D);
-            Vec3 target = minecraft.player.getEyePosition()
+            Vec3 target = minecraft.player.getEyePosition(1.0F)
                     .add(leftVector.scale(left)).add(upVector.scale(up)).add(forward.scale(forwards));
             return new BlockPos(Mth.floor(target.x), Mth.floor(target.y), Mth.floor(target.z));
         }
