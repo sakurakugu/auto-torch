@@ -234,7 +234,7 @@ public final class AutoTorchClientCommands {
 
     private static <S> BlockPos position(CommandContext<S> context, String name) {
         Minecraft minecraft = Minecraft.getMinecraft();
-        Vec3d origin = minecraft.player == null ? Vec3d.ZERO : minecraft.player.getPositionVector();
+        Vec3d origin = minecraft.thePlayer == null ? Vec3d.ZERO : minecraft.thePlayer.getPositionVector();
         String input = context.getNodes().entrySet().stream()
                 .filter(node -> node.getKey().getName().equals(name))
                 .findFirst()
@@ -242,29 +242,29 @@ public final class AutoTorchClientCommands {
                 .getValue()
                 .get(context.getInput());
         String[] values = input.trim().split("\\s+");
-        if (values[0].startsWith("^") && minecraft.player != null) {
+        if (values[0].startsWith("^") && minecraft.thePlayer != null) {
             double left = localCoordinate(values[0]);
             double up = localCoordinate(values[1]);
             double forwards = localCoordinate(values[2]);
-            float yaw = (minecraft.player.rotationYaw + 90.0F) * ((float) Math.PI / 180.0F);
-            float pitch = -minecraft.player.rotationPitch * ((float) Math.PI / 180.0F);
-            float upPitch = (-minecraft.player.rotationPitch + 90.0F) * ((float) Math.PI / 180.0F);
+            float yaw = (minecraft.thePlayer.rotationYaw + 90.0F) * ((float) Math.PI / 180.0F);
+            float pitch = -minecraft.thePlayer.rotationPitch * ((float) Math.PI / 180.0F);
+            float upPitch = (-minecraft.thePlayer.rotationPitch + 90.0F) * ((float) Math.PI / 180.0F);
             Vec3d forward = new Vec3d(Math.cos(yaw) * Math.cos(pitch), Math.sin(pitch),
                     Math.sin(yaw) * Math.cos(pitch));
             Vec3d upVector = new Vec3d(Math.cos(yaw) * Math.cos(upPitch), Math.sin(upPitch),
                     Math.sin(yaw) * Math.cos(upPitch));
             Vec3d leftVector = forward.crossProduct(upVector).scale(-1.0D);
-            Vec3d eye = new Vec3d(minecraft.player.posX,
-                    minecraft.player.posY + minecraft.player.getEyeHeight(), minecraft.player.posZ);
+            Vec3d eye = new Vec3d(minecraft.thePlayer.posX,
+                    minecraft.thePlayer.posY + minecraft.thePlayer.getEyeHeight(), minecraft.thePlayer.posZ);
             Vec3d target = new Vec3d(
                     eye.xCoord + leftVector.xCoord * left + upVector.xCoord * up + forward.xCoord * forwards,
                     eye.yCoord + leftVector.yCoord * left + upVector.yCoord * up + forward.yCoord * forwards,
                     eye.zCoord + leftVector.zCoord * left + upVector.zCoord * up + forward.zCoord * forwards);
-            return new BlockPos(MathHelper.floor(target.xCoord), MathHelper.floor(target.yCoord), MathHelper.floor(target.zCoord));
+            return new BlockPos(MathHelper.floor_double(target.xCoord), MathHelper.floor_double(target.yCoord), MathHelper.floor_double(target.zCoord));
         }
-        return new BlockPos(MathHelper.floor(worldCoordinate(values[0], origin.xCoord)),
-                MathHelper.floor(worldCoordinate(values[1], origin.yCoord)),
-                MathHelper.floor(worldCoordinate(values[2], origin.zCoord)));
+        return new BlockPos(MathHelper.floor_double(worldCoordinate(values[0], origin.xCoord)),
+                MathHelper.floor_double(worldCoordinate(values[1], origin.yCoord)),
+                MathHelper.floor_double(worldCoordinate(values[2], origin.zCoord)));
     }
 
     private static double worldCoordinate(String value, double origin) {
@@ -277,7 +277,7 @@ public final class AutoTorchClientCommands {
 
     private static BlockPos playerPosition() {
         Minecraft minecraft = Minecraft.getMinecraft();
-        return minecraft.player == null ? BlockPos.ORIGIN : minecraft.player.getPosition();
+        return minecraft.thePlayer == null ? BlockPos.ORIGIN : minecraft.thePlayer.getPosition();
     }
 
     private static BlockPos targetPosition() {
@@ -431,7 +431,7 @@ public final class AutoTorchClientCommands {
         if (selection == null) return feedback("command.autotorch.no_lighting_zone");
         if (SelectionState.drafting()) return feedback("command.autotorch.confirm_draft");
         Minecraft minecraft = Minecraft.getMinecraft();
-        boolean consume = minecraft.player != null && minecraft.player.isCreative()
+        boolean consume = minecraft.thePlayer != null && minecraft.thePlayer.isCreative()
                 ? ClientConfig.creativeConsumesTorches()
                 : (minecraft.isIntegratedServerRunning() ? ClientConfig.survivalConsumesTorches()
                         : ServerConfigState.survivalConsumesTorches());
@@ -519,10 +519,10 @@ public final class AutoTorchClientCommands {
                 specialDetection());
 
         Minecraft minecraft = Minecraft.getMinecraft();
-        if (minecraft.player != null) {
-            AreaZone draft = SelectionState.draft(minecraft.player.getPosition());
+        if (minecraft.thePlayer != null) {
+            AreaZone draft = SelectionState.draft(minecraft.thePlayer.getPosition());
             boolean sphere = draft.shape() == AreaShape.SPHERE;
-            boolean consumesTorches = minecraft.player.isCreative()
+            boolean consumesTorches = minecraft.thePlayer.isCreative()
                     ? ClientConfig.creativeConsumesTorches()
                     : (minecraft.isIntegratedServerRunning()
                             ? ClientConfig.survivalConsumesTorches()
@@ -603,4 +603,5 @@ public final class AutoTorchClientCommands {
         return LiteralArgumentBuilder.literal(name);
     }
 }
+
 

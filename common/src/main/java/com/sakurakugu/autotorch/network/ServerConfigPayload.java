@@ -49,6 +49,7 @@ public final class ServerConfigPayload implements AutoTorchPayload {
     public static ServerConfigPayload decode(PacketBuffer buffer) {
         return new ServerConfigPayload(
                 buffer.readBoolean(),
+                buffer.readBoolean(),
                 buffer.readVarIntFromBuffer(),
                 buffer.readVarIntFromBuffer(),
                 buffer.readVarIntFromBuffer(),
