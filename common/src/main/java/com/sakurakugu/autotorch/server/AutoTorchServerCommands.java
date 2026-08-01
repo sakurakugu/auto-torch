@@ -14,23 +14,22 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.command.CommandSource;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.server.MinecraftServer;
 
 /** 仅注册在服务端的管理员配置命令。 */
 public final class AutoTorchServerCommands {
     private AutoTorchServerCommands() {}
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+    public static void register(CommandDispatcher<CommandSource> dispatcher) {
         register(dispatcher, server -> {});
     }
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher,
+    public static void register(CommandDispatcher<CommandSource> dispatcher,
                                 Consumer<MinecraftServer> configChanged) {
         dispatcher.register(literal("autotorch")
-                .requires(source -> source.hasPermission(2))
+                .requires(source -> source.hasPermissionLevel(2))
                 .executes(context -> showHelp(context))
                 .then(literal("help").executes(AutoTorchServerCommands::showHelp))
                 .then(literal("serverconfig")
@@ -47,21 +46,21 @@ public final class AutoTorchServerCommands {
                                 .executes(context -> defaults(context, configChanged)))));
     }
 
-    private static int showHelp(CommandContext<CommandSourceStack> context) {
-        context.getSource().sendSuccess(new TranslatableComponent("command.autotorch.server.help"), false);
+    private static int showHelp(CommandContext<CommandSource> context) {
+        context.getSource().sendFeedback(new TextComponentTranslation("command.autotorch.server.help"), false);
         return 1;
     }
 
-    private static int get(CommandContext<CommandSourceStack> context) {
+    private static int get(CommandContext<CommandSource> context) {
         String key = StringArgumentType.getString(context, "key");
         Value definition = ServerConfig.definition(key);
         if (definition == null) return error(context, "command.autotorch.server.unknown_key", key);
-        context.getSource().sendSuccess(new TranslatableComponent(
+        context.getSource().sendFeedback(new TextComponentTranslation(
                 "command.autotorch.server.value", key, ServerConfig.get(key)), false);
         return 1;
     }
 
-    private static int set(CommandContext<CommandSourceStack> context,
+    private static int set(CommandContext<CommandSource> context,
                            Consumer<MinecraftServer> configChanged) {
         String key = StringArgumentType.getString(context, "key");
         String raw = StringArgumentType.getString(context, "value");
@@ -86,36 +85,36 @@ public final class AutoTorchServerCommands {
         }
         ServerConfig.set(key, value);
         configChanged.accept(context.getSource().getServer());
-        context.getSource().sendSuccess(new TranslatableComponent(
+        context.getSource().sendFeedback(new TextComponentTranslation(
                 "command.autotorch.server.value", key, ServerConfig.get(key)), true);
         return 1;
     }
 
-    private static int defaults(CommandContext<CommandSourceStack> context,
+    private static int defaults(CommandContext<CommandSource> context,
                                 Consumer<MinecraftServer> configChanged) {
         ServerConfig.resetDefaults();
         configChanged.accept(context.getSource().getServer());
-        context.getSource().sendSuccess(new TranslatableComponent(
+        context.getSource().sendFeedback(new TextComponentTranslation(
                 "command.autotorch.server.defaults"), true);
         return 1;
     }
 
-    private static int error(CommandContext<CommandSourceStack> context, String key, Object... args) {
-        context.getSource().sendFailure(new TranslatableComponent(key, args));
+    private static int error(CommandContext<CommandSource> context, String key, Object... args) {
+        context.getSource().sendErrorMessage(new TextComponentTranslation(key, args));
         return 0;
     }
 
     private static CompletableFuture<Suggestions> suggestKeys(
-            CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
-        return SharedSuggestionProvider.suggest(
-                ServerConfig.definitions().stream().map(value -> value.key()), builder);
+            CommandContext<CommandSource> context, SuggestionsBuilder builder) {
+        ServerConfig.definitions().stream().map(value -> value.key()).forEach(builder::suggest);
+        return builder.buildFuture();
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> literal(String name) {
+    private static LiteralArgumentBuilder<CommandSource> literal(String name) {
         return LiteralArgumentBuilder.literal(name);
     }
 
-    private static <T> RequiredArgumentBuilder<CommandSourceStack, T> argument(
+    private static <T> RequiredArgumentBuilder<CommandSource, T> argument(
             String name, ArgumentType<T> type) {
         return RequiredArgumentBuilder.argument(name, type);
     }
