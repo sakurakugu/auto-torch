@@ -16,7 +16,6 @@ import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.server.MinecraftServer;
 
