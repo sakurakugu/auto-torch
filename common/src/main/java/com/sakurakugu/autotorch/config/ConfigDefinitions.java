@@ -24,7 +24,7 @@ public final class ConfigDefinitions {
     public static final BooleanValue SELECTION_OVERLAY_LINES_ONLY = bool("selectionOverlay.linesOnly", false);
     public static final BooleanValue SELECTION_OVERLAY_SMOOTH_SPHERES = bool("selectionOverlay.smoothSpheres", false);
     public static final IntValue TASK_DEFAULT_MAX_TORCHES = integer("lightingTaskDefaults.maxTorches", 0, 0, HARD_MAX_TORCHES);
-    public static final IntValue TASK_DEFAULT_MIN_SPACING = integer("lightingTaskDefaults.minSpacing", 8, 3, 12);
+    public static final IntValue TASK_DEFAULT_MIN_SPACING = integer("lightingTaskDefaults.minSpacing", 8, 1, 12);
     public static final IntValue TASK_DEFAULT_LIGHT_THRESHOLD = integer("lightingTaskDefaults.lightThreshold", 0, 0, 15);
     public static final BooleanValue TASK_DEFAULT_UNDERGROUND_ONLY = bool("lightingTaskDefaults.undergroundOnly", true);
     public static final BooleanValue TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES = bool("lightingTaskDefaults.creativeConsumeTorches", false);
@@ -37,8 +37,8 @@ public final class ConfigDefinitions {
     public static final IntValue LIMIT_MAX_TORCHES_PER_TASK = integer("limits.maxTorchesPerTask", HARD_MAX_TORCHES, 1, HARD_MAX_TORCHES);
     public static final BooleanValue LIMIT_ALLOW_UNLIMITED_TORCHES = bool("limits.allowUnlimitedTorches", true);
     public static final BooleanValue LIGHTING_TASK_ENABLED = bool("lightingTask.enabled", true);
-    public static final IntValue LIMIT_MIN_SPACING = integer("limits.minSpacing", 3, 3, 12);
-    public static final IntValue LIMIT_MAX_SPACING = integer("limits.maxSpacing", 12, 3, 12);
+    public static final IntValue LIMIT_MIN_SPACING = integer("limits.minSpacing", 1, 1, 12);
+    public static final IntValue LIMIT_MAX_SPACING = integer("limits.maxSpacing", 12, 1, 12);
     public static final IntValue LIMIT_MAX_CONCURRENT_TASKS = integer("limits.maxConcurrentTasks", 64, 1, 1024);
     public static final BooleanValue GAMEPLAY_SURVIVAL_CONSUMES_TORCHES = bool("gameplay.survivalConsumesTorches", true);
     public static final IntValue PERFORMANCE_SCAN_BUDGET_PER_TASK_TICK = integer("performance.scanBudgetPerTaskTick", 12_000, 1, 120_000);
