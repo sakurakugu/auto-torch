@@ -46,6 +46,8 @@ public final class LightingScreen extends Screen {
     private Button nearbyAutoTorchButton;
     private Button nearbyAutoTorchSkyLightButton;
     private Button woodenAxeSelectionButton;
+    private Button startTaskButton;
+    private Button cancelTaskButton;
     private boolean consumeTorches;
     private boolean undergroundOnly;
     private boolean syncingInputs;
@@ -159,12 +161,15 @@ public final class LightingScreen extends Screen {
             undergroundButton.setMessage(undergroundMessage());
         }).bounds(left + 157, 184, 153, 20).build());
 
-        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.start"), button -> startTask())
+        startTaskButton = addRenderableWidget(Button.builder(
+                Component.translatable("screen.autotorch.start"), button -> startTask())
                 .bounds(left, 208, 153, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.cancel_task"), button -> {
+        cancelTaskButton = addRenderableWidget(Button.builder(
+                Component.translatable("screen.autotorch.cancel_task"), button -> {
             PlatformNetworking.sendToServer(new CancelLightingPayload());
             onClose();
         }).bounds(left + 157, 208, 153, 20).build());
+        updateTaskButtonAvailability();
 
         lightOverlayButton = addRenderableWidget(Button.builder(lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
@@ -203,6 +208,18 @@ public final class LightingScreen extends Screen {
 
         scrollOffset = Math.min(scrollOffset, maxScrollOffset());
         moveWidgets(-scrollOffset);
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        updateTaskButtonAvailability();
+    }
+
+    private void updateTaskButtonAvailability() {
+        boolean enabled = ServerConfigState.lightingTaskEnabled();
+        if (startTaskButton != null) startTaskButton.active = enabled;
+        if (cancelTaskButton != null) cancelTaskButton.active = enabled;
     }
 
     private void createCoordinateRow(EditBox[] boxes, int left, int y, BlockPos initial) {
