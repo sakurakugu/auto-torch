@@ -46,6 +46,8 @@ public final class LightingScreen extends Screen {
     private Button nearbyAutoTorchButton;
     private Button nearbyAutoTorchSkyLightButton;
     private Button woodenAxeSelectionButton;
+    private Button startTaskButton;
+    private Button cancelTaskButton;
     private boolean consumeTorches;
     private boolean undergroundOnly;
     private boolean syncingInputs;
@@ -170,6 +172,7 @@ public final class LightingScreen extends Screen {
             PlatformNetworking.sendToServer(new CancelLightingPayload());
             onClose();
         }));
+        updateTaskButtonAvailability();
 
         lightOverlayButton = addRenderableWidget(button(left, 258, 106, 20, lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
@@ -217,6 +220,18 @@ public final class LightingScreen extends Screen {
     private <T extends Button> T withTooltip(T widget, IChatComponent tooltip) {
         tooltips.put(widget, tooltip);
         return widget;
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        updateTaskButtonAvailability();
+    }
+
+    private void updateTaskButtonAvailability() {
+        boolean enabled = ServerConfigState.lightingTaskEnabled();
+        if (startTaskButton != null) startTaskButton.active = enabled;
+        if (cancelTaskButton != null) cancelTaskButton.active = enabled;
     }
 
     private void createCoordinateRow(EditBox[] boxes, int left, int y, BlockPos initial) {
