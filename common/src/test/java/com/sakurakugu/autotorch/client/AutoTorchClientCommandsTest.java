@@ -5,6 +5,7 @@ import com.mojang.brigadier.tree.CommandNode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutoTorchClientCommandsTest {
     @Test
@@ -66,6 +67,13 @@ class AutoTorchClientCommandsTest {
         child(task, "start");
         child(task, "cancel");
         child(task, "status");
+    }
+
+    @Test
+    void suggestsClientCommands() {
+        assertTrue(AutoTorchClientCommands.suggestions("autotorch ").contains("nearby"));
+        assertTrue(AutoTorchClientCommands.suggestions("autotorch overlay ").contains("range"));
+        assertTrue(AutoTorchClientCommands.suggestions("autotorch nearby skylight ").contains("on"));
     }
 
     private static void assertToggle(CommandNode<Object> parent) {
