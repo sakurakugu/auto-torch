@@ -68,7 +68,7 @@
   "screen.autotorch.light_overlay_range_value": "Range: %s",
   "screen.autotorch.swamp_slime_detection_on": "Swamp slimes: on",
   "screen.autotorch.swamp_slime_detection_off": "Swamp slimes: off",
-  "screen.autotorch.swamp_slime_detection.tooltip": "Spawn conditions: swamp or mangrove swamp, Y 51-69, block light 7 or lower. Shown in purple.",
+  "screen.autotorch.swamp_slime_detection_unavailable": "Swamp slimes: Sync default spawn display",
   "screen.autotorch.drowned_detection_on": "Drowned: on",
   "screen.autotorch.drowned_detection_off": "Drowned: off",
   "screen.autotorch.drowned_detection.tooltip": "Spawn conditions: at least two consecutive water blocks, block light 0, and a biome spawn list containing drowned. Rivers have no height restriction; other biomes require positions at least 6 blocks below sea level. Only the highest valid position in a continuous water column is shown. Shown in cyan.",
