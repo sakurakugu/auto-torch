@@ -51,6 +51,7 @@ repositories {
 
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${forge_version}")
+    implementation 'com.mojang:brigadier:1.0.14'
     implementation "com.electronwill.night-config:core:${night_config_version}"
     implementation "com.electronwill.night-config:toml:${night_config_version}"
     compileOnly 'org.lwjgl:lwjgl-opengl:3.2.2'
@@ -96,7 +97,7 @@ tasks.named('jar', Jar).configure {
     archiveClassifier = 'dev'
     from({
         configurations.runtimeClasspath
-                .findAll { it.name.startsWith('core-') || it.name.startsWith('toml-') }
+                .findAll { it.name.startsWith('core-') || it.name.startsWith('toml-') || it.name.startsWith('brigadier-') }
                 .collect { zipTree(it) }
     })
     exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
