@@ -2,12 +2,12 @@ package com.sakurakugu.autotorch.forge;
 
 import io.netty.buffer.ByteBuf;
 import com.sakurakugu.autotorch.AutoTorch;
+import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.network.*;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.util.ResourceLocation;
 import net.minecraft.network.PacketBuffer;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -25,14 +25,18 @@ final class ForgeNetworking {
         CHANNEL.registerMessage(CancelHandler.class, CancelMessage.class, 1, Side.SERVER);
         CHANNEL.registerMessage(SelectionHandler.class, SelectionMessage.class, 2, Side.SERVER);
         CHANNEL.registerMessage(ConfigHandler.class, ConfigMessage.class, 3, Side.CLIENT);
+        CHANNEL.registerMessage(StatusRequestHandler.class, StatusRequestMessage.class, 4, Side.SERVER);
+        CHANNEL.registerMessage(StatusHandler.class, StatusMessage.class, 5, Side.CLIENT);
     }
     static void sendToServer(AutoTorchPayload payload) {
         if (payload instanceof StartLightingPayload) CHANNEL.sendToServer(new StartMessage((StartLightingPayload) payload));
         else if (payload instanceof CancelLightingPayload) CHANNEL.sendToServer(new CancelMessage((CancelLightingPayload) payload));
         else if (payload instanceof SetSelectionToolPayload) CHANNEL.sendToServer(new SelectionMessage((SetSelectionToolPayload) payload));
+        else if (payload instanceof TaskStatusRequestPayload) CHANNEL.sendToServer(new StatusRequestMessage((TaskStatusRequestPayload) payload));
     }
     static void sendToPlayer(EntityPlayerMP player, AutoTorchPayload payload) {
         if (payload instanceof ServerConfigPayload) CHANNEL.sendTo(new ConfigMessage((ServerConfigPayload) payload), player);
+        else if (payload instanceof TaskStatusPayload) CHANNEL.sendTo(new StatusMessage((TaskStatusPayload) payload), player);
     }
 
     public abstract static class Message<T> implements IMessage {
@@ -52,4 +56,6 @@ final class ForgeNetworking {
     public static final class CancelHandler implements IMessageHandler<CancelMessage, IMessage> { public IMessage onMessage(CancelMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; p.mcServer.addScheduledTask(() -> LightingTaskManager.cancel(p)); return null; } }
     public static final class SelectionHandler implements IMessageHandler<SelectionMessage, IMessage> { public IMessage onMessage(SelectionMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; p.mcServer.addScheduledTask(() -> SelectionToolEvents.setEnabled(p,m.payload.enabled())); return null; } }
     public static final class ConfigHandler implements IMessageHandler<ConfigMessage, IMessage> { public IMessage onMessage(ConfigMessage m, MessageContext c){ net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> ServerConfigState.update(m.payload)); return null; } }
+    public static final class StatusRequestHandler implements IMessageHandler<StatusRequestMessage, IMessage> { public IMessage onMessage(StatusRequestMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().player; p.getServer().addScheduledTask(() -> sendToPlayer(p, LightingTaskManager.status(p))); return null; } }
+    public static final class StatusHandler implements IMessageHandler<StatusMessage, IMessage> { public IMessage onMessage(StatusMessage m, MessageContext c){ net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> AutoTorchClientCommands.receiveTaskStatus(m.payload)); return null; } }
 }

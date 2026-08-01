@@ -74,6 +74,23 @@ public final class SelectionState {
         renderRevision++;
     }
 
+    public static void swapPoints(BlockPos fallback) {
+        BlockPos oldFirst = first(fallback);
+        first = second(fallback);
+        second = oldFirst;
+        drafting = true;
+        renderRevision++;
+    }
+
+    public static void clearDraft(BlockPos fallback) {
+        first = fallback.immutable();
+        second = fallback.immutable();
+        shape = AreaShape.BOX;
+        editingExclusion = -1;
+        drafting = true;
+        renderRevision++;
+    }
+
     public static AreaShape shape() {
         return shape;
     }
@@ -204,6 +221,33 @@ public final class SelectionState {
         }
         renderRevision++;
         return true;
+    }
+
+    public static boolean replaceExclusion(int index, AreaZone zone) {
+        if (index < 0 || index >= EXCLUSIONS.size()) {
+            return false;
+        }
+        EXCLUSIONS.set(index, zone);
+        editingExclusion = -1;
+        drafting = false;
+        renderRevision++;
+        return true;
+    }
+
+    public static void clearExclusions() {
+        if (!EXCLUSIONS.isEmpty() || editingExclusion >= 0) {
+            EXCLUSIONS.clear();
+            editingExclusion = -1;
+            renderRevision++;
+        }
+    }
+
+    public static void clearZones() {
+        lightingZone = null;
+        EXCLUSIONS.clear();
+        editingExclusion = -1;
+        drafting = true;
+        renderRevision++;
     }
 
     static long renderRevision() {
