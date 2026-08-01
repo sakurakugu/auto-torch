@@ -18,6 +18,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.world.InteractionResult;
@@ -48,6 +49,7 @@ final class AutoTorchForgeClient {
     ) {};
     private final AutoTorchClient client = new AutoTorchClient();
     private final CommandDispatcher<Object> clientCommands = new CommandDispatcher<>();
+    private CommandDispatcher<SharedSuggestionProvider> suggestionCommands;
     private BlockPos selectionClickPos;
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
@@ -94,9 +96,24 @@ final class AutoTorchForgeClient {
     private void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             client.tick();
+            updateCommandSuggestions();
             if (!Minecraft.getInstance().options.keyAttack.isDown()) {
                 selectionClickPos = null;
             }
+        }
+    }
+
+    private void updateCommandSuggestions() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) {
+            suggestionCommands = null;
+            return;
+        }
+        // Forge 1.17.1 没有客户端命令注册事件，直接合并到聊天框使用的命令树以提供本地补全。
+        CommandDispatcher<SharedSuggestionProvider> commands = minecraft.player.connection.getCommands();
+        if (commands != suggestionCommands) {
+            AutoTorchClientCommands.register(commands);
+            suggestionCommands = commands;
         }
     }
 

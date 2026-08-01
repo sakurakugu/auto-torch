@@ -6,6 +6,7 @@ import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -29,9 +30,13 @@ public final class AutoTorchForge {
         ServerConfig.install(ForgeConfigs.SERVER);
         ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
         ForgeNetworking.initialize();
-        MinecraftForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> AutoTorchServerCommands.register(event.getDispatcher(),
-                server -> server.getPlayerList().getPlayers().forEach(player ->
-                        ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current()))));
+        MinecraftForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> {
+            if (event.getEnvironment() == Commands.CommandSelection.DEDICATED) {
+                AutoTorchServerCommands.register(event.getDispatcher(),
+                        server -> server.getPlayerList().getPlayers().forEach(player ->
+                                ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current())));
+            }
+        });
 
         MinecraftForge.EVENT_BUS.addListener(this::onServerTick);
         MinecraftForge.EVENT_BUS.addListener(this::onLeftClick);
