@@ -4,9 +4,16 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.tree.CommandNode;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class AutoTorchClientCommandsTest {
+    @Test
+    void leavesServerConfigCommandsForServer() {
+        assertFalse(AutoTorchClientCommands.tryExecute("/autotorch serverconfig"));
+        assertFalse(AutoTorchClientCommands.tryExecute("/autotorch serverconfig get enabled"));
+    }
+
     @Test
     void registersClientCommandTree() {
         CommandDispatcher<Object> dispatcher = new CommandDispatcher<>();
