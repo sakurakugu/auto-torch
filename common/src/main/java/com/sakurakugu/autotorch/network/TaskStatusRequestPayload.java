@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 /** 客户端请求自己当前照明任务状态的无数据载荷。 */
 public record TaskStatusRequestPayload() implements CustomPacketPayload {
     public static final Type<TaskStatusRequestPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(AutoTorch.MOD_ID, "task_status_request"));
+            ResourceLocation.tryBuild(AutoTorch.MOD_ID, "task_status_request"));
     public static final StreamCodec<RegistryFriendlyByteBuf, TaskStatusRequestPayload> STREAM_CODEC =
             CustomPacketPayload.codec(TaskStatusRequestPayload::write, TaskStatusRequestPayload::new);
 
