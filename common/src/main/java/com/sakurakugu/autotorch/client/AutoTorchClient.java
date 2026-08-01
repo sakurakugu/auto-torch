@@ -19,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
 
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
+    private static boolean openScreenRequested;
     private ClientLevel selectionToolSyncedLevel;
     public static final String CATEGORY = "key.category.autotorch.main";
     public static final KeyMapping OPEN_SCREEN = new KeyMapping(
@@ -36,6 +37,14 @@ public final class AutoTorchClient {
 
     public void tick() {
         Minecraft minecraft = Minecraft.getInstance();
+        // 处理打开选区面板的请求，避免在 tick 中直接打开 GUI 导致的异常。(仅限 Fabric 端的bug)
+        if (openScreenRequested) {
+            openScreenRequested = false;
+            if (minecraft.player != null && minecraft.gui.screen() == null) {
+                minecraft.gui.setScreen(new LightingScreen());
+            }
+        }
+
         BlockPos currentPosition = minecraft.player == null ? BlockPos.ZERO : minecraft.player.blockPosition();
         // 切换世界或退出存档时重置选区，避免把旧维度坐标带入新世界。
         SelectionState.updateLevel(minecraft.level, currentPosition);
@@ -54,6 +63,10 @@ public final class AutoTorchClient {
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
             }
         }
+    }
+
+    public static void requestOpenScreen() {
+        openScreenRequested = true;
     }
 
     public boolean onLeftClick(ClientLevel level, ItemStack stack, BlockPos pos, boolean start) {
