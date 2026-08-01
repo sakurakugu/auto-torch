@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.client;
 import com.sakurakugu.autotorch.config.ConfigBackend;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 
 import static com.sakurakugu.autotorch.config.ConfigDefinitions.*;
 
@@ -19,9 +20,14 @@ public final class ClientConfig {
 
     /** 恢复全部客户端配置并立即持久化。 */
     public static void resetDefaults() {
-        for (var definition : CLIENT) {
-            if (definition instanceof BooleanValue value) backend.setBoolean(value.key(), value.defaultValue());
-            else if (definition instanceof IntValue value) backend.setInt(value.key(), value.defaultValue());
+        for (Value definition : CLIENT) {
+            if (definition instanceof BooleanValue) {
+                BooleanValue value = (BooleanValue) definition;
+                backend.setBoolean(value.key(), value.defaultValue());
+            } else if (definition instanceof IntValue) {
+                IntValue value = (IntValue) definition;
+                backend.setInt(value.key(), value.defaultValue());
+            }
         }
         backend.save();
     }

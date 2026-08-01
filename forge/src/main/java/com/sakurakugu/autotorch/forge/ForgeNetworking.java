@@ -72,7 +72,7 @@ final class ForgeNetworking {
                     if (context.getDirection() == NetworkDirection.PLAY_TO_SERVER) {
                         context.enqueueWork(() -> {
                             if (context.getSender() != null) {
-                            sendToPlayer(context.getSender(), LightingTaskManager.status(context.getSender()));
+                                sendToPlayer(context.getSender(), LightingTaskManager.status(context.getSender()));
                             }
                         });
                     }
