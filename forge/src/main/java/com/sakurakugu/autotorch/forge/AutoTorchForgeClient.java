@@ -1,7 +1,5 @@
 package com.sakurakugu.autotorch.forge;
 
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
@@ -16,8 +14,6 @@ import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.Util;
-import net.minecraft.util.text.StringTextComponent;
 import net.minecraftforge.client.event.ClientChatEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -31,7 +27,6 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 final class AutoTorchForgeClient {
     private final AutoTorchClient client = new AutoTorchClient();
-    private final CommandDispatcher<Object> clientCommands = new CommandDispatcher<>();
     private BlockPos selectionClickPos;
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
@@ -40,7 +35,6 @@ final class AutoTorchForgeClient {
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
 
         context.getModEventBus().addListener(this::registerKeys);
-        AutoTorchClientCommands.register(clientCommands);
         MinecraftForge.EVENT_BUS.addListener(this::onClientChat);
         MinecraftForge.EVENT_BUS.addListener(this::onRender);
         MinecraftForge.EVENT_BUS.addListener(this::onTick);
@@ -58,19 +52,7 @@ final class AutoTorchForgeClient {
     }
 
     private void onClientChat(ClientChatEvent event) {
-        String message = event.getMessage();
-        if (!message.equals("/autotorch") && !message.startsWith("/autotorch ")) {
-            return;
-        }
-        event.setCanceled(true);
-        try {
-            clientCommands.execute(message.substring(1), new Object());
-        } catch (CommandSyntaxException exception) {
-            if (Minecraft.getInstance().player != null) {
-                Minecraft.getInstance().player.sendMessage(
-                        new StringTextComponent(exception.getMessage()), Util.NIL_UUID);
-            }
-        }
+        event.setCanceled(AutoTorchClientCommands.tryExecute(event.getMessage()));
     }
 
     private void onTick(TickEvent.ClientTickEvent event) {
