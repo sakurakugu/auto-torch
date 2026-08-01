@@ -92,8 +92,8 @@ public final class SelectionState {
     }
 
     public static void clearDraft(BlockPos fallback) {
-        first = fallback.immutable();
-        second = fallback.immutable();
+        first = fallback.toImmutable();
+        second = fallback.toImmutable();
         shape = AreaShape.BOX;
         editingExclusion = -1;
         drafting = true;
