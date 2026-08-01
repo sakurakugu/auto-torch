@@ -417,8 +417,7 @@ public final class AutoTorchClientCommands {
     }
 
     private static int openScreen() {
-        Minecraft minecraft = Minecraft.getInstance();
-        minecraft.gui.setScreen(new LightingScreen());
+        AutoTorchClient.requestOpenScreen();
         return 1;
     }
 
