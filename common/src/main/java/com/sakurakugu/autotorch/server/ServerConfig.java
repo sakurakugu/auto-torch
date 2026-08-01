@@ -1,6 +1,9 @@
 package com.sakurakugu.autotorch.server;
 
+import java.util.List;
+
 import com.sakurakugu.autotorch.config.ConfigBackend;
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
 
@@ -14,6 +17,34 @@ public final class ServerConfig {
     }
 
     public static void install(ConfigBackend value) { backend = value; }
+    public static List<ConfigDefinitions.Value> definitions() { return SERVER; }
+    public static ConfigDefinitions.Value definition(String key) {
+        return SERVER.stream().filter(value -> value.key().equals(key)).findFirst().orElse(null);
+    }
+    public static Object get(String key) {
+        var definition = definition(key);
+        if (definition instanceof BooleanValue value) return bool(value);
+        if (definition instanceof IntValue value) return integer(value);
+        return null;
+    }
+    public static boolean set(String key, Object value) {
+        var definition = definition(key);
+        if (definition instanceof BooleanValue booleanValue && value instanceof Boolean booleanResult) {
+            backend.setBoolean(booleanValue.key(), booleanResult);
+        } else if (definition instanceof IntValue intValue && value instanceof Integer integerResult) {
+            backend.setInt(intValue.key(), intValue.clamp(integerResult));
+        } else return false;
+        backend.save();
+        return true;
+    }
+    /** 恢复全部服务端配置并立即持久化。 */
+    public static void resetDefaults() {
+        for (var definition : SERVER) {
+            if (definition instanceof BooleanValue value) backend.setBoolean(value.key(), value.defaultValue());
+            else if (definition instanceof IntValue value) backend.setInt(value.key(), value.defaultValue());
+        }
+        backend.save();
+    }
     public static int maxBoxAxisLength() { return integer(LIMIT_MAX_BOX_AXIS_LENGTH); }
     public static int maxSphereRadius() { return integer(LIMIT_MAX_SPHERE_RADIUS); }
     public static int maxExclusions() { return integer(LIMIT_MAX_EXCLUSIONS); }
