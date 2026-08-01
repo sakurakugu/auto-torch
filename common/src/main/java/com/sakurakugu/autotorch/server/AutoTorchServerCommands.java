@@ -17,7 +17,6 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.permissions.Permissions;
 
 /** 仅注册在服务端的管理员配置命令。 */
 public final class AutoTorchServerCommands {
@@ -30,7 +29,7 @@ public final class AutoTorchServerCommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher,
                                 Consumer<MinecraftServer> configChanged) {
         dispatcher.register(literal("autotorch")
-                .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                .requires(source -> source.hasPermission(2))
                 .executes(context -> showHelp(context))
                 .then(literal("help").executes(AutoTorchServerCommands::showHelp))
                 .then(literal("serverconfig")
