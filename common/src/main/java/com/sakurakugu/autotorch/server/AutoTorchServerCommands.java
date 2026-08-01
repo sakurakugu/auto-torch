@@ -13,6 +13,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
@@ -54,7 +55,7 @@ public final class AutoTorchServerCommands {
 
     private static int get(CommandContext<CommandSourceStack> context) {
         String key = StringArgumentType.getString(context, "key");
-        var definition = ServerConfig.definition(key);
+        Value definition = ServerConfig.definition(key);
         if (definition == null) return error(context, "command.autotorch.server.unknown_key", key);
         context.getSource().sendSuccess(new TranslatableComponent(
                 "command.autotorch.server.value", key, ServerConfig.get(key)), false);
@@ -65,7 +66,7 @@ public final class AutoTorchServerCommands {
                            Consumer<MinecraftServer> configChanged) {
         String key = StringArgumentType.getString(context, "key");
         String raw = StringArgumentType.getString(context, "value");
-        var definition = ServerConfig.definition(key);
+        Value definition = ServerConfig.definition(key);
         if (definition == null) return error(context, "command.autotorch.server.unknown_key", key);
         Object value;
         try {
@@ -77,9 +78,13 @@ public final class AutoTorchServerCommands {
         } catch (NumberFormatException exception) {
             return error(context, "command.autotorch.server.expected_integer");
         }
-        if (definition instanceof IntValue intValue
-                && ((Integer) value < intValue.minValue() || (Integer) value > intValue.maxValue()))
-            return error(context, "command.autotorch.server.out_of_range", intValue.minValue(), intValue.maxValue());
+        if (definition instanceof IntValue) {
+            IntValue intValue = (IntValue) definition;
+            if ((Integer) value < intValue.minValue() || (Integer) value > intValue.maxValue()) {
+                return error(context, "command.autotorch.server.out_of_range",
+                        intValue.minValue(), intValue.maxValue());
+            }
+        }
         ServerConfig.set(key, value);
         configChanged.accept(context.getSource().getServer());
         context.getSource().sendSuccess(new TranslatableComponent(
