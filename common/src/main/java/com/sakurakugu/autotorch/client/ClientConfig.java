@@ -17,6 +17,15 @@ public final class ClientConfig {
         backend = value;
     }
 
+    /** 恢复全部客户端配置并立即持久化。 */
+    public static void resetDefaults() {
+        for (var definition : CLIENT) {
+            if (definition instanceof BooleanValue value) backend.setBoolean(value.key(), value.defaultValue());
+            else if (definition instanceof IntValue value) backend.setInt(value.key(), value.defaultValue());
+        }
+        backend.save();
+    }
+
     public static boolean isNearbyAutoTorchEnabled() { return bool(NEARBY_AUTO_TORCH_ENABLED); }
     public static void setNearbyAutoTorchEnabled(boolean value) { setBool(NEARBY_AUTO_TORCH_ENABLED, value); }
     public static int nearbyAutoTorchThreshold() { return integer(NEARBY_AUTO_TORCH_LIGHT_THRESHOLD); }
