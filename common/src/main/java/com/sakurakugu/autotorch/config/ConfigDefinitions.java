@@ -36,6 +36,7 @@ public final class ConfigDefinitions {
     public static final IntValue LIMIT_MAX_EXCLUSIONS = integer("limits.maxExclusions", StartLightingPayload.MAX_EXCLUSIONS, 0, StartLightingPayload.MAX_EXCLUSIONS);
     public static final IntValue LIMIT_MAX_TORCHES_PER_TASK = integer("limits.maxTorchesPerTask", HARD_MAX_TORCHES, 1, HARD_MAX_TORCHES);
     public static final BooleanValue LIMIT_ALLOW_UNLIMITED_TORCHES = bool("limits.allowUnlimitedTorches", true);
+    public static final BooleanValue LIGHTING_TASK_ENABLED = bool("lightingTask.enabled", true);
     public static final IntValue LIMIT_MIN_SPACING = integer("limits.minSpacing", 3, 3, 12);
     public static final IntValue LIMIT_MAX_SPACING = integer("limits.maxSpacing", 12, 3, 12);
     public static final IntValue LIMIT_MAX_CONCURRENT_TASKS = integer("limits.maxConcurrentTasks", 64, 1, 1024);
@@ -59,6 +60,7 @@ public final class ConfigDefinitions {
     ));
 
     public static final List<Value> SERVER = Collections.unmodifiableList(Arrays.asList(
+            LIGHTING_TASK_ENABLED,
             LIMIT_MAX_BOX_AXIS_LENGTH, LIMIT_MAX_SPHERE_RADIUS, LIMIT_MAX_EXCLUSIONS,
             LIMIT_MAX_TORCHES_PER_TASK, LIMIT_ALLOW_UNLIMITED_TORCHES,
             LIMIT_MIN_SPACING, LIMIT_MAX_SPACING, LIMIT_MAX_CONCURRENT_TASKS,
