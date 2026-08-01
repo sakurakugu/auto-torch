@@ -223,8 +223,8 @@ public final class LightingScreen extends Screen {
     }
 
     @Override
-    public void tick() {
-        super.tick();
+    public void updateScreen() {
+        super.updateScreen();
         updateTaskButtonAvailability();
     }
 
