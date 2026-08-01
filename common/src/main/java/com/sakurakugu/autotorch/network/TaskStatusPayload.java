@@ -1,8 +1,8 @@
 package com.sakurakugu.autotorch.network;
 
 import com.sakurakugu.autotorch.AutoTorch;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.util.ResourceLocation;
 
 /** 服务端返回给客户端的照明任务进度快照。 */
 public final class TaskStatusPayload implements AutoTorchPayload {
@@ -21,12 +21,12 @@ public final class TaskStatusPayload implements AutoTorchPayload {
     public int percent() { return percent; }
     public int placed() { return placed; }
 
-    public static TaskStatusPayload decode(FriendlyByteBuf buffer) {
+    public static TaskStatusPayload decode(PacketBuffer buffer) {
         return new TaskStatusPayload(buffer.readBoolean(), buffer.readVarInt(), buffer.readVarInt());
     }
 
     @Override
-    public void write(FriendlyByteBuf buffer) {
+    public void write(PacketBuffer buffer) {
         buffer.writeBoolean(running);
         buffer.writeVarInt(percent);
         buffer.writeVarInt(placed);
