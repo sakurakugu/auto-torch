@@ -159,7 +159,7 @@ smoothSpheres = false
 [lightingTaskDefaults]
 # Default maximum number of torches per task. Range: 0-4096; 0 means unlimited.
 maxTorches = 0
-# Default minimum spacing between torches. Range: 3-12 blocks.
+# Default minimum spacing between torches. Range: 1-12 blocks.
 minSpacing = 8
 # Process positions whose block light is at or below this value. Range: 0-15; 0 means block light 0 only.
 lightThreshold = 0
@@ -191,8 +191,8 @@ maxExclusions = 32
 maxTorchesPerTask = 4096
 # Whether clients may set the maximum torch count to 0 (unlimited).
 allowUnlimitedTorches = true
-# Lower and upper bounds for torch spacing configurable by clients. Both range from 3-12.
-minSpacing = 3
+# Lower and upper bounds for torch spacing configurable by clients. Both range from 1-12.
+minSpacing = 1
 maxSpacing = 12
 # Maximum number of tasks that can run concurrently across the server. Range: 1-1024.
 maxConcurrentTasks = 64
