@@ -5,13 +5,27 @@ import java.util.function.Consumer;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
+import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
+import com.sakurakugu.autotorch.network.PlatformNetworking;
+import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
+import com.sakurakugu.autotorch.network.StartLightingPayload;
+import com.sakurakugu.autotorch.network.TaskStatusPayload;
+import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import net.minecraft.commands.arguments.coordinates.Coordinates;
+import net.minecraft.commands.arguments.coordinates.LocalCoordinates;
+import net.minecraft.commands.arguments.coordinates.WorldCoordinates;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 
 /** 注册只在本地执行的 Auto Torch 客户端命令。 */
 public final class AutoTorchClientCommands {
@@ -36,7 +50,10 @@ public final class AutoTorchClientCommands {
                 .then(AutoTorchClientCommands.<S>literal("help").executes(context -> showHelp()))
                 .then(AutoTorchClientCommands.<S>literal("status").executes(context -> showStatus()))
                 .then(AutoTorchClientCommands.<S>nearby())
-                .then(AutoTorchClientCommands.<S>overlay());
+                .then(AutoTorchClientCommands.<S>overlay())
+                .then(AutoTorchClientCommands.<S>selection())
+                .then(AutoTorchClientCommands.<S>zone())
+                .then(AutoTorchClientCommands.<S>task());
     }
 
     private static <S> LiteralArgumentBuilder<S> nearby() {
@@ -92,6 +109,80 @@ public final class AutoTorchClientCommands {
                                         "command.autotorch.overlay_drowned", false))));
     }
 
+    private static <S> LiteralArgumentBuilder<S> selection() {
+        return AutoTorchClientCommands.<S>literal("selection")
+                .then(pointCommand("pos1", true))
+                .then(pointCommand("pos2", false))
+                .then(AutoTorchClientCommands.<S>literal("swap").executes(context -> swapSelection()))
+                .then(AutoTorchClientCommands.<S>literal("clear").executes(context -> clearSelection()))
+                .then(AutoTorchClientCommands.<S>literal("box")
+                        .then(AutoTorchClientCommands.<S>positionArgument("first")
+                                .then(AutoTorchClientCommands.<S>positionArgument("second")
+                                        .executes(context -> setBox(context)))))
+                .then(AutoTorchClientCommands.<S>literal("sphere")
+                        .then(AutoTorchClientCommands.<S>positionArgument("center")
+                                .then(RequiredArgumentBuilder.<S, Integer>argument("radius",
+                                        IntegerArgumentType.integer(1, AreaZone.MAX_SPHERE_RADIUS))
+                                        .executes(context -> setSphere(context)))))
+                .then(toolCommand("tool"))
+                .then(toolCommand("wooden_axe"))
+                .then(AutoTorchClientCommands.<S>literal("list").executes(context -> listZones()));
+    }
+
+    private static <S> LiteralArgumentBuilder<S> pointCommand(String name, boolean first) {
+        return AutoTorchClientCommands.<S>literal(name)
+                .executes(context -> setPoint(first, targetPosition()))
+                .then(AutoTorchClientCommands.<S>literal("here")
+                        .executes(context -> setPoint(first, playerPosition())))
+                .then(AutoTorchClientCommands.<S>literal("target")
+                        .executes(context -> setPoint(first, targetPosition())))
+                .then(AutoTorchClientCommands.<S>positionArgument("pos")
+                        .executes(context -> setPoint(first, position(context, "pos"))));
+    }
+
+    private static <S> LiteralArgumentBuilder<S> toolCommand(String name) {
+        return AutoTorchClientCommands.<S>literal(name)
+                .then(AutoTorchClientCommands.<S>literal("on").executes(context -> setSelectionTool(true)))
+                .then(AutoTorchClientCommands.<S>literal("off").executes(context -> setSelectionTool(false)));
+    }
+
+    private static <S> LiteralArgumentBuilder<S> zone() {
+        return AutoTorchClientCommands.<S>literal("zone")
+                .then(AutoTorchClientCommands.<S>literal("list")
+                        .executes(context -> listZones())
+                        .then(RequiredArgumentBuilder.<S, Integer>argument("number", IntegerArgumentType.integer(0))
+                                .executes(context -> listZone(IntegerArgumentType.getInteger(context, "number")))))
+                .then(AutoTorchClientCommands.<S>literal("clear").executes(context -> clearZones()))
+                .then(AutoTorchClientCommands.<S>literal("lighting")
+                        .then(AutoTorchClientCommands.<S>literal("set").executes(context -> setLightingZone()))
+                        .then(AutoTorchClientCommands.<S>literal("load").executes(context -> loadLightingZone()))
+                        .then(AutoTorchClientCommands.<S>literal("clear").executes(context -> clearLightingZone())))
+                .then(AutoTorchClientCommands.<S>literal("exclusion")
+                        .then(AutoTorchClientCommands.<S>literal("add").executes(context -> addExclusion()))
+                        .then(indexedZoneCommand("load", AutoTorchClientCommands::loadExclusion))
+                        .then(indexedZoneCommand("replace", AutoTorchClientCommands::replaceExclusion))
+                        .then(indexedZoneCommand("remove", AutoTorchClientCommands::removeExclusion))
+                        .then(AutoTorchClientCommands.<S>literal("clear").executes(context -> clearExclusions())));
+    }
+
+    private static <S> LiteralArgumentBuilder<S> indexedZoneCommand(String name,
+                                                                     java.util.function.IntUnaryOperator action) {
+        return AutoTorchClientCommands.<S>literal(name)
+                .then(RequiredArgumentBuilder.<S, Integer>argument("number", IntegerArgumentType.integer(1))
+                        .executes(context -> action.applyAsInt(IntegerArgumentType.getInteger(context, "number"))));
+    }
+
+    private static <S> LiteralArgumentBuilder<S> task() {
+        return AutoTorchClientCommands.<S>literal("task")
+                .then(AutoTorchClientCommands.<S>literal("start").executes(context -> startTask()))
+                .then(AutoTorchClientCommands.<S>literal("cancel").executes(context -> cancelTask()))
+                .then(AutoTorchClientCommands.<S>literal("status").executes(context -> requestTaskStatus()));
+    }
+
+    private static <S> RequiredArgumentBuilder<S, Coordinates> positionArgument(String name) {
+        return RequiredArgumentBuilder.argument(name, BlockPosArgument.blockPos());
+    }
+
     private static <S> LiteralArgumentBuilder<S> booleanLiteral(String name,
                                                                 Consumer<Boolean> setter,
                                                                 String messageKey,
@@ -112,6 +203,207 @@ public final class AutoTorchClientCommands {
                         ? "command.autotorch.mode_crosses" : "command.autotorch.mode_numbers"));
     }
 
+    private static <S> BlockPos position(CommandContext<S> context, String name) {
+        Coordinates coordinates = context.getArgument(name, Coordinates.class);
+        Minecraft minecraft = Minecraft.getInstance();
+        Vec3 origin = minecraft.player == null ? Vec3.ZERO : minecraft.player.position();
+        if (coordinates instanceof WorldCoordinates world) {
+            return BlockPos.containing(
+                    world.x().get(origin.x), world.y().get(origin.y), world.z().get(origin.z));
+        }
+        if (coordinates instanceof LocalCoordinates local && minecraft.player != null) {
+            Vec3 offset = Vec3.applyLocalCoordinatesToRotation(
+                    minecraft.player.getRotationVector(),
+                    new Vec3(local.left(), local.up(), local.forwards()));
+            return BlockPos.containing(minecraft.player.getEyePosition().add(offset));
+        }
+        throw new IllegalArgumentException("Unsupported coordinate type");
+    }
+
+    private static BlockPos playerPosition() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft.player == null ? BlockPos.ZERO : minecraft.player.blockPosition();
+    }
+
+    private static BlockPos targetPosition() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft.hitResult instanceof BlockHitResult hit ? hit.getBlockPos() : playerPosition();
+    }
+
+    private static int setPoint(boolean first, BlockPos pos) {
+        if (first) SelectionState.setFirst(pos); else SelectionState.setSecond(pos);
+        return feedback("command.autotorch.selection_point", first ? 1 : 2, formatPosition(pos));
+    }
+
+    private static int swapSelection() {
+        SelectionState.swapPoints(playerPosition());
+        return feedback("command.autotorch.selection_swapped");
+    }
+
+    private static int clearSelection() {
+        SelectionState.clearDraft(playerPosition());
+        return feedback("command.autotorch.selection_cleared");
+    }
+
+    private static <S> int setBox(CommandContext<S> context) {
+        BlockPos first = position(context, "first");
+        BlockPos second = position(context, "second");
+        SelectionState.setShape(AreaShape.BOX);
+        SelectionState.setFirst(first);
+        SelectionState.setSecond(second);
+        return feedback("command.autotorch.selection_box", formatPosition(first), formatPosition(second));
+    }
+
+    private static <S> int setSphere(CommandContext<S> context) {
+        BlockPos center = position(context, "center");
+        int radius = IntegerArgumentType.getInteger(context, "radius");
+        SelectionState.setShape(AreaShape.SPHERE);
+        SelectionState.setFirst(center);
+        SelectionState.setSecond(center.offset(radius, 0, 0));
+        return feedback("command.autotorch.selection_sphere", formatPosition(center), radius);
+    }
+
+    private static int setSelectionTool(boolean enabled) {
+        ClientConfig.setWoodenAxeSelectionEnabled(enabled);
+        PlatformNetworking.sendToServer(new SetSelectionToolPayload(enabled));
+        return feedback("command.autotorch.selection_tool", state(enabled));
+    }
+
+    private static int listZones() {
+        feedback("command.autotorch.zone_summary", SelectionState.lightingZone() == null ? 0 : 1,
+                SelectionState.exclusions().size());
+        if (SelectionState.lightingZone() != null) showZone(0, SelectionState.lightingZone());
+        for (int i = 0; i < SelectionState.exclusions().size(); i++) {
+            showZone(i + 1, SelectionState.exclusions().get(i));
+        }
+        return 1;
+    }
+
+    private static int listZone(int number) {
+        AreaZone zone = numberedZone(number);
+        if (zone == null) return feedback("command.autotorch.zone_not_found", number);
+        showZone(number, zone);
+        return 1;
+    }
+
+    private static AreaZone numberedZone(int number) {
+        if (number == 0) return SelectionState.lightingZone();
+        int index = number - 1;
+        return index >= 0 && index < SelectionState.exclusions().size()
+                ? SelectionState.exclusions().get(index) : null;
+    }
+
+    private static void showZone(int number, AreaZone zone) {
+        feedback("command.autotorch.zone_entry", number,
+                Component.translatable(zone.shape() == AreaShape.SPHERE
+                        ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
+                formatPosition(zone.first()), formatPosition(zone.second()));
+    }
+
+    private static int clearZones() {
+        SelectionState.clearZones();
+        return feedback("command.autotorch.zones_cleared");
+    }
+
+    private static int setLightingZone() {
+        AreaZone zone = SelectionState.draft(playerPosition());
+        if (!validDraftZone(zone)) return feedback("command.autotorch.zone_out_of_range");
+        SelectionState.setLightingZone(zone);
+        return feedback("command.autotorch.lighting_set");
+    }
+
+    private static int loadLightingZone() {
+        return SelectionState.beginEditingLightingZone()
+                ? feedback("command.autotorch.lighting_loaded")
+                : feedback("command.autotorch.no_lighting_zone");
+    }
+
+    private static int clearLightingZone() {
+        return SelectionState.removeLightingZone()
+                ? feedback("command.autotorch.lighting_cleared")
+                : feedback("command.autotorch.no_lighting_zone");
+    }
+
+    private static int addExclusion() {
+        AreaZone zone = SelectionState.draft(playerPosition());
+        if (!validDraftZone(zone)) return feedback("command.autotorch.zone_out_of_range");
+        return SelectionState.addExclusion(zone)
+                ? feedback("command.autotorch.exclusion_added", SelectionState.exclusions().size())
+                : feedback("command.autotorch.too_many_exclusions", ServerConfigState.maxExclusions());
+    }
+
+    private static int loadExclusion(int number) {
+        return SelectionState.beginEditingExclusion(number - 1)
+                ? feedback("command.autotorch.exclusion_loaded", number)
+                : feedback("command.autotorch.zone_not_found", number);
+    }
+
+    private static int replaceExclusion(int number) {
+        AreaZone zone = SelectionState.draft(playerPosition());
+        if (!validDraftZone(zone)) return feedback("command.autotorch.zone_out_of_range");
+        return SelectionState.replaceExclusion(number - 1, zone)
+                ? feedback("command.autotorch.exclusion_replaced", number)
+                : feedback("command.autotorch.zone_not_found", number);
+    }
+
+    private static int removeExclusion(int number) {
+        return SelectionState.removeExclusion(number - 1)
+                ? feedback("command.autotorch.exclusion_removed", number)
+                : feedback("command.autotorch.zone_not_found", number);
+    }
+
+    private static int clearExclusions() {
+        SelectionState.clearExclusions();
+        return feedback("command.autotorch.exclusions_cleared");
+    }
+
+    private static boolean validDraftZone(AreaZone zone) {
+        if (zone.shape() == AreaShape.SPHERE) {
+            long maximum = ServerConfigState.maxSphereRadius();
+            return zone.radiusSquared() > 0L && zone.radiusSquared() <= maximum * maximum;
+        }
+        BlockPos min = zone.min();
+        BlockPos max = zone.max();
+        int maximum = ServerConfigState.maxBoxAxisLength();
+        return (long) max.getX() - min.getX() + 1L <= maximum
+                && (long) max.getY() - min.getY() + 1L <= maximum
+                && (long) max.getZ() - min.getZ() + 1L <= maximum;
+    }
+
+    private static int startTask() {
+        AreaZone selection = SelectionState.lightingZone();
+        if (selection == null) return feedback("command.autotorch.no_lighting_zone");
+        if (SelectionState.drafting()) return feedback("command.autotorch.confirm_draft");
+        Minecraft minecraft = Minecraft.getInstance();
+        boolean consume = minecraft.player != null && minecraft.player.isCreative()
+                ? ClientConfig.creativeConsumesTorches()
+                : (minecraft.hasSingleplayerServer() ? ClientConfig.survivalConsumesTorches()
+                        : ServerConfigState.survivalConsumesTorches());
+        PlatformNetworking.sendToServer(new StartLightingPayload(
+                selection, effectiveDefaultMaxTorches(), effectiveDefaultMinSpacing(),
+                ClientConfig.defaultTaskLightThreshold(), consume,
+                ClientConfig.isDefaultUndergroundOnly(), SelectionState.exclusions()));
+        return feedback("command.autotorch.task_submitted");
+    }
+
+    private static int cancelTask() {
+        PlatformNetworking.sendToServer(new CancelLightingPayload());
+        return feedback("command.autotorch.task_cancel_requested");
+    }
+
+    private static int requestTaskStatus() {
+        PlatformNetworking.sendToServer(new TaskStatusRequestPayload());
+        return 1;
+    }
+
+    public static void receiveTaskStatus(TaskStatusPayload status) {
+        if (status.running()) {
+            feedback("command.autotorch.task_running", status.percent(), status.placed());
+        } else {
+            feedback("command.autotorch.task_idle");
+        }
+    }
+
     private static int openScreen() {
         Minecraft minecraft = Minecraft.getInstance();
         minecraft.gui.setScreen(new LightingScreen());
@@ -129,6 +421,16 @@ public final class AutoTorchClientCommands {
         helpLine(option("/autotorch overlay mode crosses"), separator("|"), option("numbers"));
         helpLine(option("/autotorch overlay detect swamp_slime"), separator("|"),
                 option("drowned on"), separator("|"), option("off"));
+        helpLine(option("/autotorch selection pos1"), separator("|"), option("pos2 [here|target|<pos>]"));
+        helpLine(option("/autotorch selection box <pos1> <pos2>"));
+        helpLine(option("/autotorch selection sphere <center> <radius>"));
+        helpLine(option("/autotorch selection swap"), separator("|"), option("clear"));
+        helpLine(option("/autotorch selection tool on"), separator("|"), option("off"));
+        helpLine(option("/autotorch zone list [number]"), separator("|"), option("clear"));
+        helpLine(option("/autotorch zone lighting set"), separator("|"), option("load"), separator("|"), option("clear"));
+        helpLine(option("/autotorch zone exclusion add"), separator("|"), option("load"), separator("|"),
+                option("replace"), separator("|"), option("remove <number>"), separator("|"), option("clear"));
+        helpLine(option("/autotorch task start"), separator("|"), option("cancel"), separator("|"), option("status"));
         feedbackColored("------------------------------------------------", ChatFormatting.WHITE);
         return 1;
     }
