@@ -68,7 +68,7 @@ final class ForgeNetworking {
                 }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(4, TaskStatusRequestPayload.class,
                 TaskStatusRequestPayload::write, TaskStatusRequestPayload::decode, (payload, supplier) -> {
-                    var context = supplier.get();
+                    NetworkEvent.Context context = supplier.get();
                     context.enqueueWork(() -> {
                         if (context.getSender() != null) {
                             sendToPlayer(context.getSender(), LightingTaskManager.status(context.getSender()));
@@ -78,7 +78,7 @@ final class ForgeNetworking {
                 }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(5, TaskStatusPayload.class,
                 TaskStatusPayload::write, TaskStatusPayload::decode, (payload, supplier) -> {
-                    var context = supplier.get();
+                    NetworkEvent.Context context = supplier.get();
                     context.enqueueWork(() -> AutoTorchClientCommands.receiveTaskStatus(payload));
                     context.setPacketHandled(true);
                 }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
