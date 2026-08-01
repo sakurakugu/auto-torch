@@ -2,6 +2,7 @@ package com.sakurakugu.autotorch.neoforge;
 
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
+import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -16,6 +17,7 @@ import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.common.NeoForge;
@@ -31,6 +33,7 @@ public final class AutoTorchNeoForgeClient {
         container.registerConfig(ModConfig.Type.CLIENT, NeoForgeConfigs.CLIENT.spec());
         modBus.addListener(this::registerKeys);
         NeoForge.EVENT_BUS.addListener(this::onTick);
+        NeoForge.EVENT_BUS.addListener(this::registerClientCommands);
         NeoForge.EVENT_BUS.addListener(this::onLeftClick);
         NeoForge.EVENT_BUS.addListener(this::onRightClick);
         NeoForge.EVENT_BUS.addListener(this::onExtract);
@@ -41,6 +44,10 @@ public final class AutoTorchNeoForgeClient {
         event.registerCategory(AutoTorchClient.CATEGORY);
         event.register(AutoTorchClient.OPEN_SCREEN);
         event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+    }
+
+    private void registerClientCommands(RegisterClientCommandsEvent event) {
+        AutoTorchClientCommands.register(event.getDispatcher());
     }
 
     private void onTick(ClientTickEvent.Post event) { client.tick(); }

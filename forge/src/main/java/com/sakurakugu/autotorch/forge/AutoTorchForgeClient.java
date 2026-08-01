@@ -7,6 +7,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
+import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -23,6 +24,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraftforge.client.FramePassManager;
 import net.minecraftforge.client.event.AddFramePassEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.config.ModConfig;
@@ -37,6 +39,7 @@ final class AutoTorchForgeClient {
         context.registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
 
         RegisterKeyMappingsEvent.BUS.addListener(this::registerKeys);
+        RegisterClientCommandsEvent.BUS.addListener(this::registerClientCommands);
         AddFramePassEvent.BUS.addListener(this::registerRenderPass);
         TickEvent.ClientTickEvent.Post.BUS.addListener(this::onTick);
         PlayerInteractEvent.LeftClickBlock.BUS.addListener(this::onLeftClick);
@@ -50,6 +53,10 @@ final class AutoTorchForgeClient {
     private void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(AutoTorchClient.OPEN_SCREEN);
         event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+    }
+
+    private void registerClientCommands(RegisterClientCommandsEvent event) {
+        AutoTorchClientCommands.register(event.getDispatcher());
     }
 
     private void onTick(TickEvent.ClientTickEvent.Post event) {

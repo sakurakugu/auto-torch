@@ -1,6 +1,7 @@
 package com.sakurakugu.autotorch.fabric;
 
 import com.sakurakugu.autotorch.client.AutoTorchClient;
+import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -11,6 +12,7 @@ import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -39,6 +41,8 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         KeyMappingHelper.registerKeyMapping(AutoTorchClient.OPEN_SCREEN);
         KeyMappingHelper.registerKeyMapping(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
         ClientTickEvents.END_CLIENT_TICK.register(minecraft -> client.tick());
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) ->
+                AutoTorchClientCommands.register(dispatcher));
 
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
             if (level instanceof ClientLevel clientLevel
