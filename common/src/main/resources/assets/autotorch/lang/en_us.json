@@ -140,7 +140,7 @@
   "command.autotorch.special.drowned": "drowned",
   "command.autotorch.special.both": "swamp slimes, drowned",
   "command.autotorch.unlimited": "unlimited",
-  "command.autotorch.status.task": "Wooden axe: %s; consume torches: %s; max %s; spacing: %s; light≤%s\nInclude sky light: %s; shape: %s; display: %s (%s)",
+  "command.autotorch.status.task": "Wooden axe: %s; consume torches: %s; max %s; spacing: %s; light≤%s; include sky light: %s; shape: %s; display: %s (%s)",
   "command.autotorch.point1_a": "Point 1/A",
   "command.autotorch.point1_c": "Point 1/C",
   "command.autotorch.point2_b": "Point 2/B",
