@@ -164,6 +164,15 @@ final class LightingTask {
         sendProgress(player);
     }
 
+    int progressPercent() {
+        long scanned = (long) pass * volume + scanIndex;
+        return (int) Math.min(100L, scanned * 100L / (volume * 2L));
+    }
+
+    int placedCount() {
+        return placed;
+    }
+
     private void sendProgress(EntityPlayerMP player) {
         long scanned = (long) pass * volume + scanIndex;
         long total = volume * 2L;
