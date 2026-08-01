@@ -21,7 +21,7 @@ import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.commands.arguments.coordinates.Coordinates;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.BaseComponent;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
@@ -262,7 +262,7 @@ public final class AutoTorchClientCommands {
 
     private static BlockPos playerPosition() {
         Minecraft minecraft = Minecraft.getInstance();
-        return minecraft.player == null ? BlockPos.ZERO : minecraft.player.blockPosition();
+        return minecraft.player == null ? BlockPos.ZERO : minecraft.player.getCommandSenderBlockPosition();
     }
 
     private static BlockPos targetPosition() {
@@ -477,7 +477,7 @@ public final class AutoTorchClientCommands {
     }
 
     private static void helpLine(Component... parts) {
-        MutableComponent line = new TextComponent("");
+        BaseComponent line = new TextComponent("");
         for (Component part : parts) {
             line.append(part);
         }
@@ -505,7 +505,7 @@ public final class AutoTorchClientCommands {
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null) {
-            AreaZone draft = SelectionState.draft(minecraft.player.blockPosition());
+            AreaZone draft = SelectionState.draft(minecraft.player.getCommandSenderBlockPosition());
             boolean sphere = draft.shape() == AreaShape.SPHERE;
             boolean consumesTorches = minecraft.player.isCreative()
                     ? ClientConfig.creativeConsumesTorches()
