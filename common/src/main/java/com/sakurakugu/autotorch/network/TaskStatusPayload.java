@@ -22,14 +22,14 @@ public final class TaskStatusPayload implements AutoTorchPayload {
     public int placed() { return placed; }
 
     public static TaskStatusPayload decode(PacketBuffer buffer) {
-        return new TaskStatusPayload(buffer.readBoolean(), buffer.readVarInt(), buffer.readVarInt());
+        return new TaskStatusPayload(buffer.readBoolean(), buffer.readVarIntFromBuffer(), buffer.readVarIntFromBuffer());
     }
 
     @Override
     public void write(PacketBuffer buffer) {
         buffer.writeBoolean(running);
-        buffer.writeVarInt(percent);
-        buffer.writeVarInt(placed);
+        buffer.writeVarIntToBuffer(percent);
+        buffer.writeVarIntToBuffer(placed);
     }
 
     @Override
