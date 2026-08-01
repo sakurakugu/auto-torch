@@ -8,6 +8,7 @@ import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
+import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
 import net.fabricmc.api.ModInitializer;
@@ -18,6 +19,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -28,6 +30,10 @@ public final class AutoTorchFabric implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+                AutoTorchServerCommands.register(dispatcher, server ->
+                        server.getPlayerList().getPlayers().forEach(player ->
+                                ServerPlayNetworking.send(player, ServerConfigPayload.current()))));
         serverConfig = new TomlConfigBackend(
                 FabricLoader.getInstance().getConfigDir().resolve("autotorch-server.toml"),
                 ConfigDefinitions.SERVER);
