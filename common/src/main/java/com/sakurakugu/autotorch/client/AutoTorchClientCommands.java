@@ -257,14 +257,14 @@ public final class AutoTorchClientCommands {
             Vec3d eye = new Vec3d(minecraft.player.posX,
                     minecraft.player.posY + minecraft.player.getEyeHeight(), minecraft.player.posZ);
             Vec3d target = new Vec3d(
-                    eye.x + leftVector.x * left + upVector.x * up + forward.x * forwards,
-                    eye.y + leftVector.y * left + upVector.y * up + forward.y * forwards,
-                    eye.z + leftVector.z * left + upVector.z * up + forward.z * forwards);
-            return new BlockPos(MathHelper.floor(target.x), MathHelper.floor(target.y), MathHelper.floor(target.z));
+                    eye.xCoord + leftVector.xCoord * left + upVector.xCoord * up + forward.xCoord * forwards,
+                    eye.yCoord + leftVector.yCoord * left + upVector.yCoord * up + forward.yCoord * forwards,
+                    eye.zCoord + leftVector.zCoord * left + upVector.zCoord * up + forward.zCoord * forwards);
+            return new BlockPos(MathHelper.floor(target.xCoord), MathHelper.floor(target.yCoord), MathHelper.floor(target.zCoord));
         }
-        return new BlockPos(MathHelper.floor(worldCoordinate(values[0], origin.x)),
-                MathHelper.floor(worldCoordinate(values[1], origin.y)),
-                MathHelper.floor(worldCoordinate(values[2], origin.z)));
+        return new BlockPos(MathHelper.floor(worldCoordinate(values[0], origin.xCoord)),
+                MathHelper.floor(worldCoordinate(values[1], origin.yCoord)),
+                MathHelper.floor(worldCoordinate(values[2], origin.zCoord)));
     }
 
     private static double worldCoordinate(String value, double origin) {
@@ -326,7 +326,7 @@ public final class AutoTorchClientCommands {
     }
 
     private static int listZones() {
-        feedback("command.autotorch.zone_summary", SelectionState.lightingZone() == null ? 0 : 1,
+        feedback("command.autotorch.zCoordone_summary", SelectionState.lightingZone() == null ? 0 : 1,
                 SelectionState.exclusions().size());
         if (SelectionState.lightingZone() != null) showZone(0, SelectionState.lightingZone());
         for (int i = 0; i < SelectionState.exclusions().size(); i++) {
@@ -337,7 +337,7 @@ public final class AutoTorchClientCommands {
 
     private static int listZone(int number) {
         AreaZone zone = numberedZone(number);
-        if (zone == null) return feedback("command.autotorch.zone_not_found", number);
+        if (zone == null) return feedback("command.autotorch.zCoordone_not_found", number);
         showZone(number, zone);
         return 1;
     }
@@ -350,7 +350,7 @@ public final class AutoTorchClientCommands {
     }
 
     private static void showZone(int number, AreaZone zone) {
-        feedback("command.autotorch.zone_entry", number,
+        feedback("command.autotorch.zCoordone_entry", number,
                 new TextComponentTranslation(zone.shape() == AreaShape.SPHERE
                         ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                 formatPosition(zone.first()), formatPosition(zone.second()));
@@ -358,12 +358,12 @@ public final class AutoTorchClientCommands {
 
     private static int clearZones() {
         SelectionState.clearZones();
-        return feedback("command.autotorch.zones_cleared");
+        return feedback("command.autotorch.zCoordones_cleared");
     }
 
     private static int setLightingZone() {
         AreaZone zone = SelectionState.draft(playerPosition());
-        if (!validDraftZone(zone)) return feedback("command.autotorch.zone_out_of_range");
+        if (!validDraftZone(zone)) return feedback("command.autotorch.zCoordone_out_of_range");
         SelectionState.setLightingZone(zone);
         return feedback("command.autotorch.lighting_set");
     }
@@ -382,7 +382,7 @@ public final class AutoTorchClientCommands {
 
     private static int addExclusion() {
         AreaZone zone = SelectionState.draft(playerPosition());
-        if (!validDraftZone(zone)) return feedback("command.autotorch.zone_out_of_range");
+        if (!validDraftZone(zone)) return feedback("command.autotorch.zCoordone_out_of_range");
         return SelectionState.addExclusion(zone)
                 ? feedback("command.autotorch.exclusion_added", SelectionState.exclusions().size())
                 : feedback("command.autotorch.too_many_exclusions", ServerConfigState.maxExclusions());
@@ -391,21 +391,21 @@ public final class AutoTorchClientCommands {
     private static int loadExclusion(int number) {
         return SelectionState.beginEditingExclusion(number - 1)
                 ? feedback("command.autotorch.exclusion_loaded", number)
-                : feedback("command.autotorch.zone_not_found", number);
+                : feedback("command.autotorch.zCoordone_not_found", number);
     }
 
     private static int replaceExclusion(int number) {
         AreaZone zone = SelectionState.draft(playerPosition());
-        if (!validDraftZone(zone)) return feedback("command.autotorch.zone_out_of_range");
+        if (!validDraftZone(zone)) return feedback("command.autotorch.zCoordone_out_of_range");
         return SelectionState.replaceExclusion(number - 1, zone)
                 ? feedback("command.autotorch.exclusion_replaced", number)
-                : feedback("command.autotorch.zone_not_found", number);
+                : feedback("command.autotorch.zCoordone_not_found", number);
     }
 
     private static int removeExclusion(int number) {
         return SelectionState.removeExclusion(number - 1)
                 ? feedback("command.autotorch.exclusion_removed", number)
-                : feedback("command.autotorch.zone_not_found", number);
+                : feedback("command.autotorch.zCoordone_not_found", number);
     }
 
     private static int clearExclusions() {
@@ -603,3 +603,4 @@ public final class AutoTorchClientCommands {
         return LiteralArgumentBuilder.literal(name);
     }
 }
+
