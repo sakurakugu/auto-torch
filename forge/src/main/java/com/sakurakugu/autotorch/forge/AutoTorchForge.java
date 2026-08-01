@@ -43,11 +43,10 @@ public final class AutoTorchForge {
     }
 
     private void onServerStarting(FMLServerStartingEvent event) {
-        if (event.getServer().isDedicatedServer()) {
-            AutoTorchServerCommands.register(event.getCommandDispatcher(), server ->
-                    server.getPlayerList().getPlayers().forEach(player ->
-                            ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current())));
-        }
+        // 单机、局域网和专用服务器都注册，客户端才能拿到服务端命令树并补全 serverconfig。
+        AutoTorchServerCommands.register(event.getCommandDispatcher(), server ->
+                server.getPlayerList().getPlayers().forEach(player ->
+                        ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current())));
     }
 
     private void onServerTick(TickEvent.ServerTickEvent event) {
