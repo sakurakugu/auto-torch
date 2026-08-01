@@ -35,11 +35,47 @@ class AutoTorchClientCommandsTest {
         CommandNode<Object> detect = child(overlay, "detect");
         assertToggle(child(detect, "swamp_slime"));
         assertToggle(child(detect, "drowned"));
+
+        CommandNode<Object> selection = child(root, "selection");
+        assertPoint(child(selection, "pos1"));
+        assertPoint(child(selection, "pos2"));
+        child(selection, "swap");
+        child(selection, "clear");
+        child(child(child(selection, "box"), "first"), "second");
+        child(child(child(selection, "sphere"), "center"), "radius");
+        assertToggle(child(selection, "tool"));
+        assertToggle(child(selection, "wooden_axe"));
+        child(selection, "list");
+
+        CommandNode<Object> zone = child(root, "zone");
+        child(child(zone, "list"), "number");
+        child(zone, "clear");
+        CommandNode<Object> lighting = child(zone, "lighting");
+        child(lighting, "set");
+        child(lighting, "load");
+        child(lighting, "clear");
+        CommandNode<Object> exclusion = child(zone, "exclusion");
+        child(exclusion, "add");
+        child(child(exclusion, "load"), "number");
+        child(child(exclusion, "replace"), "number");
+        child(child(exclusion, "remove"), "number");
+        child(exclusion, "clear");
+
+        CommandNode<Object> task = child(root, "task");
+        child(task, "start");
+        child(task, "cancel");
+        child(task, "status");
     }
 
     private static void assertToggle(CommandNode<Object> parent) {
         child(parent, "on");
         child(parent, "off");
+    }
+
+    private static void assertPoint(CommandNode<Object> parent) {
+        child(parent, "here");
+        child(parent, "target");
+        child(parent, "pos");
     }
 
     private static CommandNode<Object> child(CommandNode<Object> parent, String name) {

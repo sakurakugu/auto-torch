@@ -9,6 +9,7 @@ import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -51,6 +52,11 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
                 (minecraft, handler, buffer, sender) -> {
                     ServerConfigPayload payload = ServerConfigPayload.decode(buffer);
                     minecraft.execute(() -> ServerConfigState.update(payload));
+                });
+        ClientPlayNetworking.registerGlobalReceiver(TaskStatusPayload.ID,
+                (minecraft, handler, buffer, sender) -> {
+                    TaskStatusPayload payload = TaskStatusPayload.decode(buffer);
+                    minecraft.execute(() -> AutoTorchClientCommands.receiveTaskStatus(payload));
                 });
 
         AutoTorchClient client = new AutoTorchClient();
