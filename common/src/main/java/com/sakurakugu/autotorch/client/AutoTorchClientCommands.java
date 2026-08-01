@@ -233,7 +233,7 @@ public final class AutoTorchClientCommands {
     }
 
     private static <S> BlockPos position(CommandContext<S> context, String name) {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = Minecraft.getMinecraft();
         Vec3d origin = minecraft.player == null ? Vec3d.ZERO : minecraft.player.getPositionVector();
         String input = context.getNodes().entrySet().stream()
                 .filter(node -> node.getKey().getName().equals(name))
@@ -276,13 +276,13 @@ public final class AutoTorchClientCommands {
     }
 
     private static BlockPos playerPosition() {
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = Minecraft.getMinecraft();
         return minecraft.player == null ? BlockPos.ORIGIN : minecraft.player.getPosition();
     }
 
     private static BlockPos targetPosition() {
-        Minecraft minecraft = Minecraft.getInstance();
-        return minecraft.objectMouseOver != null && minecraft.objectMouseOver.type == RayTraceResult.Type.BLOCK
+        Minecraft minecraft = Minecraft.getMinecraft();
+        return minecraft.objectMouseOver != null && minecraft.objectMouseOver.typeOfHit == RayTraceResult.Type.BLOCK
                 ? minecraft.objectMouseOver.getBlockPos() : playerPosition();
     }
 
@@ -430,7 +430,7 @@ public final class AutoTorchClientCommands {
         AreaZone selection = SelectionState.lightingZone();
         if (selection == null) return feedback("command.autotorch.no_lighting_zone");
         if (SelectionState.drafting()) return feedback("command.autotorch.confirm_draft");
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = Minecraft.getMinecraft();
         boolean consume = minecraft.player != null && minecraft.player.isCreative()
                 ? ClientConfig.creativeConsumesTorches()
                 : (minecraft.isIntegratedServerRunning() ? ClientConfig.survivalConsumesTorches()
@@ -500,11 +500,11 @@ public final class AutoTorchClientCommands {
     }
 
     private static ITextComponent option(String text) {
-        return new TextComponentString(text).applyTextStyle(HELP_OPTION_COLOR);
+        return new TextComponentString(text).setStyle(new net.minecraft.util.text.Style().setColor(HELP_OPTION_COLOR));
     }
 
     private static ITextComponent separator(String text) {
-        return new TextComponentString(text).applyTextStyle(HELP_SEPARATOR_COLOR);
+        return new TextComponentString(text).setStyle(new net.minecraft.util.text.Style().setColor(HELP_SEPARATOR_COLOR));
     }
 
     private static int showStatus() {
@@ -518,7 +518,7 @@ public final class AutoTorchClientCommands {
                         ? "command.autotorch.mode_crosses" : "command.autotorch.mode_numbers"),
                 specialDetection());
 
-        Minecraft minecraft = Minecraft.getInstance();
+        Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.player != null) {
             AreaZone draft = SelectionState.draft(minecraft.player.getPosition());
             boolean sphere = draft.shape() == AreaShape.SPHERE;
@@ -589,13 +589,13 @@ public final class AutoTorchClientCommands {
     }
 
     private static int feedbackColored(String key, TextFormatting color, Object... arguments) {
-        chat(new TextComponentTranslation(key, arguments).applyTextStyle(color));
+        chat(new TextComponentTranslation(key, arguments).setStyle(new net.minecraft.util.text.Style().setColor(color)));
         return 1;
     }
 
     private static void chat(ITextComponent message) {
-        if (Minecraft.getInstance().player != null) {
-            Minecraft.getInstance().player.sendMessage(message);
+        if (Minecraft.getMinecraft().player != null) {
+            Minecraft.getMinecraft().player.sendMessage(message);
         }
     }
 
@@ -603,3 +603,4 @@ public final class AutoTorchClientCommands {
         return LiteralArgumentBuilder.literal(name);
     }
 }
+
