@@ -595,7 +595,7 @@ public final class AutoTorchClientCommands {
 
     private static void chat(ITextComponent message) {
         if (Minecraft.getMinecraft().thePlayer != null) {
-            Minecraft.getMinecraft().thePlayer.sendMessage(message);
+            Minecraft.getMinecraft().thePlayer.addChatMessage(message);
         }
     }
 
