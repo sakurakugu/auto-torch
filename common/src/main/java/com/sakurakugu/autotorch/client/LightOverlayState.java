@@ -68,9 +68,28 @@ public final class LightOverlayState {
     }
 
     public static DisplayMode cycleDisplayMode() {
-        displayMode = displayMode == DisplayMode.CROSSES ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
-        ClientConfig.setShowsLightOverlayNumbers(displayMode == DisplayMode.NUMBERS);
+        setDisplayMode(displayMode == DisplayMode.CROSSES ? DisplayMode.NUMBERS : DisplayMode.CROSSES);
         return displayMode;
+    }
+
+    public static void setDisplayMode(DisplayMode value) {
+        if (displayMode == value) {
+            return;
+        }
+        displayMode = value;
+        ClientConfig.setShowsLightOverlayNumbers(value == DisplayMode.NUMBERS);
+    }
+
+    public static boolean isSwampSlimeDetectionEnabled() {
+        return false;
+    }
+
+    public static boolean toggleSwampSlimeDetection() {
+        return false;
+    }
+
+    public static void setSwampSlimeDetectionEnabled(boolean value) {
+        // 1.17.1 的客户端生物群系 API 无法可靠判断沼泽史莱姆生成条件。
     }
 
     public static boolean isDrownedDetectionEnabled() {
@@ -78,10 +97,17 @@ public final class LightOverlayState {
     }
 
     public static boolean toggleDrownedDetection() {
-        drownedDetectionEnabled = !drownedDetectionEnabled;
-        ClientConfig.setDetectsDrowned(drownedDetectionEnabled);
-        clearScan();
+        setDrownedDetectionEnabled(!drownedDetectionEnabled);
         return drownedDetectionEnabled;
+    }
+
+    public static void setDrownedDetectionEnabled(boolean value) {
+        if (drownedDetectionEnabled == value) {
+            return;
+        }
+        drownedDetectionEnabled = value;
+        ClientConfig.setDetectsDrowned(value);
+        clearScan();
     }
 
     public static int horizontalRange() {
