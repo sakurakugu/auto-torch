@@ -6,6 +6,7 @@ import com.sakurakugu.autotorch.config.ConfigBackend;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 
 import static com.sakurakugu.autotorch.config.ConfigDefinitions.*;
 
@@ -22,26 +23,32 @@ public final class ServerConfig {
         return SERVER.stream().filter(value -> value.key().equals(key)).findFirst().orElse(null);
     }
     public static Object get(String key) {
-        var definition = definition(key);
-        if (definition instanceof BooleanValue value) return bool(value);
-        if (definition instanceof IntValue value) return integer(value);
+        Value definition = definition(key);
+        if (definition instanceof BooleanValue) return bool((BooleanValue) definition);
+        if (definition instanceof IntValue) return integer((IntValue) definition);
         return null;
     }
     public static boolean set(String key, Object value) {
-        var definition = definition(key);
-        if (definition instanceof BooleanValue booleanValue && value instanceof Boolean booleanResult) {
-            backend.setBoolean(booleanValue.key(), booleanResult);
-        } else if (definition instanceof IntValue intValue && value instanceof Integer integerResult) {
-            backend.setInt(intValue.key(), intValue.clamp(integerResult));
+        Value definition = definition(key);
+        if (definition instanceof BooleanValue && value instanceof Boolean) {
+            backend.setBoolean(definition.key(), (Boolean) value);
+        } else if (definition instanceof IntValue && value instanceof Integer) {
+            IntValue intValue = (IntValue) definition;
+            backend.setInt(intValue.key(), intValue.clamp((Integer) value));
         } else return false;
         backend.save();
         return true;
     }
     /** 恢复全部服务端配置并立即持久化。 */
     public static void resetDefaults() {
-        for (var definition : SERVER) {
-            if (definition instanceof BooleanValue value) backend.setBoolean(value.key(), value.defaultValue());
-            else if (definition instanceof IntValue value) backend.setInt(value.key(), value.defaultValue());
+        for (Value definition : SERVER) {
+            if (definition instanceof BooleanValue) {
+                BooleanValue value = (BooleanValue) definition;
+                backend.setBoolean(value.key(), value.defaultValue());
+            } else if (definition instanceof IntValue) {
+                IntValue value = (IntValue) definition;
+                backend.setInt(value.key(), value.defaultValue());
+            }
         }
         backend.save();
     }
