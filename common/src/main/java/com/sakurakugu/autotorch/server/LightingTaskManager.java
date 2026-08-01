@@ -16,6 +16,7 @@ import com.sakurakugu.autotorch.compat.BlockPos;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
+import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.network.play.server.S02PacketChat;
 import net.minecraft.server.MinecraftServer;
@@ -148,6 +149,13 @@ public final class LightingTaskManager {
         } else {
             sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.no_task"));
         }
+    }
+
+    public static TaskStatusPayload status(EntityPlayerMP player) {
+        LightingTask task = TASKS.get(player.getUniqueID());
+        return task == null
+                ? new TaskStatusPayload(false, 0, 0)
+                : new TaskStatusPayload(true, task.progressPercent(), task.placedCount());
     }
 
     public static void onServerTick(MinecraftServer server) {
