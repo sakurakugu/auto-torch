@@ -11,6 +11,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
+import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -24,6 +25,7 @@ final class AutoTorchForgeClient {
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
         ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        ClientCommandHandler.instance.registerCommand(new LegacyAutoTorchClientCommand());
         MinecraftForge.EVENT_BUS.register(this);
     }
     static void initialize() { new AutoTorchForgeClient(); }
