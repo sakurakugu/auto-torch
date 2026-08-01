@@ -16,6 +16,7 @@ class AutoTorchClientCommandsTest {
         child(root, "gui");
         child(root, "help");
         child(root, "status");
+        child(child(root, "config"), "defaults");
 
         CommandNode<Object> nearby = child(root, "nearby");
         child(nearby, "on");
