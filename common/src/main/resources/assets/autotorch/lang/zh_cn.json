@@ -140,7 +140,7 @@
   "command.autotorch.special.drowned": "溺尸",
   "command.autotorch.special.both": "沼泽史莱姆、溺尸",
   "command.autotorch.unlimited": "无限",
-  "command.autotorch.status.task": "木斧选区: %s；消耗火把: %s,最多%s个；间距: %s；亮度≤%s\n计算天空光: %s；形状: %s；显示: %s（%s）",
+  "command.autotorch.status.task": "木斧选区: %s；消耗火把: %s,最多%s个；间距: %s；亮度≤%s；计算天空光: %s；形状: %s；显示: %s（%s）",
   "command.autotorch.point1_a": "点1/A",
   "command.autotorch.point1_c": "点1/C",
   "command.autotorch.point2_b": "点2/B",
