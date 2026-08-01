@@ -30,7 +30,7 @@ public final class AutoTorchForge {
 
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
-        event.registerServerCommand(new LegacyAutoTorchServerCommand());
+        
     }
 
     @SubscribeEvent public void onServerTick(TickEvent.ServerTickEvent event) {
@@ -48,3 +48,4 @@ public final class AutoTorchForge {
     @SubscribeEvent public void onLogout(PlayerEvent.PlayerLoggedOutEvent event) { if (event.player instanceof EntityPlayerMP) SelectionToolEvents.onLogout((EntityPlayerMP) event.player); }
     @SubscribeEvent public void onLogin(PlayerEvent.PlayerLoggedInEvent event) { if (event.player instanceof EntityPlayerMP) ForgeNetworking.sendToPlayer((EntityPlayerMP) event.player, ServerConfigPayload.current()); }
 }
+
