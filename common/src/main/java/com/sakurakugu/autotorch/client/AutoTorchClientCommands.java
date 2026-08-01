@@ -240,8 +240,11 @@ public final class AutoTorchClientCommands {
             Vec3 upVector = new Vec3(Math.cos(yaw) * Math.cos(upPitch), Math.sin(upPitch),
                     Math.sin(yaw) * Math.cos(upPitch));
             Vec3 leftVector = forward.cross(upVector).scale(-1.0D);
-            Vec3 target = minecraft.player.getEyePosition(1.0F)
-                    .add(leftVector.scale(left)).add(upVector.scale(up)).add(forward.scale(forwards));
+            Vec3 eye = minecraft.player.getEyePosition(1.0F);
+            Vec3 target = new Vec3(
+                    eye.x + leftVector.x * left + upVector.x * up + forward.x * forwards,
+                    eye.y + leftVector.y * left + upVector.y * up + forward.y * forwards,
+                    eye.z + leftVector.z * left + upVector.z * up + forward.z * forwards);
             return new BlockPos(Mth.floor(target.x), Mth.floor(target.y), Mth.floor(target.z));
         }
         return new BlockPos(Mth.floor(worldCoordinate(values[0], origin.x)),
