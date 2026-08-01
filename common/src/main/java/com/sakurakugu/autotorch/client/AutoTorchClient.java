@@ -17,6 +17,7 @@ import org.lwjgl.input.Keyboard;
 
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
+    private static boolean openScreenRequested;
     private World selectionToolSyncedLevel;
     public static final String CATEGORY = "key.category.autotorch.main";
     public static final KeyBinding OPEN_SCREEN = new KeyBinding(
@@ -32,6 +33,13 @@ public final class AutoTorchClient {
 
     public void tick() {
         Minecraft minecraft = Minecraft.getMinecraft();
+        // 处理打开选区面板的请求，避免在 tick 中直接打开 GUI 导致的异常。(仅限 Fabric 端的bug)
+        if (openScreenRequested) {
+            openScreenRequested = false;
+            if (minecraft.player != null && minecraft.currentScreen == null) {
+                minecraft.displayGuiScreen(new LightingScreen());
+            }
+        }
         BlockPos currentPosition = minecraft.thePlayer == null
                 ? BlockPos.ORIGIN : minecraft.thePlayer.getPosition();
         // 切换世界或退出存档时重置选区，避免把旧维度坐标带入新世界。
@@ -51,6 +59,10 @@ public final class AutoTorchClient {
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
             }
         }
+    }
+
+    public static void requestOpenScreen() {
+        openScreenRequested = true;
     }
 
     public boolean onLeftClick(World level, ItemStack stack, BlockPos pos, boolean start) {
