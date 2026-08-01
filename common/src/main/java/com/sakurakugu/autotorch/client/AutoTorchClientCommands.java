@@ -1,6 +1,8 @@
 package com.sakurakugu.autotorch.client;
 
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -57,6 +59,14 @@ public final class AutoTorchClientCommands {
 
     public static <S> void register(CommandDispatcher<S> dispatcher) {
         dispatcher.register(root());
+    }
+
+    /** 供没有客户端命令注册事件的旧版加载器查询本地补全。 */
+    public static List<String> suggestions(String command) {
+        return DISPATCHER.getCompletionSuggestions(DISPATCHER.parse(command, new Object())).join()
+                .getList().stream()
+                .map(suggestion -> suggestion.getText())
+                .collect(Collectors.toList());
     }
 
     private static <S> LiteralArgumentBuilder<S> root() {
