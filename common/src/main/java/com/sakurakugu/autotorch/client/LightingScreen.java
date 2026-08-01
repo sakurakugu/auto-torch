@@ -806,9 +806,7 @@ public final class LightingScreen extends Screen {
     }
 
     private ITextComponent drownedDetectionMessage() {
-        return new TextComponentTranslation(LightOverlayState.isDrownedDetectionEnabled()
-                ? "screen.autotorch.drowned_detection_on"
-                : "screen.autotorch.drowned_detection_off");
+        return new TextComponentTranslation("screen.autotorch.drowned_detection_unavailable");
     }
 
     private ITextComponent nearbyAutoTorchMessage() {
