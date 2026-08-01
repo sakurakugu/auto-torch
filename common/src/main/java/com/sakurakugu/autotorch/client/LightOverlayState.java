@@ -38,7 +38,6 @@ public final class LightOverlayState {
     /** 配置整体替换后同步运行时缓存。 */
     public static void reloadConfig() {
         enabled = ClientConfig.isLightOverlayEnabled();
-        swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
         drownedDetectionEnabled = ClientConfig.detectsDrowned();
         displayMode = ClientConfig.showsLightOverlayNumbers() ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
         horizontalRange = ClientConfig.lightOverlayRange();
