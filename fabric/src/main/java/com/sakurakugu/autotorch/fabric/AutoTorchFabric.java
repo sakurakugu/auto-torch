@@ -60,7 +60,7 @@ public final class AutoTorchFabric implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(TaskStatusRequestPayload.ID,
                 (server, player, handler, buffer, sender) -> server.execute(() -> {
                     TaskStatusPayload payload = LightingTaskManager.status(player);
-                    var response = PacketByteBufs.create();
+                    FriendlyByteBuf response = PacketByteBufs.create();
                     payload.write(response);
                     ServerPlayNetworking.send(player, payload.id(), response);
                 }));
@@ -84,7 +84,7 @@ public final class AutoTorchFabric implements ModInitializer {
 
     private static void sendServerConfig(ServerPlayer player) {
         ServerConfigPayload payload = ServerConfigPayload.current();
-        var buffer = PacketByteBufs.create();
+        FriendlyByteBuf buffer = PacketByteBufs.create();
         payload.write(buffer);
         ServerPlayNetworking.send(player, payload.id(), buffer);
     }

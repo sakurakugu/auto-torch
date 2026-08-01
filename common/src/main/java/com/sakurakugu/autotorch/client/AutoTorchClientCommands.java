@@ -26,6 +26,7 @@ import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 
 /** 注册只在本地执行的 Auto Torch 客户端命令。 */
@@ -230,7 +231,7 @@ public final class AutoTorchClientCommands {
             double left = localCoordinate(values[0]);
             double up = localCoordinate(values[1]);
             double forwards = localCoordinate(values[2]);
-            var rotation = minecraft.player.getRotationVector();
+            Vec2 rotation = minecraft.player.getRotationVector();
             float yaw = (rotation.y + 90.0F) * ((float) Math.PI / 180.0F);
             float pitch = -rotation.x * ((float) Math.PI / 180.0F);
             float upPitch = (-rotation.x + 90.0F) * ((float) Math.PI / 180.0F);
@@ -263,7 +264,8 @@ public final class AutoTorchClientCommands {
 
     private static BlockPos targetPosition() {
         Minecraft minecraft = Minecraft.getInstance();
-        return minecraft.hitResult instanceof BlockHitResult hit ? hit.getBlockPos() : playerPosition();
+        return minecraft.hitResult instanceof BlockHitResult
+                ? ((BlockHitResult) minecraft.hitResult).getBlockPos() : playerPosition();
     }
 
     private static int setPoint(boolean first, BlockPos pos) {
