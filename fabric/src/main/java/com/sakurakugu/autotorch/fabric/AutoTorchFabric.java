@@ -35,7 +35,7 @@ public final class AutoTorchFabric implements ModInitializer {
             if (environment == Commands.CommandSelection.DEDICATED) {
                 AutoTorchServerCommands.register(dispatcher, server ->
                         server.getPlayerList().getPlayers().forEach(player ->
-                                ServerPlayNetworking.send(player, ServerConfigPayload.current())));
+                                sendServerConfig(player)));
             }
         });
         serverConfig = new TomlConfigBackend(
@@ -78,11 +78,15 @@ public final class AutoTorchFabric implements ModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 SelectionToolEvents.onLogout(handler.getPlayer()));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            ServerConfigPayload payload = ServerConfigPayload.current();
-            var buffer = PacketByteBufs.create();
-            payload.write(buffer);
-            ServerPlayNetworking.send(handler.getPlayer(), payload.id(), buffer);
+            sendServerConfig(handler.getPlayer());
         });
+    }
+
+    private static void sendServerConfig(ServerPlayer player) {
+        ServerConfigPayload payload = ServerConfigPayload.current();
+        var buffer = PacketByteBufs.create();
+        payload.write(buffer);
+        ServerPlayNetworking.send(player, payload.id(), buffer);
     }
 
     static void closeServerConfig() {
