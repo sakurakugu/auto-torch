@@ -5,6 +5,8 @@ import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
+import com.sakurakugu.autotorch.network.TaskStatusPayload;
+import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
@@ -35,13 +37,18 @@ public final class AutoTorchFabric implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(StartLightingPayload.TYPE, StartLightingPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(CancelLightingPayload.TYPE, CancelLightingPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(SetSelectionToolPayload.TYPE, SetSelectionToolPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(TaskStatusRequestPayload.TYPE, TaskStatusRequestPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ServerConfigPayload.TYPE, ServerConfigPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(TaskStatusPayload.TYPE, TaskStatusPayload.STREAM_CODEC);
         ServerPlayNetworking.registerGlobalReceiver(StartLightingPayload.TYPE,
                 (payload, context) -> LightingTaskManager.start(context.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(CancelLightingPayload.TYPE,
                 (payload, context) -> LightingTaskManager.cancel(context.player()));
         ServerPlayNetworking.registerGlobalReceiver(SetSelectionToolPayload.TYPE,
                 (payload, context) -> SelectionToolEvents.setEnabled(context.player(), payload.enabled()));
+        ServerPlayNetworking.registerGlobalReceiver(TaskStatusRequestPayload.TYPE,
+                (payload, context) -> ServerPlayNetworking.send(context.player(),
+                        LightingTaskManager.status(context.player())));
 
         ServerTickEvents.END_SERVER_TICK.register(LightingTaskManager::onServerTick);
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) ->
