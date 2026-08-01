@@ -46,6 +46,12 @@ public final class AutoTorchForge {
         }
     }
 
+    private void onServerStarting(FMLServerStartingEvent event) {
+        AutoTorchServerCommands.register(event.getCommandDispatcher(), server ->
+                server.getPlayerList().getPlayers().forEach(player ->
+                        ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current())));
+    }
+
     private void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             LightingTaskManager.onServerTick(ServerLifecycleHooks.getCurrentServer());
