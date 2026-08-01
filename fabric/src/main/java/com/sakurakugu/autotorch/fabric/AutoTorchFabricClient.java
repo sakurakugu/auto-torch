@@ -1,5 +1,6 @@
 package com.sakurakugu.autotorch.fabric;
 
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
@@ -24,9 +25,12 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.world.InteractionResult;
 
 public final class AutoTorchFabricClient implements ClientModInitializer {
+    private CommandDispatcher<SharedSuggestionProvider> suggestionCommands;
+
     @Override
     public void onInitializeClient() {
         TomlConfigBackend clientConfig = new TomlConfigBackend(
@@ -46,7 +50,10 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         AutoTorchClient client = new AutoTorchClient();
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
-        ClientTickEvents.END_CLIENT_TICK.register(minecraft -> client.tick());
+        ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
+            client.tick();
+            updateCommandSuggestions(minecraft);
+        });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) ->
                 AutoTorchClientCommands.register(dispatcher));
 
@@ -79,5 +86,18 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             buffers.endBatch(RenderType.lines());
             buffers.endBatch(SelectionRenderer.faceRenderType());
         });
+    }
+
+    private void updateCommandSuggestions(Minecraft minecraft) {
+        if (minecraft.player == null) {
+            suggestionCommands = null;
+            return;
+        }
+        // 服务端命令树会与客户端命令树共用补全调度器，连接后合并一次以保留本地子命令补全。
+        CommandDispatcher<SharedSuggestionProvider> commands = minecraft.player.connection.getCommands();
+        if (commands != suggestionCommands) {
+            AutoTorchClientCommands.register(commands);
+            suggestionCommands = commands;
+        }
     }
 }
