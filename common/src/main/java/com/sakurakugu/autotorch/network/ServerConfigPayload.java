@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 /** 服务端在玩家登录后同步会影响客户端显示的权威配置。 */
 public final class ServerConfigPayload implements AutoTorchPayload {
     public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID + ":server_config");
+    private final boolean lightingTaskEnabled;
     private final boolean survivalConsumesTorches;
     private final int maxBoxAxisLength;
     private final int maxSphereRadius;
@@ -19,10 +20,12 @@ public final class ServerConfigPayload implements AutoTorchPayload {
     private final int maxSpacing;
 
     public ServerConfigPayload(
-            boolean survivalConsumesTorches, int maxBoxAxisLength, int maxSphereRadius,
+            boolean lightingTaskEnabled, boolean survivalConsumesTorches,
+            int maxBoxAxisLength, int maxSphereRadius,
             int maxExclusions, int maxTorchesPerTask, boolean allowsUnlimitedTorches,
             int minSpacing, int maxSpacing
     ) {
+        this.lightingTaskEnabled = lightingTaskEnabled;
         this.survivalConsumesTorches = survivalConsumesTorches;
         this.maxBoxAxisLength = maxBoxAxisLength;
         this.maxSphereRadius = maxSphereRadius;
@@ -33,6 +36,7 @@ public final class ServerConfigPayload implements AutoTorchPayload {
         this.maxSpacing = maxSpacing;
     }
 
+    public boolean lightingTaskEnabled() { return lightingTaskEnabled; }
     public boolean survivalConsumesTorches() { return survivalConsumesTorches; }
     public int maxBoxAxisLength() { return maxBoxAxisLength; }
     public int maxSphereRadius() { return maxSphereRadius; }
@@ -44,6 +48,7 @@ public final class ServerConfigPayload implements AutoTorchPayload {
 
     public static ServerConfigPayload decode(FriendlyByteBuf buffer) {
         return new ServerConfigPayload(
+                buffer.readBoolean(),
                 buffer.readBoolean(),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
@@ -57,6 +62,7 @@ public final class ServerConfigPayload implements AutoTorchPayload {
 
     @Override
     public void write(FriendlyByteBuf buffer) {
+        buffer.writeBoolean(lightingTaskEnabled);
         buffer.writeBoolean(survivalConsumesTorches);
         buffer.writeVarInt(maxBoxAxisLength);
         buffer.writeVarInt(maxSphereRadius);
@@ -69,6 +75,7 @@ public final class ServerConfigPayload implements AutoTorchPayload {
 
     public static ServerConfigPayload current() {
         return new ServerConfigPayload(
+                ServerConfig.lightingTaskEnabled(),
                 ServerConfig.survivalConsumesTorches(),
                 ServerConfig.maxBoxAxisLength(),
                 ServerConfig.maxSphereRadius(),
@@ -82,6 +89,7 @@ public final class ServerConfigPayload implements AutoTorchPayload {
 
     public static ServerConfigPayload defaults() {
         return new ServerConfigPayload(
+                ConfigDefinitions.LIGHTING_TASK_ENABLED.defaultValue(),
                 ConfigDefinitions.GAMEPLAY_SURVIVAL_CONSUMES_TORCHES.defaultValue(),
                 ConfigDefinitions.LIMIT_MAX_BOX_AXIS_LENGTH.defaultValue(),
                 ConfigDefinitions.LIMIT_MAX_SPHERE_RADIUS.defaultValue(),
