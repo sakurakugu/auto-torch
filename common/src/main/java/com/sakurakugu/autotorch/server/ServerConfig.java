@@ -50,6 +50,7 @@ public final class ServerConfig {
     public static int maxExclusions() { return integer(LIMIT_MAX_EXCLUSIONS); }
     public static int maxTorchesPerTask() { return integer(LIMIT_MAX_TORCHES_PER_TASK); }
     public static boolean allowsUnlimitedTorches() { return bool(LIMIT_ALLOW_UNLIMITED_TORCHES); }
+    public static boolean lightingTaskEnabled() { return bool(LIGHTING_TASK_ENABLED); }
     public static int minSpacing() { return Math.min(integer(LIMIT_MIN_SPACING), integer(LIMIT_MAX_SPACING)); }
     public static int maxSpacing() { return Math.max(integer(LIMIT_MIN_SPACING), integer(LIMIT_MAX_SPACING)); }
     public static int maxConcurrentTasks() { return integer(LIMIT_MAX_CONCURRENT_TASKS); }
