@@ -1,0 +1,32 @@
+package com.sakurakugu.autotorch.forge;
+
+import java.util.List;
+
+import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import net.minecraft.client.Minecraft;
+import net.minecraft.command.CommandBase;
+import net.minecraft.command.CommandException;
+import net.minecraft.command.ICommandSender;
+
+/** 将共享客户端命令接入 Forge 1.7.10 的本地执行与补全 API。 */
+final class LegacyAutoTorchClientCommand extends CommandBase {
+    @Override public String getCommandName() { return "autotorch"; }
+    @Override public String getCommandUsage(ICommandSender sender) { return "command.autotorch.help.title"; }
+    @Override public int getRequiredPermissionLevel() { return 0; }
+
+    @Override
+    public void processCommand(ICommandSender sender, String[] arguments) throws CommandException {
+        String message = "/autotorch" + (arguments.length == 0 ? "" : " " + String.join(" ", arguments));
+        if (arguments.length > 0 && "serverconfig".equals(arguments[0])) {
+            // 客户端同名命令优先于服务端命令，这一分支必须绕过本地命令处理器。
+            Minecraft.getMinecraft().thePlayer.sendChatMessage(message);
+            return;
+        }
+        AutoTorchClientCommands.tryExecute(message);
+    }
+
+    @Override
+    public List<String> addTabCompletionOptions(ICommandSender sender, String[] arguments) {
+        return AutoTorchClientCommands.suggestions("autotorch " + String.join(" ", arguments));
+    }
+}

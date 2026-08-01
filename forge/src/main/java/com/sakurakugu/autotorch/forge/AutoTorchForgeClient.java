@@ -12,6 +12,7 @@ import net.minecraft.entity.EntityLivingBase;
 import com.sakurakugu.autotorch.compat.BlockPos;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
+import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import cpw.mods.fml.client.registry.ClientRegistry;
@@ -28,6 +29,7 @@ public final class AutoTorchForgeClient {
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
         ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        ClientCommandHandler.instance.registerCommand(new LegacyAutoTorchClientCommand());
         MinecraftForge.EVENT_BUS.register(this);
         FMLCommonHandler.instance().bus().register(this);
     }

@@ -2,6 +2,7 @@ package com.sakurakugu.autotorch.forge;
 
 import io.netty.buffer.ByteBuf;
 import com.sakurakugu.autotorch.AutoTorch;
+import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.network.*;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
@@ -29,14 +30,18 @@ final class ForgeNetworking {
         CHANNEL.registerMessage(CancelHandler.class, CancelMessage.class, 1, Side.SERVER);
         CHANNEL.registerMessage(SelectionHandler.class, SelectionMessage.class, 2, Side.SERVER);
         CHANNEL.registerMessage(ConfigHandler.class, ConfigMessage.class, 3, Side.CLIENT);
+        CHANNEL.registerMessage(StatusRequestHandler.class, StatusRequestMessage.class, 4, Side.SERVER);
+        CHANNEL.registerMessage(StatusHandler.class, StatusMessage.class, 5, Side.CLIENT);
     }
     static void sendToServer(AutoTorchPayload payload) {
         if (payload instanceof StartLightingPayload) CHANNEL.sendToServer(new StartMessage((StartLightingPayload) payload));
         else if (payload instanceof CancelLightingPayload) CHANNEL.sendToServer(new CancelMessage((CancelLightingPayload) payload));
         else if (payload instanceof SetSelectionToolPayload) CHANNEL.sendToServer(new SelectionMessage((SetSelectionToolPayload) payload));
+        else if (payload instanceof TaskStatusRequestPayload) CHANNEL.sendToServer(new StatusRequestMessage((TaskStatusRequestPayload) payload));
     }
     static void sendToPlayer(EntityPlayerMP player, AutoTorchPayload payload) {
         if (payload instanceof ServerConfigPayload) CHANNEL.sendTo(new ConfigMessage((ServerConfigPayload) payload), player);
+        else if (payload instanceof TaskStatusPayload) CHANNEL.sendTo(new StatusMessage((TaskStatusPayload) payload), player);
     }
 
     static void drainServerTasks() { drain(SERVER_TASKS); }
@@ -60,8 +65,12 @@ final class ForgeNetworking {
     public static final class CancelMessage extends Message<CancelLightingPayload> { public CancelMessage() {} CancelMessage(CancelLightingPayload p){super(p);} CancelLightingPayload decode(PacketBuffer b){return CancelLightingPayload.decode(b);} void encode(CancelLightingPayload p,PacketBuffer b){p.write(b);} }
     public static final class SelectionMessage extends Message<SetSelectionToolPayload> { public SelectionMessage() {} SelectionMessage(SetSelectionToolPayload p){super(p);} SetSelectionToolPayload decode(PacketBuffer b){return SetSelectionToolPayload.decode(b);} void encode(SetSelectionToolPayload p,PacketBuffer b){p.write(b);} }
     public static final class ConfigMessage extends Message<ServerConfigPayload> { public ConfigMessage() {} ConfigMessage(ServerConfigPayload p){super(p);} ServerConfigPayload decode(PacketBuffer b){return ServerConfigPayload.decode(b);} void encode(ServerConfigPayload p,PacketBuffer b){p.write(b);} }
+    public static final class StatusRequestMessage extends Message<TaskStatusRequestPayload> { public StatusRequestMessage() {} StatusRequestMessage(TaskStatusRequestPayload p){super(p);} TaskStatusRequestPayload decode(PacketBuffer b){return TaskStatusRequestPayload.decode(b);} void encode(TaskStatusRequestPayload p,PacketBuffer b){p.write(b);} }
+    public static final class StatusMessage extends Message<TaskStatusPayload> { public StatusMessage() {} StatusMessage(TaskStatusPayload p){super(p);} TaskStatusPayload decode(PacketBuffer b){return TaskStatusPayload.decode(b);} void encode(TaskStatusPayload p,PacketBuffer b){p.write(b);} }
     public static final class StartHandler implements IMessageHandler<StartMessage, IMessage> { public IMessage onMessage(StartMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; SERVER_TASKS.add(() -> LightingTaskManager.start(p,m.payload)); return null; } }
     public static final class CancelHandler implements IMessageHandler<CancelMessage, IMessage> { public IMessage onMessage(CancelMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; SERVER_TASKS.add(() -> LightingTaskManager.cancel(p)); return null; } }
     public static final class SelectionHandler implements IMessageHandler<SelectionMessage, IMessage> { public IMessage onMessage(SelectionMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; SERVER_TASKS.add(() -> SelectionToolEvents.setEnabled(p,m.payload.enabled())); return null; } }
     public static final class ConfigHandler implements IMessageHandler<ConfigMessage, IMessage> { public IMessage onMessage(ConfigMessage m, MessageContext c){ CLIENT_TASKS.add(() -> ServerConfigState.update(m.payload)); return null; } }
+    public static final class StatusRequestHandler implements IMessageHandler<StatusRequestMessage, IMessage> { public IMessage onMessage(StatusRequestMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; SERVER_TASKS.add(() -> sendToPlayer(p, LightingTaskManager.status(p))); return null; } }
+    public static final class StatusHandler implements IMessageHandler<StatusMessage, IMessage> { public IMessage onMessage(StatusMessage m, MessageContext c){ CLIENT_TASKS.add(() -> AutoTorchClientCommands.receiveTaskStatus(m.payload)); return null; } }
 }
