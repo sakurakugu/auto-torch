@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
+import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -17,6 +18,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraftforge.client.ClientRegistry;
+import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
@@ -47,6 +49,7 @@ final class AutoTorchForgeClient {
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
 
         context.getModEventBus().addListener(this::registerKeys);
+        MinecraftForge.EVENT_BUS.addListener(this::registerClientCommands);
         MinecraftForge.EVENT_BUS.addListener(this::onRender);
         MinecraftForge.EVENT_BUS.addListener(this::onTick);
         MinecraftForge.EVENT_BUS.addListener(this::onLeftClick);
@@ -62,6 +65,10 @@ final class AutoTorchForgeClient {
             ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
             ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
         });
+    }
+
+    private void registerClientCommands(RegisterClientCommandsEvent event) {
+        AutoTorchClientCommands.register(event.getDispatcher());
     }
 
     private void onTick(TickEvent.ClientTickEvent event) {
