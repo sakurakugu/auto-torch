@@ -1,3 +1,8 @@
+import net.fabricmc.mappingio.MappingReader
+import net.fabricmc.mappingio.MappingWriter
+import net.fabricmc.mappingio.adapter.ForwardingMappingVisitor
+import net.fabricmc.mappingio.format.MappingFormat
+
 plugins {
     id 'java-library'
     id 'net.minecraftforge.gradle'
@@ -94,16 +99,46 @@ def obfuscatedToForge = renamer.convert('obfuscatedToForge') {
     map = configurations.forgeMappings
     reverse = true
 }
-def namedToForge = renamer.chain('namedToForge') {
+def namedToForgeFull = renamer.chain('namedToForgeFull') {
     left namedToObfuscated
     right obfuscatedToForge
 }
+def namedToForgeClasses = tasks.register('namedToForgeClasses') {
+    def inputFile = namedToForgeFull.flatMap { it.output }
+    def outputFile = layout.buildDirectory.file('mappings/namedToForgeClasses.tsrg')
+    inputs.file inputFile
+    outputs.file outputFile
+
+    doLast {
+        def outputPath = outputFile.get().asFile.toPath()
+        outputPath.parent.toFile().mkdirs()
+        MappingWriter writer = MappingWriter.create(outputPath, MappingFormat.TSRG_FILE)
+        try {
+            def classesOnly = new ForwardingMappingVisitor(writer) {
+                @Override
+                boolean visitField(String sourceName, String sourceDescriptor) {
+                    return false
+                }
+
+                @Override
+                boolean visitMethod(String sourceName, String sourceDescriptor) {
+                    return false
+                }
+            }
+            MappingReader.read(inputFile.get().asFile.toPath(), classesOnly)
+        } finally {
+            writer.close()
+        }
+    }
+}
+def namedToForgeClassesFile = files(layout.buildDirectory.file('mappings/namedToForgeClasses.tsrg'))
+        .builtBy(namedToForgeClasses)
 def renamedCommonSources = renamer.sources('renameCommonSources', commonNamedSourceSet) {
     extract {
         sourceCompatibility = JavaVersion.VERSION_17
     }
     apply {
-        map = files(namedToForge.flatMap { it.output })
+        map = namedToForgeClassesFile
         archiveClassifier = 'forge'
     }
 }
