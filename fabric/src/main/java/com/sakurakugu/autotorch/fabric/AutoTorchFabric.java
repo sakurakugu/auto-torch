@@ -5,6 +5,8 @@ import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
+import com.sakurakugu.autotorch.network.TaskStatusPayload;
+import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
@@ -45,6 +47,13 @@ public final class AutoTorchFabric implements ModInitializer {
                     SetSelectionToolPayload payload = SetSelectionToolPayload.decode(buffer);
                     server.execute(() -> SelectionToolEvents.setEnabled(player, payload.enabled()));
                 });
+        ServerPlayNetworking.registerGlobalReceiver(TaskStatusRequestPayload.ID,
+                (server, player, handler, buffer, sender) -> server.execute(() -> {
+                    TaskStatusPayload payload = LightingTaskManager.status(player);
+                    var response = PacketByteBufs.create();
+                    payload.write(response);
+                    ServerPlayNetworking.send(player, payload.id(), response);
+                }));
 
         ServerTickEvents.END_SERVER_TICK.register(LightingTaskManager::onServerTick);
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) ->
