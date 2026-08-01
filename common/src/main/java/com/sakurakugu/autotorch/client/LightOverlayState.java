@@ -69,9 +69,16 @@ public final class LightOverlayState {
     }
 
     public static DisplayMode cycleDisplayMode() {
-        displayMode = displayMode == DisplayMode.CROSSES ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
-        ClientConfig.setShowsLightOverlayNumbers(displayMode == DisplayMode.NUMBERS);
+        setDisplayMode(displayMode == DisplayMode.CROSSES ? DisplayMode.NUMBERS : DisplayMode.CROSSES);
         return displayMode;
+    }
+
+    public static void setDisplayMode(DisplayMode value) {
+        if (displayMode == value) {
+            return;
+        }
+        displayMode = value;
+        ClientConfig.setShowsLightOverlayNumbers(value == DisplayMode.NUMBERS);
     }
 
     public static boolean isSwampSlimeDetectionEnabled() {
@@ -79,10 +86,17 @@ public final class LightOverlayState {
     }
 
     public static boolean toggleSwampSlimeDetection() {
-        swampSlimeDetectionEnabled = !swampSlimeDetectionEnabled;
-        ClientConfig.setDetectsSwampSlimes(swampSlimeDetectionEnabled);
-        clearScan();
+        setSwampSlimeDetectionEnabled(!swampSlimeDetectionEnabled);
         return swampSlimeDetectionEnabled;
+    }
+
+    public static void setSwampSlimeDetectionEnabled(boolean value) {
+        if (swampSlimeDetectionEnabled == value) {
+            return;
+        }
+        swampSlimeDetectionEnabled = value;
+        ClientConfig.setDetectsSwampSlimes(value);
+        clearScan();
     }
 
     public static boolean isDrownedDetectionEnabled() {
@@ -90,10 +104,17 @@ public final class LightOverlayState {
     }
 
     public static boolean toggleDrownedDetection() {
-        drownedDetectionEnabled = !drownedDetectionEnabled;
-        ClientConfig.setDetectsDrowned(drownedDetectionEnabled);
-        clearScan();
+        setDrownedDetectionEnabled(!drownedDetectionEnabled);
         return drownedDetectionEnabled;
+    }
+
+    public static void setDrownedDetectionEnabled(boolean value) {
+        if (drownedDetectionEnabled == value) {
+            return;
+        }
+        drownedDetectionEnabled = value;
+        ClientConfig.setDetectsDrowned(value);
+        clearScan();
     }
 
     public static int horizontalRange() {
