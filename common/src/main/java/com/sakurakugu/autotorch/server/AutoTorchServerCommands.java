@@ -47,7 +47,7 @@ public final class AutoTorchServerCommands {
     }
 
     private static int showHelp(CommandContext<CommandSourceStack> context) {
-        context.getSource().sendSuccess(() -> Component.translatable("command.autotorch.server.help"), false);
+        context.getSource().sendSuccess(Component.translatable("command.autotorch.server.help"), false);
         return 1;
     }
 
@@ -55,7 +55,7 @@ public final class AutoTorchServerCommands {
         String key = StringArgumentType.getString(context, "key");
         var definition = ServerConfig.definition(key);
         if (definition == null) return error(context, "command.autotorch.server.unknown_key", key);
-        context.getSource().sendSuccess(() -> Component.translatable(
+        context.getSource().sendSuccess(Component.translatable(
                 "command.autotorch.server.value", key, ServerConfig.get(key)), false);
         return 1;
     }
@@ -81,7 +81,7 @@ public final class AutoTorchServerCommands {
             return error(context, "command.autotorch.server.out_of_range", intValue.minValue(), intValue.maxValue());
         ServerConfig.set(key, value);
         configChanged.accept(context.getSource().getServer());
-        context.getSource().sendSuccess(() -> Component.translatable(
+        context.getSource().sendSuccess(Component.translatable(
                 "command.autotorch.server.value", key, ServerConfig.get(key)), true);
         return 1;
     }
@@ -90,7 +90,7 @@ public final class AutoTorchServerCommands {
                                 Consumer<MinecraftServer> configChanged) {
         ServerConfig.resetDefaults();
         configChanged.accept(context.getSource().getServer());
-        context.getSource().sendSuccess(() -> Component.translatable(
+        context.getSource().sendSuccess(Component.translatable(
                 "command.autotorch.server.defaults"), true);
         return 1;
     }
