@@ -51,7 +51,10 @@ repositories {
 
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${forge_version}")
-    implementation 'com.mojang:brigadier:1.0.14'
+    implementation('com.mojang:brigadier:1.0.14') {
+        // Minecraft 1.10.2 依赖 Guava 17，Brigadier 的 Guava 21 会覆盖它并导致客户端初始化失败。
+        exclude group: 'com.google.guava', module: 'guava'
+    }
     implementation "com.electronwill.night-config:core:${night_config_version}"
     implementation "com.electronwill.night-config:toml:${night_config_version}"
     compileOnly 'org.lwjgl:lwjgl-opengl:3.2.2'
