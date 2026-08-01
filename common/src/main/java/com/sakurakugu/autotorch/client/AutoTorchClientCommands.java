@@ -49,6 +49,9 @@ public final class AutoTorchClientCommands {
                 .then(AutoTorchClientCommands.<S>literal("gui").executes(context -> openScreen()))
                 .then(AutoTorchClientCommands.<S>literal("help").executes(context -> showHelp()))
                 .then(AutoTorchClientCommands.<S>literal("status").executes(context -> showStatus()))
+                .then(AutoTorchClientCommands.<S>literal("config")
+                        .then(AutoTorchClientCommands.<S>literal("defaults")
+                                .executes(context -> resetConfigDefaults())))
                 .then(AutoTorchClientCommands.<S>nearby())
                 .then(AutoTorchClientCommands.<S>overlay())
                 .then(AutoTorchClientCommands.<S>selection())
@@ -194,6 +197,15 @@ public final class AutoTorchClientCommands {
     private static int setBoolean(Consumer<Boolean> setter, String messageKey, boolean value) {
         setter.accept(value);
         return feedback(messageKey, state(value));
+    }
+
+    private static int resetConfigDefaults() {
+        ClientConfig.resetDefaults();
+        LightOverlayState.reloadConfig();
+        SelectionState.reloadConfig();
+        PlatformNetworking.sendToServer(new SetSelectionToolPayload(
+                ClientConfig.isWoodenAxeSelectionEnabled()));
+        return feedback("command.autotorch.config_defaults");
     }
 
     private static int setOverlayMode(LightOverlayState.DisplayMode mode) {
@@ -431,6 +443,7 @@ public final class AutoTorchClientCommands {
         helpLine(option("/autotorch zone exclusion add"), separator("|"), option("load"), separator("|"),
                 option("replace"), separator("|"), option("remove <number>"), separator("|"), option("clear"));
         helpLine(option("/autotorch task start"), separator("|"), option("cancel"), separator("|"), option("status"));
+        helpLine(option("/autotorch config defaults"));
         feedbackColored("------------------------------------------------", ChatFormatting.WHITE);
         return 1;
     }
