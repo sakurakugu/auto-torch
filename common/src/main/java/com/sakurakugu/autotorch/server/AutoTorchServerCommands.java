@@ -16,6 +16,7 @@ import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.server.MinecraftServer;
 
 /** 仅注册在服务端的管理员配置命令。 */
@@ -47,7 +48,7 @@ public final class AutoTorchServerCommands {
     }
 
     private static int showHelp(CommandContext<CommandSourceStack> context) {
-        context.getSource().sendSuccess(Component.translatable("command.autotorch.server.help"), false);
+        context.getSource().sendSuccess(new TranslatableComponent("command.autotorch.server.help"), false);
         return 1;
     }
 
@@ -55,7 +56,7 @@ public final class AutoTorchServerCommands {
         String key = StringArgumentType.getString(context, "key");
         var definition = ServerConfig.definition(key);
         if (definition == null) return error(context, "command.autotorch.server.unknown_key", key);
-        context.getSource().sendSuccess(Component.translatable(
+        context.getSource().sendSuccess(new TranslatableComponent(
                 "command.autotorch.server.value", key, ServerConfig.get(key)), false);
         return 1;
     }
@@ -81,7 +82,7 @@ public final class AutoTorchServerCommands {
             return error(context, "command.autotorch.server.out_of_range", intValue.minValue(), intValue.maxValue());
         ServerConfig.set(key, value);
         configChanged.accept(context.getSource().getServer());
-        context.getSource().sendSuccess(Component.translatable(
+        context.getSource().sendSuccess(new TranslatableComponent(
                 "command.autotorch.server.value", key, ServerConfig.get(key)), true);
         return 1;
     }
@@ -90,13 +91,13 @@ public final class AutoTorchServerCommands {
                                 Consumer<MinecraftServer> configChanged) {
         ServerConfig.resetDefaults();
         configChanged.accept(context.getSource().getServer());
-        context.getSource().sendSuccess(Component.translatable(
+        context.getSource().sendSuccess(new TranslatableComponent(
                 "command.autotorch.server.defaults"), true);
         return 1;
     }
 
     private static int error(CommandContext<CommandSourceStack> context, String key, Object... args) {
-        context.getSource().sendFailure(Component.translatable(key, args));
+        context.getSource().sendFailure(new TranslatableComponent(key, args));
         return 0;
     }
 
