@@ -3,7 +3,8 @@
   "package": "com.sakurakugu.autotorch.fabric.mixin",
   "compatibilityLevel": "JAVA_8",
   "client": [
-    "LevelRendererMixin"
+    "LevelRendererMixin",
+    "LocalPlayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
