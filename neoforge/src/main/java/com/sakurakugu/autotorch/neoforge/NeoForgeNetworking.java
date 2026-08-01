@@ -4,6 +4,9 @@ import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.network.TaskStatusPayload;
+import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
@@ -16,7 +19,7 @@ final class NeoForgeNetworking {
     }
 
     static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("5");
+        PayloadRegistrar registrar = event.registrar("6");
         registrar.playToServer(StartLightingPayload.TYPE, StartLightingPayload.STREAM_CODEC, (payload, context) -> {
             if (context.player() instanceof ServerPlayer player) LightingTaskManager.start(player, payload);
         });
@@ -26,7 +29,14 @@ final class NeoForgeNetworking {
         registrar.playToServer(SetSelectionToolPayload.TYPE, SetSelectionToolPayload.STREAM_CODEC, (payload, context) -> {
             if (context.player() instanceof ServerPlayer player) SelectionToolEvents.setEnabled(player, payload.enabled());
         });
+        registrar.playToServer(TaskStatusRequestPayload.TYPE, TaskStatusRequestPayload.STREAM_CODEC, (payload, context) -> {
+            if (context.player() instanceof ServerPlayer player) {
+                player.connection.send(LightingTaskManager.status(player));
+            }
+        });
         registrar.playToClient(ServerConfigPayload.TYPE, ServerConfigPayload.STREAM_CODEC, (payload, context) ->
                 ServerConfigState.update(payload));
+        registrar.playToClient(TaskStatusPayload.TYPE, TaskStatusPayload.STREAM_CODEC, (payload, context) ->
+                AutoTorchClientCommands.receiveTaskStatus(payload));
     }
 }
