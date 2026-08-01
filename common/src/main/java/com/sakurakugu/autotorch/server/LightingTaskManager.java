@@ -38,7 +38,7 @@ public final class LightingTaskManager {
     public static void start(ServerPlayer player, StartLightingPayload payload) {
         // 网络载荷不可信，所有会影响扫描范围和资源消耗的参数都在服务端校验。
         if (!ServerConfig.lightingTaskEnabled()) {
-            player.sendSystemMessage(Component.translatable("message.autotorch.server_disabled"));
+            player.sendSystemMessage(new TranslatableComponent("message.autotorch.server_disabled"));
             return;
         }
         if (!player.mayBuild()) {
