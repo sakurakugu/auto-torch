@@ -807,9 +807,7 @@ public final class LightingScreen extends Screen {
     }
 
     private IChatComponent drownedDetectionMessage() {
-        return new ChatComponentTranslation(LightOverlayState.isDrownedDetectionEnabled()
-                ? "screen.autotorch.drowned_detection_on"
-                : "screen.autotorch.drowned_detection_off");
+        return new ChatComponentTranslation("screen.autotorch.drowned_detection_unavailable");
     }
 
     private IChatComponent nearbyAutoTorchMessage() {
