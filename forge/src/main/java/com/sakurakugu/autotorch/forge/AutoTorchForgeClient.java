@@ -1,7 +1,6 @@
 package com.sakurakugu.autotorch.forge;
 
 import com.sakurakugu.autotorch.client.AutoTorchClient;
-import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
