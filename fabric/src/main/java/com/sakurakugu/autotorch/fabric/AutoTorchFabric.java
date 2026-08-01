@@ -30,13 +30,11 @@ public final class AutoTorchFabric implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> {
-            if (dedicated) {
+        // 单机、局域网和专用服务器都注册，客户端才能拿到服务端命令树并补全 serverconfig。
+        CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) ->
                 AutoTorchServerCommands.register(dispatcher, server ->
                         server.getPlayerList().getPlayers().forEach(player ->
-                                sendServerConfig(player)));
-            }
-        });
+                                sendServerConfig(player))));
         serverConfig = new TomlConfigBackend(
                 FabricLoader.getInstance().getConfigDir().resolve("autotorch-server.toml"),
                 ConfigDefinitions.SERVER);
