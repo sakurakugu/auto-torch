@@ -15,29 +15,25 @@ import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
-import net.minecraft.commands.arguments.coordinates.Coordinates;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.BaseComponent;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.util.Mth;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec2;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.text.TextFormatting;
 
 /** 注册只在本地执行的 Auto Torch 客户端命令。 */
 public final class AutoTorchClientCommands {
     private static final CommandDispatcher<Object> DISPATCHER = new CommandDispatcher<>();
-    private static final ChatFormatting STATUS_TITLE_COLOR = ChatFormatting.GOLD;
-    private static final ChatFormatting STATUS_NEARBY_COLOR = ChatFormatting.GREEN;
-    private static final ChatFormatting STATUS_OVERLAY_COLOR = ChatFormatting.AQUA;
-    private static final ChatFormatting STATUS_DETAILS_COLOR = ChatFormatting.YELLOW;
-    private static final ChatFormatting HELP_OPTION_COLOR = ChatFormatting.WHITE;
-    private static final ChatFormatting HELP_SEPARATOR_COLOR = ChatFormatting.AQUA;
+    private static final TextFormatting STATUS_TITLE_COLOR = TextFormatting.GOLD;
+    private static final TextFormatting STATUS_NEARBY_COLOR = TextFormatting.GREEN;
+    private static final TextFormatting STATUS_OVERLAY_COLOR = TextFormatting.AQUA;
+    private static final TextFormatting STATUS_DETAILS_COLOR = TextFormatting.YELLOW;
+    private static final TextFormatting HELP_OPTION_COLOR = TextFormatting.WHITE;
+    private static final TextFormatting HELP_SEPARATOR_COLOR = TextFormatting.AQUA;
 
     private AutoTorchClientCommands() {
     }
@@ -54,7 +50,7 @@ public final class AutoTorchClientCommands {
         try {
             DISPATCHER.execute(message.substring(1), new Object());
         } catch (com.mojang.brigadier.exceptions.CommandSyntaxException exception) {
-            chat(new TextComponent(exception.getMessage()));
+            chat(new TextComponentString(exception.getMessage()));
         }
         return true;
     }
@@ -202,8 +198,9 @@ public final class AutoTorchClientCommands {
                 .then(AutoTorchClientCommands.<S>literal("status").executes(context -> requestTaskStatus()));
     }
 
-    private static <S> RequiredArgumentBuilder<S, Coordinates> positionArgument(String name) {
-        return RequiredArgumentBuilder.argument(name, BlockPosArgument.blockPos());
+    private static <S> RequiredArgumentBuilder<S, String> positionArgument(String name) {
+        return RequiredArgumentBuilder.argument(name,
+                com.mojang.brigadier.arguments.StringArgumentType.greedyString());
     }
 
     private static <S> LiteralArgumentBuilder<S> booleanLiteral(String name,
@@ -231,43 +228,43 @@ public final class AutoTorchClientCommands {
     private static int setOverlayMode(LightOverlayState.DisplayMode mode) {
         LightOverlayState.setDisplayMode(mode);
         return feedback("command.autotorch.overlay_mode",
-                new TranslatableComponent(mode == LightOverlayState.DisplayMode.CROSSES
+                new TextComponentTranslation(mode == LightOverlayState.DisplayMode.CROSSES
                         ? "command.autotorch.mode_crosses" : "command.autotorch.mode_numbers"));
     }
 
     private static <S> BlockPos position(CommandContext<S> context, String name) {
         Minecraft minecraft = Minecraft.getInstance();
-        Vec3 origin = minecraft.player == null ? Vec3.ZERO : minecraft.player.position();
-        String input = context.getNodes().stream()
-                .filter(node -> node.getNode().getName().equals(name))
+        Vec3d origin = minecraft.player == null ? Vec3d.ZERO : minecraft.player.getPositionVector();
+        String input = context.getNodes().entrySet().stream()
+                .filter(node -> node.getKey().getName().equals(name))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Missing command argument: " + name))
-                .getRange()
+                .getValue()
                 .get(context.getInput());
         String[] values = input.trim().split("\\s+");
         if (values[0].startsWith("^") && minecraft.player != null) {
             double left = localCoordinate(values[0]);
             double up = localCoordinate(values[1]);
             double forwards = localCoordinate(values[2]);
-            Vec2 rotation = minecraft.player.getRotationVector();
-            float yaw = (rotation.y + 90.0F) * ((float) Math.PI / 180.0F);
-            float pitch = -rotation.x * ((float) Math.PI / 180.0F);
-            float upPitch = (-rotation.x + 90.0F) * ((float) Math.PI / 180.0F);
-            Vec3 forward = new Vec3(Math.cos(yaw) * Math.cos(pitch), Math.sin(pitch),
+            float yaw = (minecraft.player.rotationYaw + 90.0F) * ((float) Math.PI / 180.0F);
+            float pitch = -minecraft.player.rotationPitch * ((float) Math.PI / 180.0F);
+            float upPitch = (-minecraft.player.rotationPitch + 90.0F) * ((float) Math.PI / 180.0F);
+            Vec3d forward = new Vec3d(Math.cos(yaw) * Math.cos(pitch), Math.sin(pitch),
                     Math.sin(yaw) * Math.cos(pitch));
-            Vec3 upVector = new Vec3(Math.cos(yaw) * Math.cos(upPitch), Math.sin(upPitch),
+            Vec3d upVector = new Vec3d(Math.cos(yaw) * Math.cos(upPitch), Math.sin(upPitch),
                     Math.sin(yaw) * Math.cos(upPitch));
-            Vec3 leftVector = forward.cross(upVector).scale(-1.0D);
-            Vec3 eye = minecraft.player.getEyePosition(1.0F);
-            Vec3 target = new Vec3(
+            Vec3d leftVector = forward.crossProduct(upVector).scale(-1.0D);
+            Vec3d eye = new Vec3d(minecraft.player.posX,
+                    minecraft.player.posY + minecraft.player.getEyeHeight(), minecraft.player.posZ);
+            Vec3d target = new Vec3d(
                     eye.x + leftVector.x * left + upVector.x * up + forward.x * forwards,
                     eye.y + leftVector.y * left + upVector.y * up + forward.y * forwards,
                     eye.z + leftVector.z * left + upVector.z * up + forward.z * forwards);
-            return new BlockPos(Mth.floor(target.x), Mth.floor(target.y), Mth.floor(target.z));
+            return new BlockPos(MathHelper.floor(target.x), MathHelper.floor(target.y), MathHelper.floor(target.z));
         }
-        return new BlockPos(Mth.floor(worldCoordinate(values[0], origin.x)),
-                Mth.floor(worldCoordinate(values[1], origin.y)),
-                Mth.floor(worldCoordinate(values[2], origin.z)));
+        return new BlockPos(MathHelper.floor(worldCoordinate(values[0], origin.x)),
+                MathHelper.floor(worldCoordinate(values[1], origin.y)),
+                MathHelper.floor(worldCoordinate(values[2], origin.z)));
     }
 
     private static double worldCoordinate(String value, double origin) {
@@ -280,13 +277,13 @@ public final class AutoTorchClientCommands {
 
     private static BlockPos playerPosition() {
         Minecraft minecraft = Minecraft.getInstance();
-        return minecraft.player == null ? BlockPos.ZERO : minecraft.player.getCommandSenderBlockPosition();
+        return minecraft.player == null ? BlockPos.ORIGIN : minecraft.player.getPosition();
     }
 
     private static BlockPos targetPosition() {
         Minecraft minecraft = Minecraft.getInstance();
-        return minecraft.hitResult instanceof BlockHitResult
-                ? ((BlockHitResult) minecraft.hitResult).getBlockPos() : playerPosition();
+        return minecraft.objectMouseOver != null && minecraft.objectMouseOver.type == RayTraceResult.Type.BLOCK
+                ? minecraft.objectMouseOver.getBlockPos() : playerPosition();
     }
 
     private static int setPoint(boolean first, BlockPos pos) {
@@ -318,7 +315,7 @@ public final class AutoTorchClientCommands {
         int radius = IntegerArgumentType.getInteger(context, "radius");
         SelectionState.setShape(AreaShape.SPHERE);
         SelectionState.setFirst(center);
-        SelectionState.setSecond(center.offset(radius, 0, 0));
+        SelectionState.setSecond(center.add(radius, 0, 0));
         return feedback("command.autotorch.selection_sphere", formatPosition(center), radius);
     }
 
@@ -354,7 +351,7 @@ public final class AutoTorchClientCommands {
 
     private static void showZone(int number, AreaZone zone) {
         feedback("command.autotorch.zone_entry", number,
-                new TranslatableComponent(zone.shape() == AreaShape.SPHERE
+                new TextComponentTranslation(zone.shape() == AreaShape.SPHERE
                         ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                 formatPosition(zone.first()), formatPosition(zone.second()));
     }
@@ -436,7 +433,7 @@ public final class AutoTorchClientCommands {
         Minecraft minecraft = Minecraft.getInstance();
         boolean consume = minecraft.player != null && minecraft.player.isCreative()
                 ? ClientConfig.creativeConsumesTorches()
-                : (minecraft.hasSingleplayerServer() ? ClientConfig.survivalConsumesTorches()
+                : (minecraft.isIntegratedServerRunning() ? ClientConfig.survivalConsumesTorches()
                         : ServerConfigState.survivalConsumesTorches());
         PlatformNetworking.sendToServer(new StartLightingPayload(
                 selection, effectiveDefaultMaxTorches(), effectiveDefaultMinSpacing(),
@@ -490,24 +487,24 @@ public final class AutoTorchClientCommands {
                 option("replace"), separator("|"), option("remove <number>"), separator("|"), option("clear"));
         helpLine(option("/autotorch task start"), separator("|"), option("cancel"), separator("|"), option("status"));
         helpLine(option("/autotorch config defaults"));
-        feedbackColored("------------------------------------------------", ChatFormatting.WHITE);
+        feedbackColored("------------------------------------------------", TextFormatting.WHITE);
         return 1;
     }
 
-    private static void helpLine(Component... parts) {
-        BaseComponent line = new TextComponent("");
-        for (Component part : parts) {
-            line.append(part);
+    private static void helpLine(ITextComponent... parts) {
+        ITextComponent line = new TextComponentString("");
+        for (ITextComponent part : parts) {
+            line.appendSibling(part);
         }
         chat(line);
     }
 
-    private static Component option(String text) {
-        return new TextComponent(text).withStyle(HELP_OPTION_COLOR);
+    private static ITextComponent option(String text) {
+        return new TextComponentString(text).applyTextStyle(HELP_OPTION_COLOR);
     }
 
-    private static Component separator(String text) {
-        return new TextComponent(text).withStyle(HELP_SEPARATOR_COLOR);
+    private static ITextComponent separator(String text) {
+        return new TextComponentString(text).applyTextStyle(HELP_SEPARATOR_COLOR);
     }
 
     private static int showStatus() {
@@ -517,42 +514,42 @@ public final class AutoTorchClientCommands {
                 ClientConfig.nearbyAutoTorchThreshold(), state(ClientConfig.includesSkyLight()));
         feedbackColored("command.autotorch.status.overlay", STATUS_OVERLAY_COLOR,
                 state(LightOverlayState.isEnabled()), LightOverlayState.horizontalRange(),
-                new TranslatableComponent(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
+                new TextComponentTranslation(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
                         ? "command.autotorch.mode_crosses" : "command.autotorch.mode_numbers"),
                 specialDetection());
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null) {
-            AreaZone draft = SelectionState.draft(minecraft.player.getCommandSenderBlockPosition());
+            AreaZone draft = SelectionState.draft(minecraft.player.getPosition());
             boolean sphere = draft.shape() == AreaShape.SPHERE;
             boolean consumesTorches = minecraft.player.isCreative()
                     ? ClientConfig.creativeConsumesTorches()
-                    : (minecraft.hasSingleplayerServer()
+                    : (minecraft.isIntegratedServerRunning()
                             ? ClientConfig.survivalConsumesTorches()
                             : ServerConfigState.survivalConsumesTorches());
             int maxTorches = effectiveDefaultMaxTorches();
             feedbackColored("command.autotorch.status.selection", STATUS_DETAILS_COLOR,
-                    new TranslatableComponent(sphere
+                    new TextComponentTranslation(sphere
                             ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
-                    new TranslatableComponent(sphere
+                    new TextComponentTranslation(sphere
                             ? "command.autotorch.point1_c" : "command.autotorch.point1_a"),
                     formatPosition(draft.first()),
-                    new TranslatableComponent(sphere
+                    new TextComponentTranslation(sphere
                             ? "command.autotorch.point2_r" : "command.autotorch.point2_b"),
                     formatPosition(draft.second()),
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size());
             feedbackColored("command.autotorch.status.task", STATUS_DETAILS_COLOR,
                     state(ClientConfig.isWoodenAxeSelectionEnabled()), state(consumesTorches),
-                    maxTorches == 0 ? new TranslatableComponent("command.autotorch.unlimited") : maxTorches,
+                    maxTorches == 0 ? new TextComponentTranslation("command.autotorch.unlimited") : maxTorches,
                     effectiveDefaultMinSpacing(), ClientConfig.defaultTaskLightThreshold(),
                     state(ClientConfig.includesSkyLight()),
-                    new TranslatableComponent(sphere
+                    new TextComponentTranslation(sphere
                             ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                     state(LightOverlayState.isEnabled()),
-                    new TranslatableComponent(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
+                    new TextComponentTranslation(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
                             ? "command.autotorch.mode_crosses" : "command.autotorch.mode_numbers"));
         }
-        feedbackColored("------------------------------------------------", ChatFormatting.WHITE);
+        feedbackColored("------------------------------------------------", TextFormatting.WHITE);
         return 1;
     }
 
@@ -569,36 +566,36 @@ public final class AutoTorchClientCommands {
                 Math.min(ServerConfigState.maxSpacing(), ClientConfig.defaultMinSpacing()));
     }
 
-    private static Component specialDetection() {
+    private static ITextComponent specialDetection() {
         boolean swampSlime = LightOverlayState.isSwampSlimeDetectionEnabled();
         boolean drowned = LightOverlayState.isDrownedDetectionEnabled();
         String key = swampSlime
                 ? (drowned ? "command.autotorch.special.both" : "command.autotorch.special.swamp_slime")
                 : (drowned ? "command.autotorch.special.drowned" : "command.autotorch.special.none");
-        return new TranslatableComponent(key);
+        return new TextComponentTranslation(key);
     }
 
     private static String formatPosition(BlockPos pos) {
         return pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
     }
 
-    private static Component state(boolean enabled) {
-        return new TranslatableComponent(enabled ? "command.autotorch.on" : "command.autotorch.off");
+    private static ITextComponent state(boolean enabled) {
+        return new TextComponentTranslation(enabled ? "command.autotorch.on" : "command.autotorch.off");
     }
 
     private static int feedback(String key, Object... arguments) {
-        chat(new TranslatableComponent(key, arguments));
+        chat(new TextComponentTranslation(key, arguments));
         return 1;
     }
 
-    private static int feedbackColored(String key, ChatFormatting color, Object... arguments) {
-        chat(new TranslatableComponent(key, arguments).withStyle(color));
+    private static int feedbackColored(String key, TextFormatting color, Object... arguments) {
+        chat(new TextComponentTranslation(key, arguments).applyTextStyle(color));
         return 1;
     }
 
-    private static void chat(Component message) {
+    private static void chat(ITextComponent message) {
         if (Minecraft.getInstance().player != null) {
-            Minecraft.getInstance().player.displayClientMessage(message, false);
+            Minecraft.getInstance().player.sendMessage(message);
         }
     }
 
