@@ -310,8 +310,10 @@ jobs:
       - build
       - create-release
     strategy:
-      # 单个版本发布失败时，不中止其他版本的发布任务。
+      # 发布任务必须串行执行：prepare 已按 Minecraft 版本升序生成 targets，
+      # 因此这里会先上传旧版本，再上传新版本，避免平台和 GitHub 附件顺序随机。
       fail-fast: false
+      max-parallel: 1
       matrix:
         target: ${{ fromJSON(needs.prepare.outputs.targets) }}
     runs-on: ubuntu-latest
