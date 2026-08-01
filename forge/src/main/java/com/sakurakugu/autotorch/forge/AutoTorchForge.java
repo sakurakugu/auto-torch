@@ -3,7 +3,6 @@ package com.sakurakugu.autotorch.forge;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
-import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.EnumHand;
