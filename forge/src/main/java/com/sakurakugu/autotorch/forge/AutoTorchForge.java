@@ -31,7 +31,7 @@ public final class AutoTorchForge {
 
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
-        
+        event.registerServerCommand(new LegacyAutoTorchServerCommand());
     }
 
     @SubscribeEvent public void onServerTick(TickEvent.ServerTickEvent event) {
