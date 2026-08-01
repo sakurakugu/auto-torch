@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.forge;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
+import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.EnumHand;
@@ -10,6 +11,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -26,6 +28,11 @@ public final class AutoTorchForge {
         ForgeNetworking.initialize();
         MinecraftForge.EVENT_BUS.register(this);
         if (event.getSide().isClient()) AutoTorchForgeClient.initialize();
+    }
+
+    @Mod.EventHandler
+    public void serverStarting(FMLServerStartingEvent event) {
+        event.registerServerCommand(new LegacyAutoTorchServerCommand());
     }
 
     @SubscribeEvent public void onServerTick(TickEvent.ServerTickEvent event) {
