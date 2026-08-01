@@ -145,7 +145,7 @@
   "command.autotorch.point1_c": "Point 1/C",
   "command.autotorch.point2_b": "Point 2/B",
   "command.autotorch.point2_r": "Point 2/R",
-  "command.autotorch.status.selection": "Draft selection: %s, %s=(%s), %s=(%s)\n%s lighting area, %s exclusions",
+  "command.autotorch.status.selection": "Draft selection: %s, %s=(%s), %s=(%s); %s lighting area, %s exclusions",
   "command.autotorch.selection_point": "Selection point %s set to (%s)",
   "command.autotorch.selection_swapped": "Swapped the two selection points",
   "command.autotorch.selection_cleared": "Cleared the current draft selection",

@@ -145,7 +145,7 @@
   "command.autotorch.point1_c": "点1/C",
   "command.autotorch.point2_b": "点2/B",
   "command.autotorch.point2_r": "点2/R",
-  "command.autotorch.status.selection": "蓝色选区: %s, %s=(%s), %s=(%s)\n照明范围 %s 个，排除区 %s 个",
+  "command.autotorch.status.selection": "蓝色选区: %s, %s=(%s), %s=(%s)；照明范围 %s 个，排除区 %s 个",
   "command.autotorch.selection_point": "选区点 %s 已设为 (%s)",
   "command.autotorch.selection_swapped": "已交换选区的两个点",
   "command.autotorch.selection_cleared": "已清除当前蓝色选区",

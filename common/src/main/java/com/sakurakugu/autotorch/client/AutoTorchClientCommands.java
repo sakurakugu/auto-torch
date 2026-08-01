@@ -603,4 +603,3 @@ public final class AutoTorchClientCommands {
         return LiteralArgumentBuilder.literal(name);
     }
 }
-
