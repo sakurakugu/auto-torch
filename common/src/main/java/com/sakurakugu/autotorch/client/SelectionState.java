@@ -29,6 +29,15 @@ public final class SelectionState {
     private SelectionState() {
     }
 
+    /** 配置整体替换后同步运行时渲染选项。 */
+    public static void reloadConfig() {
+        displayMode = ClientConfig.usesSelectionLines() ? DisplayMode.LINES : DisplayMode.FACES;
+        sphereDisplayMode = ClientConfig.usesSmoothSpheres()
+                ? SphereDisplayMode.SMOOTH : SphereDisplayMode.BLOCKY;
+        overlayEnabled = ClientConfig.isSelectionOverlayEnabled();
+        renderRevision++;
+    }
+
     public static void updateLevel(@Nullable ClientLevel currentLevel, BlockPos currentPosition) {
         if (level != currentLevel) {
             level = currentLevel;

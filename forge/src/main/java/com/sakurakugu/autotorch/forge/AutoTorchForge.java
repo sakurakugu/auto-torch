@@ -2,6 +2,7 @@ package com.sakurakugu.autotorch.forge;
 
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
+import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
@@ -12,6 +13,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -23,6 +25,9 @@ public final class AutoTorchForge {
         ServerConfig.install(ForgeConfigs.SERVER);
         context.registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
         ForgeNetworking.initialize();
+        RegisterCommandsEvent.BUS.addListener(event -> AutoTorchServerCommands.register(event.getDispatcher(),
+                server -> server.getPlayerList().getPlayers().forEach(player ->
+                        ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current()))));
 
         TickEvent.ServerTickEvent.Post.BUS.addListener(this::onServerTick);
         PlayerInteractEvent.LeftClickBlock.BUS.addListener(this::onLeftClick);

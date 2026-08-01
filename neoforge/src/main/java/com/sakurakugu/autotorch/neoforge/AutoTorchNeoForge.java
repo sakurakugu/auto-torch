@@ -2,6 +2,7 @@ package com.sakurakugu.autotorch.neoforge;
 
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
+import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
@@ -16,6 +17,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 @Mod(AutoTorch.MOD_ID)
@@ -24,6 +26,10 @@ public final class AutoTorchNeoForge {
         ServerConfig.install(NeoForgeConfigs.SERVER);
         container.registerConfig(ModConfig.Type.SERVER, NeoForgeConfigs.SERVER.spec());
         modBus.addListener(NeoForgeNetworking::register);
+        NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) ->
+                AutoTorchServerCommands.register(event.getDispatcher(),
+                        server -> server.getPlayerList().getPlayers().forEach(player ->
+                                PacketDistributor.sendToPlayer(player, ServerConfigPayload.current()))));
         NeoForge.EVENT_BUS.addListener(this::onServerTick);
         NeoForge.EVENT_BUS.addListener(this::onLeftClick);
         NeoForge.EVENT_BUS.addListener(this::onRightClick);
