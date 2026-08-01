@@ -37,6 +37,10 @@ public final class LightingTaskManager {
 
     public static void start(ServerPlayer player, StartLightingPayload payload) {
         // 网络载荷不可信，所有会影响扫描范围和资源消耗的参数都在服务端校验。
+        if (!ServerConfig.lightingTaskEnabled()) {
+            player.sendSystemMessage(Component.translatable("message.autotorch.server_disabled"));
+            return;
+        }
         if (!player.mayBuild()) {
             sendSystemMessage(player, new TranslatableComponent("message.autotorch.no_build_permission"));
             return;
@@ -149,6 +153,13 @@ public final class LightingTaskManager {
     }
 
     public static void onServerTick(MinecraftServer server) {
+        if (!ServerConfig.lightingTaskEnabled()) {
+            if (!TASKS.isEmpty()) {
+                TASKS.clear();
+                roundRobinStart = 0;
+            }
+            return;
+        }
         if (TASKS.isEmpty()) {
             roundRobinStart = 0;
             return;

@@ -40,6 +40,12 @@ class ConfigDefinitionsTest {
         assertEquals(15, ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.maxValue());
     }
 
+    @Test
+    void lightingTaskIsEnabledByDefault() {
+        assertTrue(ConfigDefinitions.SERVER.contains(ConfigDefinitions.LIGHTING_TASK_ENABLED));
+        assertTrue(ConfigDefinitions.LIGHTING_TASK_ENABLED.defaultValue());
+    }
+
     private static void assertDefaultWithinRange(ConfigDefinitions.IntValue definition) {
         assertTrue(definition.defaultValue() >= definition.minValue(), definition.key());
         assertTrue(definition.defaultValue() <= definition.maxValue(), definition.key());
