@@ -11,7 +11,6 @@ import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import net.minecraftforge.client.event.ClientChatEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
@@ -29,10 +28,6 @@ final class AutoTorchForgeClient {
         MinecraftForge.EVENT_BUS.register(this);
     }
     static void initialize() { new AutoTorchForgeClient(); }
-
-    @SubscribeEvent public void onClientChat(ClientChatEvent event) {
-        event.setCanceled(AutoTorchClientCommands.tryExecute(event.getMessage()));
-    }
 
     @SubscribeEvent public void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
