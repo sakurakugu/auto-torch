@@ -45,8 +45,8 @@ public final class AutoTorchClient {
         // 处理打开选区面板的请求，避免在 tick 中直接打开 GUI 导致的异常。(仅限 Fabric 端的bug)
         if (openScreenRequested) {
             openScreenRequested = false;
-            if (minecraft.player != null && minecraft.gui.screen() == null) {
-                minecraft.gui.setScreen(new LightingScreen());
+            if (minecraft.player != null && minecraft.screen == null) {
+                minecraft.setScreen(new LightingScreen());
             }
         }
 
