@@ -13,6 +13,7 @@ public final class ServerConfigState {
         return config.survivalConsumesTorches();
     }
 
+    public static boolean lightingTaskEnabled() { return config.lightingTaskEnabled(); }
     public static int maxBoxAxisLength() { return config.maxBoxAxisLength(); }
     public static int maxSphereRadius() { return config.maxSphereRadius(); }
     public static int maxExclusions() { return config.maxExclusions(); }
