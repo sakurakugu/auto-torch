@@ -19,6 +19,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraftforge.client.ClientRegistry;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
+import net.minecraftforge.client.event.ClientChatEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
@@ -50,6 +51,7 @@ final class AutoTorchForgeClient {
 
         context.getModEventBus().addListener(this::registerKeys);
         MinecraftForge.EVENT_BUS.addListener(this::registerClientCommands);
+        MinecraftForge.EVENT_BUS.addListener(this::handleClientCommand);
         MinecraftForge.EVENT_BUS.addListener(this::onRender);
         MinecraftForge.EVENT_BUS.addListener(this::onTick);
         MinecraftForge.EVENT_BUS.addListener(this::onLeftClick);
@@ -69,6 +71,14 @@ final class AutoTorchForgeClient {
 
     private void registerClientCommands(RegisterClientCommandsEvent event) {
         AutoTorchClientCommands.register(event.getDispatcher());
+    }
+
+    private void handleClientCommand(ClientChatEvent event) {
+        // 服务端同步命令会覆盖同名根节点，导致裸命令落到服务端；在发送前保留客户端 GUI 入口。
+        if ("/autotorch".equals(event.getMessage().trim())) {
+            AutoTorchClient.requestOpenScreen();
+            event.setCanceled(true);
+        }
     }
 
     private void onTick(TickEvent.ClientTickEvent event) {
