@@ -1,5 +1,6 @@
 package com.sakurakugu.autotorch.fabric;
 
+import com.mojang.brigadier.CommandDispatcher;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
@@ -24,9 +25,12 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.world.InteractionResult;
 
 public final class AutoTorchFabricClient implements ClientModInitializer {
+    private CommandDispatcher<SharedSuggestionProvider> suggestionCommands;
+
     @Override
     public void onInitializeClient() {
         TomlConfigBackend clientConfig = new TomlConfigBackend(
@@ -56,7 +60,10 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         AutoTorchClient client = new AutoTorchClient();
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
-        ClientTickEvents.END_CLIENT_TICK.register(minecraft -> client.tick());
+        ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
+            client.tick();
+            updateCommandSuggestions(minecraft);
+        });
         AutoTorchClientCommands.register(ClientCommandManager.DISPATCHER);
 
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
@@ -86,5 +93,19 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             buffers.endBatch(RenderType.lines());
             buffers.endBatch(SelectionRenderer.faceRenderType());
         });
+    }
+
+    private void updateCommandSuggestions(Minecraft minecraft) {
+        if (minecraft.player == null) {
+            suggestionCommands = null;
+            return;
+        }
+        // Fabric API 复制客户端命令时会把与服务端同名的根节点子命令复制到临时节点，
+        // 这里像 1.15.2 一样手动合并到连接命令树，保证客户端命令补全仍然存在。
+        CommandDispatcher<SharedSuggestionProvider> commands = minecraft.player.connection.getCommands();
+        if (commands != suggestionCommands) {
+            AutoTorchClientCommands.register(commands);
+            suggestionCommands = commands;
+        }
     }
 }
