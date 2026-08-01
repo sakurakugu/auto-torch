@@ -111,10 +111,10 @@ Write-Host "使用 Java：$javaHome"
 
 if ($task -eq "build") {
     # 先清理跨版本残留的映射和编译输出，再测试并构建 Forge。
-    .\gradlew.bat clean build "-Porg.gradle.java.installations.paths=$javaInstallationPaths"
+    .\gradlew.bat clean build "-Dorg.gradle.java.installations.paths=$javaInstallationPaths"
 } else {
     # 运行对应加载器的开发客户端。
-    .\gradlew.bat ":${task}:runClient" "-Porg.gradle.java.installations.paths=$javaInstallationPaths"
+    .\gradlew.bat ":${task}:runClient" "-Dorg.gradle.java.installations.paths=$javaInstallationPaths"
 }
 
 if ($LASTEXITCODE -ne 0) {
