@@ -5,6 +5,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
@@ -17,11 +19,12 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.client.event.RegisterClientCommandsEvent;
+import net.minecraftforge.client.event.ClientChatEvent;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
@@ -44,6 +47,7 @@ final class AutoTorchForgeClient {
             AutoTorchForgeClient::clearWaterVisibleRenderState
     ) {};
     private final AutoTorchClient client = new AutoTorchClient();
+    private final CommandDispatcher<Object> clientCommands = new CommandDispatcher<>();
     private BlockPos selectionClickPos;
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
@@ -52,7 +56,8 @@ final class AutoTorchForgeClient {
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
 
         context.getModEventBus().addListener(this::registerKeys);
-        MinecraftForge.EVENT_BUS.addListener(this::registerClientCommands);
+        AutoTorchClientCommands.register(clientCommands);
+        MinecraftForge.EVENT_BUS.addListener(this::onClientChat);
         MinecraftForge.EVENT_BUS.addListener(this::onRender);
         MinecraftForge.EVENT_BUS.addListener(this::onTick);
         MinecraftForge.EVENT_BUS.addListener(this::onLeftClick);
@@ -70,8 +75,20 @@ final class AutoTorchForgeClient {
         });
     }
 
-    private void registerClientCommands(RegisterClientCommandsEvent event) {
-        AutoTorchClientCommands.register(event.getDispatcher());
+    private void onClientChat(ClientChatEvent event) {
+        String message = event.getMessage();
+        if (!message.equals("/autotorch") && !message.startsWith("/autotorch ")) {
+            return;
+        }
+        event.setCanceled(true);
+        try {
+            clientCommands.execute(message.substring(1), new Object());
+        } catch (CommandSyntaxException exception) {
+            if (Minecraft.getInstance().player != null) {
+                Minecraft.getInstance().player.displayClientMessage(
+                        new TextComponent(exception.getMessage()), false);
+            }
+        }
     }
 
     private void onTick(TickEvent.ClientTickEvent event) {
