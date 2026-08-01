@@ -1,5 +1,6 @@
 package com.sakurakugu.autotorch.fabric;
 
+import com.mojang.brigadier.CommandDispatcher;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
@@ -26,12 +27,15 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 public final class AutoTorchFabricClient implements ClientModInitializer {
+    private CommandDispatcher<SharedSuggestionProvider> suggestionCommands;
+
     @Override
     public void onInitializeClient() {
         TomlConfigBackend clientConfig = new TomlConfigBackend(
@@ -61,7 +65,10 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         AutoTorchClient client = new AutoTorchClient();
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
-        ClientTickEvents.END_CLIENT_TICK.register(minecraft -> client.tick());
+        ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
+            client.tick();
+            updateCommandSuggestions(minecraft);
+        });
 
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
             if (level instanceof ClientLevel
@@ -78,6 +85,19 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             return InteractionResult.PASS;
         });
 
+    }
+
+    private void updateCommandSuggestions(Minecraft minecraft) {
+        if (minecraft.player == null) {
+            suggestionCommands = null;
+            return;
+        }
+        // Fabric 1.15.2 没有客户端命令注册 API，直接合并到聊天框使用的命令树以提供本地补全。
+        CommandDispatcher<SharedSuggestionProvider> commands = minecraft.player.connection.getCommands();
+        if (commands != suggestionCommands) {
+            AutoTorchClientCommands.register(commands);
+            suggestionCommands = commands;
+        }
     }
 
     public static void renderWorld(PoseStack poseStack, Camera camera) {

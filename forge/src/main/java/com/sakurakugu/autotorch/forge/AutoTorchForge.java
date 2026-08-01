@@ -43,9 +43,11 @@ public final class AutoTorchForge {
     }
 
     private void onServerStarting(FMLServerStartingEvent event) {
-        AutoTorchServerCommands.register(event.getCommandDispatcher(), server ->
-                server.getPlayerList().getPlayers().forEach(player ->
-                        ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current())));
+        if (event.getServer().isDedicatedServer()) {
+            AutoTorchServerCommands.register(event.getCommandDispatcher(), server ->
+                    server.getPlayerList().getPlayers().forEach(player ->
+                            ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current())));
+        }
     }
 
     private void onServerTick(TickEvent.ServerTickEvent event) {

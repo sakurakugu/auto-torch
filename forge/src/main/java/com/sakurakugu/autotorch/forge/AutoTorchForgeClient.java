@@ -1,6 +1,7 @@
 package com.sakurakugu.autotorch.forge;
 
 import com.mojang.blaze3d.matrix.MatrixStack;
+import com.mojang.brigadier.CommandDispatcher;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
@@ -12,6 +13,7 @@ import net.minecraft.client.renderer.ActiveRenderInfo;
 import net.minecraft.client.renderer.IRenderTypeBuffer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.command.ISuggestionProvider;
 import net.minecraft.util.ActionResultType;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceContext;
@@ -30,6 +32,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 final class AutoTorchForgeClient {
     private final AutoTorchClient client = new AutoTorchClient();
+    private CommandDispatcher<ISuggestionProvider> suggestionCommands;
     private BlockPos selectionClickPos;
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
@@ -61,9 +64,24 @@ final class AutoTorchForgeClient {
     private void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             client.tick();
+            updateCommandSuggestions();
             if (!Minecraft.getInstance().options.keyAttack.isDown()) {
                 selectionClickPos = null;
             }
+        }
+    }
+
+    private void updateCommandSuggestions() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) {
+            suggestionCommands = null;
+            return;
+        }
+        // Forge 1.15.2 没有客户端命令注册事件，直接合并到聊天框使用的命令树以提供本地补全。
+        CommandDispatcher<ISuggestionProvider> commands = minecraft.player.connection.getCommands();
+        if (commands != suggestionCommands) {
+            AutoTorchClientCommands.register(commands);
+            suggestionCommands = commands;
         }
     }
 
