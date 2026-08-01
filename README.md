@@ -162,7 +162,7 @@ smoothSpheres = false
 [lightingTaskDefaults]
 # 任务默认最大火把数，范围 0~4096；0 表示无限。
 maxTorches = 0
-# 火把默认最小间距，范围 3~12 格。
+# 火把默认最小间距，范围 1~12 格。
 minSpacing = 8
 # 处理方块光小于或等于此值的位置，范围 0~15；0 表示只处理方块光为 0 的位置。
 lightThreshold = 0
@@ -194,8 +194,8 @@ maxExclusions = 32
 maxTorchesPerTask = 4096
 # 是否允许客户端将最大火把数设为 0（无限）。
 allowUnlimitedTorches = true
-# 客户端可设置的火把间距下限和上限，范围均为 3~12。
-minSpacing = 3
+# 客户端可设置的火把间距下限和上限，范围均为 1~12。
+minSpacing = 1
 maxSpacing = 12
 # 全服可同时运行的任务数，范围 1~1024。
 maxConcurrentTasks = 64
