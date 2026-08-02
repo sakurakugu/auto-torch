@@ -1,6 +1,7 @@
 plugins {
     id 'java-library'
     id 'net.minecraftforge.gradle'
+    id 'net.minecraftforge.renamer'
 }
 
 base {
@@ -12,7 +13,13 @@ sourceSets.main {
     resources.srcDir project(':common').file('src/main/resources')
 }
 
+tasks.named('compileJava', JavaCompile).configure {
+    destinationDirectory = layout.buildDirectory.dir('classes/java/main')
+}
+
 minecraft {
+    mappings channel: 'official', version: minecraft_version
+
     runs {
         configureEach {
             workingDir = layout.projectDirectory.dir('run')
@@ -36,6 +43,8 @@ dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${forge_version}")
 }
 
+renamer.mappings.from minecraft.dependency.toSrgFile
+
 def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
     def values = [
             minecraft_version: minecraft_version,
@@ -55,5 +64,11 @@ def generateModMetadata = tasks.register('generateModMetadata', ProcessResources
 sourceSets.main.resources.srcDir generateModMetadata
 
 tasks.named('jar', Jar).configure {
-    from sourceSets.main.output.classesDirs
+    from tasks.named('compileJava').flatMap { it.destinationDirectory }
+}
+
+def renameJar = renamer.classes(tasks.named('jar', Jar))
+
+tasks.named('assemble').configure {
+    dependsOn renameJar
 }
