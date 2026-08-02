@@ -23,7 +23,7 @@ import java.util.Optional;
 final class ForgeNetworking {
     private static final String PROTOCOL_VERSION = "6";
     private static final SimpleChannel CHANNEL = NetworkRegistry.ChannelBuilder
-            .named(ResourceLocation.tryBuild(AutoTorch.MOD_ID, "main"))
+            .named(new ResourceLocation(AutoTorch.MOD_ID, "main"))
             .networkProtocolVersion(() -> PROTOCOL_VERSION)
             .clientAcceptedVersions(PROTOCOL_VERSION::equals)
             .serverAcceptedVersions(PROTOCOL_VERSION::equals)

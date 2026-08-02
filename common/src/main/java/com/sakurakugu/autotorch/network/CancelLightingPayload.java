@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /** 客户端请求取消自己当前照明任务的无数据载荷。 */
 public record CancelLightingPayload() implements AutoTorchPayload {
-    public static final ResourceLocation ID = ResourceLocation.tryBuild(AutoTorch.MOD_ID, "cancel_lighting");
+    public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID, "cancel_lighting");
 
     public static CancelLightingPayload decode(FriendlyByteBuf ignored) {
         return new CancelLightingPayload();

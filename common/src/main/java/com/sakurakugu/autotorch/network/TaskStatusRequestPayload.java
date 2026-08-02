@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /** 客户端请求自己当前照明任务状态的无数据载荷。 */
 public record TaskStatusRequestPayload() implements AutoTorchPayload {
-    public static final ResourceLocation ID = ResourceLocation.tryBuild(AutoTorch.MOD_ID, "task_status_request");
+    public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID, "task_status_request");
 
     public static TaskStatusRequestPayload decode(FriendlyByteBuf ignored) {
         return new TaskStatusRequestPayload();
