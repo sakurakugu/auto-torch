@@ -3,6 +3,9 @@ import groovy.json.JsonSlurper
 def sourceDirectory = project.ext.legacyLangSourceDir
 def outputDirectory = layout.buildDirectory.dir("generated/legacyLang")
 def targetModId = project.ext.legacyLangModId
+def minecraftVersionMatch = (project.property("minecraft_version") as String) =~ /^1\.(\d+)(?:\.|$)/
+def usesUppercaseLanguageRegion = minecraftVersionMatch.find() &&
+        minecraftVersionMatch[0][1].toInteger() <= 10
 
 def generateLegacyLang = tasks.register("generateLegacyLang") {
     inputs.files(fileTree(sourceDirectory) {
@@ -25,10 +28,17 @@ def generateLegacyLang = tasks.register("generateLegacyLang") {
                 )
             }
 
+            def outputName = jsonFile.name.replaceFirst(/\.json$/, ".lang")
+
+            if (usesUppercaseLanguageRegion) {
+                outputName = outputName.replaceFirst(/_([a-z]{2})\.lang$/) {
+                    match, region -> "_${region.toUpperCase(Locale.ROOT)}.lang"
+                }
+            }
+
             def outputFile = new File(
                     outputRoot,
-                    "assets/${targetModId}/lang/" +
-                            jsonFile.name.replaceFirst(/\.json$/, ".lang")
+                    "assets/${targetModId}/lang/${outputName}"
             )
 
             outputFile.parentFile.mkdirs()
