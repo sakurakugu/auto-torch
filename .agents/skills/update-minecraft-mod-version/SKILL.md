@@ -3,6 +3,8 @@ name: update-minecraft-mod-version
 description: 将此 Minecraft mod 升级到 Fabric、Forge 和 Neo Forge 上请求的游戏版本。 在更改 Minecraft 或加载程序版本、迁移映射或加载程序 API、在游戏更新后修复跨加载程序构建或准备特定于版本的发布工件时使用。
 ---
 
+**该技能只用于升级或降级 Minecraft，比如将 1.21.1 升级为 1.21.2 或者将 26.1.2 降级到 1.21.11，其他的都不归这个技能管**
+
 # 升级 Minecraft Mod 版本
 
 升级前完整阅读仓库根目录的 `AGENTS.md` 和 `../../../docs/Minecraft 版本升级指南.md`。遵守其中的 Java 路径、注释语言和验证要求。
