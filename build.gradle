@@ -1,6 +1,7 @@
 plugins {
     id 'net.fabricmc.fabric-loom-remap' version '1.17.16' apply false
     id 'net.minecraftforge.gradle' version '[7.0.17,8)' apply false
+    id 'net.minecraftforge.renamer' version '1.1.2' apply false
 }
 
 ext.minecraft_version_range = "[${minecraft_version}]"
@@ -33,7 +34,7 @@ def copyBuildArtifacts = tasks.register('copyBuildArtifacts', Copy) {
     into layout.buildDirectory.dir("v${mod_version}")
 
     from(project(':forge').layout.buildDirectory.dir('libs')) {
-        include "${mod_id}-${minecraft_version}-forge-${mod_version}.jar"
+        include "${mod_id}-${minecraft_version}-forge-${mod_version}-renamed.jar"
         rename { "${mod_id}-v${mod_version}-mc${minecraft_version}-forge.jar" }
     }
     from(project(':fabric').layout.buildDirectory.dir('libs')) {
