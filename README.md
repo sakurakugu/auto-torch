@@ -65,6 +65,17 @@ $env:JAVA_HOME='你的 Java 25 安装目录'
 .\gradlew.bat :fabric:runClient
 ```
 
+本地自动打开游戏并执行冒烟测试（默认使用 Fabric 和最近修改的单人存档）：
+
+```powershell
+python .\tools\本地自动测试.py
+python .\tools\本地自动测试.py --loader neoforge
+```
+
+测试会自动进入存档、检查设置界面与运行时状态，并把不适合纯代码断言的画面保存到
+`build/local-test/<loader>/`。`--world` 接收的是对应 `run/saves/` 下的存档文件夹名，
+不是 Minecraft 版本号；省略时会自动选择最近修改的存档。测试期间请不要遮挡 Minecraft 窗口。
+
 在 Windows 上，也可以运行 `tools\1.一键启动mc脚本.ps1`。
 
 ## 提交翻译

@@ -11,6 +11,20 @@ sourceSets.main {
     resources.srcDir project(':common').file('src/main/resources')
 }
 
+// 导入本地测试资源集
+sourceSets {
+    localTest {
+        java.srcDir project(':common').file('src/localTest/java')
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += output + compileClasspath
+    }
+}
+// 配置 runClient 任务以依赖 localTestClasses，并将其输出添加到 classpath
+tasks.matching { it.name == 'runClient' }.configureEach {
+    dependsOn tasks.named('localTestClasses')
+    classpath.from(sourceSets.localTest.output)
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"

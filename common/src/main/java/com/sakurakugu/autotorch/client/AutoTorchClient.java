@@ -1,5 +1,8 @@
 package com.sakurakugu.autotorch.client;
 
+import java.util.function.Consumer;
+
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.platform.InputConstants;
@@ -22,8 +25,12 @@ import net.minecraft.world.item.ItemStack;
 
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
+    private static final String LOCAL_TEST_OUTPUT_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_DIR";
+    private static final String LOCAL_TEST_RUNNER_CLASS =
+            "com.sakurakugu.autotorch.client.LocalClientTestRunner";
     private static boolean openScreenRequested;
     private ClientLevel selectionToolSyncedLevel;
+    private final @Nullable Consumer<Minecraft> localTestRunner = createLocalTestRunner();
     public static final KeyMapping.Category CATEGORY = new KeyMapping.Category(
             Identifier.fromNamespaceAndPath(AutoTorch.MOD_ID, "main")
     );
@@ -56,6 +63,7 @@ public final class AutoTorchClient {
         LightOverlayState.tick(minecraft);
         NearbyAutoTorch.tick(minecraft);
         syncSelectionToolSetting(minecraft);
+        if (localTestRunner != null) localTestRunner.accept(minecraft);
         while (OPEN_SCREEN.consumeClick()) {
             if (minecraft.player != null && minecraft.gui.screen() == null) {
                 minecraft.gui.setScreen(new LightingScreen());
@@ -72,6 +80,19 @@ public final class AutoTorchClient {
 
     public static void requestOpenScreen() {
         openScreenRequested = true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static @Nullable Consumer<Minecraft> createLocalTestRunner() {
+        // 正式启动不加载测试类；测试类只存在于开发运行时的 localTest 输出中。
+        String outputDirectory = System.getenv(LOCAL_TEST_OUTPUT_ENVIRONMENT);
+        if (outputDirectory == null || outputDirectory.isBlank()) return null;
+        try {
+            return (Consumer<Minecraft>) Class.forName(LOCAL_TEST_RUNNER_CLASS)
+                    .getDeclaredConstructor().newInstance();
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("本地测试已启用，但没有找到测试运行器", exception);
+        }
     }
 
     public boolean onLeftClick(ClientLevel level, ItemStack stack, BlockPos pos, boolean start) {
