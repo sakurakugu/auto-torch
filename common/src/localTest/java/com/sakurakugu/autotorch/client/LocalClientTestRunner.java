@@ -1,23 +1,33 @@
-package com.sakurakugu.autotorch.client;
+package com.sakurakugu.autotorch.localtest;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.function.Consumer;
 
+import com.sakurakugu.autotorch.client.LightOverlayState;
+import com.sakurakugu.autotorch.client.LightingScreen;
+import com.sakurakugu.autotorch.client.SelectionState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 
 /** 由本地 Python 驱动的客户端冒烟测试；不会进入正式发布 JAR。 */
-final class LocalClientTestRunner implements Consumer<Minecraft> {
+public final class LocalClientTestRunner implements Consumer<Minecraft> {
     private static final String OUTPUT_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_DIR";
+    private static final String WORLD_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_WORLD";
+    private static final String CREATE_WORLD_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_CREATE_WORLD";
     private static final int SETTLE_TICKS = 30;
     private static final int CAPTURE_TIMEOUT_TICKS = 20 * 45;
 
     private final Path outputDirectory;
+    private final String requestedWorld;
+    private final boolean autoCreateWorld;
     private Stage stage = Stage.WAITING_FOR_WORLD;
     private int ticks;
     private int waitingTicks;
@@ -26,13 +36,17 @@ final class LocalClientTestRunner implements Consumer<Minecraft> {
     private boolean originalSelectionOverlayEnabled;
     private SelectionState.DisplayMode originalSelectionMode;
     private boolean configurationCaptured;
+    private boolean createWorldRequested;
+    private boolean createWorldConfirmed;
 
-    LocalClientTestRunner() {
+    public LocalClientTestRunner() {
         String configured = System.getenv(OUTPUT_ENVIRONMENT);
         if (configured == null || configured.isBlank()) {
             throw new IllegalStateException("缺少环境变量 " + OUTPUT_ENVIRONMENT);
         }
         outputDirectory = Path.of(configured).toAbsolutePath().normalize();
+        requestedWorld = requireEnvironment(WORLD_ENVIRONMENT);
+        autoCreateWorld = "1".equals(requireEnvironment(CREATE_WORLD_ENVIRONMENT));
     }
 
     @Override
@@ -65,11 +79,15 @@ final class LocalClientTestRunner implements Consumer<Minecraft> {
 
     private void waitForWorld(Minecraft minecraft) throws IOException {
         ticks++;
-        if (minecraft.level == null || minecraft.player == null || minecraft.gui.screen() != null) {
+        if (minecraft.level == null || minecraft.player == null) {
             if (ticks == 1) {
                 Files.createDirectories(outputDirectory);
                 write("status.txt", "等待进入单人世界\n");
             }
+            createWorldIfNeeded(minecraft);
+            return;
+        }
+        if (minecraft.gui.screen() != null) {
             return;
         }
 
@@ -80,6 +98,41 @@ final class LocalClientTestRunner implements Consumer<Minecraft> {
         configurationCaptured = true;
         appendResult("PASS", "世界加载", "客户端和玩家已就绪");
         enter(Stage.PREPARING_WORLD);
+    }
+
+    private void createWorldIfNeeded(Minecraft minecraft) throws IOException {
+        if (!autoCreateWorld || createWorldConfirmed) return;
+        if (!createWorldRequested) {
+            if (minecraft.gui.screen() == null || ticks < SETTLE_TICKS) return;
+            createWorldRequested = true;
+            appendResult("PASS", "创建世界", "请求创建存档：" + requestedWorld);
+            CreateWorldScreen.openFresh(minecraft, () -> { });
+            return;
+        }
+        if (!(minecraft.gui.screen() instanceof CreateWorldScreen screen)) return;
+
+        screen.getUiState().setName(requestedWorld);
+        createWorldConfirmed = true;
+        try {
+            // 原版没有公开自动确认创建的方法，本地测试通过反射调用创建按钮对应逻辑。
+            Method onCreate = CreateWorldScreen.class.getDeclaredMethod("onCreate");
+            onCreate.setAccessible(true);
+            onCreate.invoke(screen);
+        } catch (NoSuchMethodException | IllegalAccessException exception) {
+            throw new IOException("无法调用原版创建世界流程", exception);
+        } catch (InvocationTargetException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof RuntimeException runtimeException) throw runtimeException;
+            throw new IOException("原版创建世界流程失败", cause);
+        }
+    }
+
+    private static String requireEnvironment(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("缺少环境变量 " + name);
+        }
+        return value;
     }
 
     private void prepareWorldCheckpoint(Minecraft minecraft) throws IOException {

@@ -10,6 +10,10 @@ base {
 sourceSets.main {
     java.srcDir project(':common').file('src/main/java')
     resources.srcDir project(':common').file('src/main/resources')
+    if (System.getenv('AUTOTORCH_LOCAL_TEST_DIR')) {
+        // Forge 的模块层要求测试运行器与模组共用类加载器。
+        java.srcDir project(':common').file('src/localTest/java')
+    }
 }
 
 // 导入本地测试资源集
@@ -20,12 +24,6 @@ sourceSets {
         runtimeClasspath += output + compileClasspath
     }
 }
-// 配置 runClient 任务以依赖 localTestClasses，并将其输出添加到 classpath
-tasks.matching { it.name == 'runClient' }.configureEach {
-    dependsOn tasks.named('localTestClasses')
-    classpath.from(sourceSets.localTest.output)
-}
-
 minecraft {
     runs {
         configureEach {
@@ -69,4 +67,5 @@ sourceSets.main.resources.srcDir generateModMetadata
 
 tasks.named('jar', Jar).configure {
     from sourceSets.main.output.classesDirs
+    exclude 'com/sakurakugu/autotorch/localtest/**'
 }

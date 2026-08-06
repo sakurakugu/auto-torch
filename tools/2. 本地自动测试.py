@@ -8,6 +8,7 @@ import ctypes
 from ctypes import wintypes
 import os
 from pathlib import Path
+import re
 import shutil
 import struct
 import subprocess
@@ -18,16 +19,22 @@ import zlib
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 CHECKPOINTS = ("01-world", "02-settings", "03-selection", "04-light-overlay")
+LOADERS = ("fabric", "forge", "neoforge")
 WINDOWS_EPOCH_SECONDS = 11_644_473_600
 
 
-def parse_arguments() -> argparse.Namespace:
+def parse_arguments(arguments: list[str] | None = None) -> argparse.Namespace | None:
     parser = argparse.ArgumentParser(description="自动启动 Minecraft 开发客户端并执行本地冒烟测试")
-    parser.add_argument("--loader", choices=("fabric", "forge", "neoforge"), default="fabric")
-    parser.add_argument("--world", help="存档文件夹名；省略时使用最近修改的存档")
+    parser.add_argument("--loader", choices=(*LOADERS, "all"), default="fabric",
+                        help="要测试的加载器；all 表示依次测试全部加载器（默认：fabric）")
+    parser.add_argument("--world", help="存档文件夹名；省略时使用当前 Minecraft 版本号")
     parser.add_argument("--java-path", type=Path, help="JDK 根目录")
     parser.add_argument("--timeout-seconds", type=int, default=240)
-    return parser.parse_args()
+    actual_arguments = sys.argv[1:] if arguments is None else arguments
+    if not actual_arguments:
+        parser.print_help()
+        return None
+    return parser.parse_args(actual_arguments)
 
 
 def select_java_home(configured: Path | None) -> Path | None:
@@ -41,19 +48,32 @@ def select_java_home(configured: Path | None) -> Path | None:
     return None
 
 
-def select_world(loader: str, configured: str | None) -> str:
-    saves = REPOSITORY_ROOT / loader / "run" / "saves"
-    if not saves.is_dir():
-        raise RuntimeError(f"没有找到 {loader} 的存档目录：{saves}")
-    if configured:
-        if not (saves / configured / "level.dat").is_file():
-            raise RuntimeError(f"指定的存档文件夹不存在：{saves / configured}")
-        return configured
+def read_minecraft_version() -> str:
+    properties = REPOSITORY_ROOT / "gradle.properties"
+    for line in properties.read_text(encoding="utf-8").splitlines():
+        key, separator, value = line.partition("=")
+        if separator and key.strip() == "minecraft_version":
+            version = value.strip()
+            if version:
+                return version
+    raise RuntimeError(f"{properties} 中没有有效的 minecraft_version")
 
-    candidates = [path for path in saves.iterdir() if path.is_dir() and (path / "level.dat").is_file()]
-    if not candidates:
-        raise RuntimeError(f"{saves} 中没有可用存档，请先创建世界或使用 --world 指定")
-    return max(candidates, key=lambda path: path.stat().st_mtime).name
+
+def world_folder_name(world_name: str) -> str:
+    """按原版规则把世界显示名转换为默认存档目录名。"""
+    return re.sub(r'[\\/."<>|:?*]', "_", world_name)
+
+
+def select_world(loader: str, configured: str | None) -> tuple[str, str, bool]:
+    saves = REPOSITORY_ROOT / loader / "run" / "saves"
+    world_name = configured or read_minecraft_version()
+    configured_path = saves / world_name
+    world_folder = world_name if (configured_path / "level.dat").is_file() else world_folder_name(world_name)
+    world_path = saves / world_folder
+    level_data = world_path / "level.dat"
+    if world_path.exists() and not level_data.is_file():
+        raise RuntimeError(f"存档目录已存在但缺少 level.dat，无法自动创建：{world_path}")
+    return world_name, world_folder, level_data.is_file()
 
 
 class Rect(ctypes.Structure):
@@ -244,10 +264,10 @@ def stop_process_tree(process: subprocess.Popen[bytes]) -> None:
     )
 
 
-def run_test(arguments: argparse.Namespace) -> Path:
+def run_test(arguments: argparse.Namespace, loader: str) -> Path:
     java_home = select_java_home(arguments.java_path)
-    world = select_world(arguments.loader, arguments.world)
-    result_directory = REPOSITORY_ROOT / "build" / "local-test" / arguments.loader
+    world_name, world_folder, world_exists = select_world(loader, arguments.world)
+    result_directory = REPOSITORY_ROOT / "build" / "local-test" / loader
     if result_directory.exists():
         shutil.rmtree(result_directory)
     result_directory.mkdir(parents=True)
@@ -257,13 +277,18 @@ def run_test(arguments: argparse.Namespace) -> Path:
         environment["JAVA_HOME"] = str(java_home)
         environment["PATH"] = str(java_home / "bin") + os.pathsep + environment.get("PATH", "")
     environment["AUTOTORCH_LOCAL_TEST_DIR"] = str(result_directory)
+    environment["AUTOTORCH_LOCAL_TEST_WORLD"] = world_name
+    environment["AUTOTORCH_LOCAL_TEST_CREATE_WORLD"] = "0" if world_exists else "1"
 
     gradle = REPOSITORY_ROOT / "gradlew.bat"
-    command = [str(gradle), f":{arguments.loader}:runClient",
-               f'--args=--quickPlaySingleplayer "{world}"']
+    command = [str(gradle), f":{loader}:runClient"]
+    if world_exists:
+        command.append(f'--args=--quickPlaySingleplayer "{world_folder}"')
     stdout_path = result_directory / "gradle.stdout.log"
     stderr_path = result_directory / "gradle.stderr.log"
-    print(f"启动 {arguments.loader} 客户端，测试存档：{world}")
+    action = "加入" if world_exists else "创建"
+    folder_detail = f"（目录：{world_folder}）" if world_folder != world_name else ""
+    print(f"启动 {loader} 客户端，{action}测试存档：{world_name}{folder_detail}")
     launched_at = time.time()
     with stdout_path.open("w", encoding="utf-8") as stdout_file, \
             stderr_path.open("w", encoding="utf-8") as stderr_file:
@@ -306,11 +331,16 @@ def run_test(arguments: argparse.Namespace) -> Path:
 
 
 def main() -> int:
+    arguments = parse_arguments()
+    if arguments is None:
+        return 0
     if os.name != "nt":
         print("错误：本地游戏窗口测试目前仅支持 Windows", file=sys.stderr)
         return 1
     try:
-        run_test(parse_arguments())
+        loaders = LOADERS if arguments.loader == "all" else (arguments.loader,)
+        for loader in loaders:
+            run_test(arguments, loader)
         return 0
     except Exception as exception:
         print(f"错误：{exception}", file=sys.stderr)

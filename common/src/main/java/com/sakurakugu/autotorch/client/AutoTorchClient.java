@@ -27,7 +27,7 @@ import net.minecraft.world.item.ItemStack;
 public final class AutoTorchClient {
     private static final String LOCAL_TEST_OUTPUT_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_DIR";
     private static final String LOCAL_TEST_RUNNER_CLASS =
-            "com.sakurakugu.autotorch.client.LocalClientTestRunner";
+            "com.sakurakugu.autotorch.localtest.LocalClientTestRunner";
     private static boolean openScreenRequested;
     private ClientLevel selectionToolSyncedLevel;
     private final @Nullable Consumer<Minecraft> localTestRunner = createLocalTestRunner();
