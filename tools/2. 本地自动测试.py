@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import ctypes
 from ctypes import wintypes
+from datetime import datetime, timezone
+import json
 import os
 from pathlib import Path
 import re
@@ -57,6 +60,26 @@ def read_minecraft_version() -> str:
             if version:
                 return version
     raise RuntimeError(f"{properties} 中没有有效的 minecraft_version")
+
+
+def read_branch_name() -> str:
+    """读取当前 Git 分支原名。"""
+    result = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    branch_name = result.stdout.strip()
+    if not branch_name:
+        raise RuntimeError("当前处于 detached HEAD，无法确定本地测试输出所需的分支名")
+    return branch_name
+
+
+def read_branch_folder_name() -> str:
+    """读取当前 Git 分支名，并转换为可用作单层目录的名称。"""
+    return read_branch_name().replace("/", "／")
 
 
 def world_folder_name(world_name: str) -> str:
@@ -265,9 +288,11 @@ def stop_process_tree(process: subprocess.Popen[bytes]) -> None:
 
 
 def run_test(arguments: argparse.Namespace, loader: str) -> Path:
+    started_at = datetime.now(timezone.utc)
+    started_monotonic = time.monotonic()
     java_home = select_java_home(arguments.java_path)
     world_name, world_folder, world_exists = select_world(loader, arguments.world)
-    result_directory = REPOSITORY_ROOT / "build" / "local-test" / loader
+    result_directory = REPOSITORY_ROOT / "build" / "local-test" / read_branch_folder_name() / loader
     if result_directory.exists():
         shutil.rmtree(result_directory)
     result_directory.mkdir(parents=True)
@@ -278,11 +303,12 @@ def run_test(arguments: argparse.Namespace, loader: str) -> Path:
         environment["PATH"] = str(java_home / "bin") + os.pathsep + environment.get("PATH", "")
     environment["AUTOTORCH_LOCAL_TEST_DIR"] = str(result_directory)
     environment["AUTOTORCH_LOCAL_TEST_WORLD"] = world_name
+    environment["AUTOTORCH_LOCAL_TEST_WORLD_FOLDER"] = world_folder
     environment["AUTOTORCH_LOCAL_TEST_CREATE_WORLD"] = "0" if world_exists else "1"
 
     gradle = REPOSITORY_ROOT / "gradlew.bat"
     command = [str(gradle), f":{loader}:runClient"]
-    if world_exists:
+    if world_exists and loader != "neoforge":
         command.append(f'--args=--quickPlaySingleplayer "{world_folder}"')
     stdout_path = result_directory / "gradle.stdout.log"
     stderr_path = result_directory / "gradle.stderr.log"
@@ -323,10 +349,24 @@ def run_test(arguments: argparse.Namespace, loader: str) -> Path:
     if not status_path.is_file():
         raise RuntimeError(f"游戏没有生成测试结果，请检查 {stdout_path} 和 {stderr_path}")
     status = status_path.read_text(encoding="utf-8").strip()
+    finished_at = datetime.now(timezone.utc)
+    summary = {
+        "branch": read_branch_name(),
+        "loader": loader,
+        "world": world_name,
+        "world_folder": world_folder,
+        "status": status,
+        "started_at": started_at.isoformat(),
+        "finished_at": finished_at.isoformat(),
+        "duration_seconds": round(time.monotonic() - started_monotonic, 3),
+        "checkpoints": {checkpoint: checkpoint in captured for checkpoint in CHECKPOINTS},
+        "output_directory": str(result_directory),
+    }
+    (result_directory / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     print(f"测试结果：{status}")
     print(f"报告与截图：{result_directory}")
-    if status != "PASS":
-        raise RuntimeError(status)
     return result_directory
 
 
@@ -339,8 +379,27 @@ def main() -> int:
         return 1
     try:
         loaders = LOADERS if arguments.loader == "all" else (arguments.loader,)
-        for loader in loaders:
-            run_test(arguments, loader)
+        results = [run_test(arguments, loader) for loader in loaders]
+        branch_directory = results[0].parent
+        summaries = [json.loads((result / "summary.json").read_text(encoding="utf-8")) for result in results]
+        (branch_directory / "summary.json").write_text(
+            json.dumps({"branch": read_branch_name(), "tests": summaries}, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        fields = ("branch", "loader", "world", "world_folder", "status", "started_at",
+                  "finished_at", "duration_seconds", "checkpoints", "output_directory")
+        with (branch_directory / "summary.csv").open("w", encoding="utf-8-sig", newline="") as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=fields)
+            writer.writeheader()
+            for summary in summaries:
+                row = dict(summary)
+                row["checkpoints"] = ",".join(
+                    checkpoint for checkpoint, captured in summary["checkpoints"].items() if captured
+                )
+                writer.writerow(row)
+        failed_loaders = [summary["loader"] for summary in summaries if summary["status"] != "PASS"]
+        if failed_loaders:
+            raise RuntimeError(f"以下加载器测试未通过：{', '.join(failed_loaders)}")
         return 0
     except Exception as exception:
         print(f"错误：{exception}", file=sys.stderr)

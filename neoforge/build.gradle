@@ -28,7 +28,15 @@ neoForge {
     version = project.neo_version
 
     runs {
-        client { client() }
+        client {
+            client()
+            if (System.getenv('AUTOTORCH_LOCAL_TEST_WORLD_FOLDER')
+                    && System.getenv('AUTOTORCH_LOCAL_TEST_CREATE_WORLD') == '0') {
+                // NeoForge 通过运行配置注入参数，避免 Gradle --args 覆盖启动主类。
+                programArgument '--quickPlaySingleplayer'
+                programArgument System.getenv('AUTOTORCH_LOCAL_TEST_WORLD_FOLDER')
+            }
+        }
         server {
             server()
             programArgument '--nogui'
