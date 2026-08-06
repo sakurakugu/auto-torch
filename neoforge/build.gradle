@@ -10,7 +10,7 @@ base {
 sourceSets.main {
     java.srcDir project(':common').file('src/main/java')
     resources.srcDir project(':common').file('src/main/resources')
-    if (System.getenv('AUTOTORCH_LOCAL_TEST_DIR')) {
+    if (System.getenv('AUTOTORCH_LOCAL_TEST_PORT')) {
         // NeoForge 的模块层要求测试运行器与模组共用类加载器。
         java.srcDir project(':common').file('src/localTest/java')
     }

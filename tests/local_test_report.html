@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Auto Torch 本地测试报告</title>
+  <style>
+    :root { --pass: #16803c; --fail: #c62828; --border: #d8dee4; --muted: #667085; }
+    * { box-sizing: border-box; }
+    body { font: 14px/1.55 system-ui, "Microsoft YaHei", sans-serif; margin: 0; background: #f6f8fa; color: #1f2328; }
+    main { max-width: 1280px; margin: auto; padding: 28px; }
+    h1, h2 { margin: 0; }
+    .summary { display: flex; gap: 14px; align-items: center; margin: 8px 0 24px; }
+    .card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 18px 0; }
+    .card header { display: flex; justify-content: space-between; align-items: center; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+    .PASS { background: #dafbe1; color: var(--pass); }
+    .FAIL { background: #ffebe9; color: var(--fail); }
+    .meta, .muted { color: var(--muted); }
+    .error { color: var(--fail); }
+    .images { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 16px 0; }
+    figure { margin: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    figure img { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; cursor: zoom-in; }
+    figcaption { padding: 7px 10px; background: #f6f8fa; }
+    figure.missing div { display: grid; place-items: center; aspect-ratio: 16/9; color: var(--muted); }
+    .image-viewer { position: fixed; inset: 0; z-index: 1000; overflow: hidden; background: rgb(0 0 0 / 72%); touch-action: none; }
+    .image-viewer[hidden] { display: none; }
+    .image-viewer img { position: absolute; top: 0; left: 0; max-width: none; max-height: none; user-select: none; cursor: grab; transform-origin: 0 0; will-change: transform; }
+    .image-viewer.dragging img { cursor: grabbing; }
+    .image-viewer button { position: absolute; top: 18px; right: 18px; z-index: 1; display: grid; width: 44px; height: 44px; padding: 0; place-items: center; border: 1px solid rgb(255 255 255 / 45%); border-radius: 50%; background: rgb(0 0 0 / 45%); color: white; font: 30px/1 system-ui, sans-serif; cursor: pointer; }
+    .image-viewer button:hover { background: rgb(0 0 0 / 70%); }
+    .image-viewer button:focus-visible { outline: 3px solid white; outline-offset: 2px; }
+    .image-viewer-caption { position: absolute; right: 72px; bottom: 18px; left: 72px; margin: 0; color: white; text-align: center; text-shadow: 0 1px 3px black; pointer-events: none; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 10px; border-top: 1px solid var(--border); text-align: left; vertical-align: top; }
+    th { background: #f6f8fa; }
+    @media (max-width: 600px) { main { padding: 14px; } .card { padding: 14px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Auto Torch 本地测试报告</h1>
+  <div class="summary">
+    <span id="overall-status" class="badge"></span>
+    <span id="report-meta"></span>
+  </div>
+  <div id="test-cards"></div>
+</main>
+<div id="image-viewer" class="image-viewer" role="dialog" aria-modal="true" aria-label="图片预览" hidden>
+  <button id="image-viewer-close" type="button" title="关闭图片预览" aria-label="关闭图片预览">&times;</button>
+  <img id="image-viewer-image" alt="" draggable="false">
+  <p id="image-viewer-caption" class="image-viewer-caption"></p>
+</div>
+<script>
+  const report = __REPORT_JSON__;
+  const statusText = status => status === "PASS" ? "通过" : "失败";
+
+  const imageViewer = document.getElementById("image-viewer");
+  const viewerImage = document.getElementById("image-viewer-image");
+  const viewerCaption = document.getElementById("image-viewer-caption");
+  const viewerClose = document.getElementById("image-viewer-close");
+  const viewerState = { x: 0, y: 0, scale: 1, fitScale: 1, pointerId: null, startX: 0, startY: 0 };
+  let previousBodyOverflow = "";
+  let previousBodyPaddingRight = "";
+
+  function renderViewerImage() {
+    viewerImage.style.transform = `translate3d(${viewerState.x}px, ${viewerState.y}px, 0) scale(${viewerState.scale})`;
+  }
+
+  function fitViewerImage() {
+    if (!viewerImage.naturalWidth || !viewerImage.naturalHeight) return;
+    const padding = 48;
+    viewerState.fitScale = Math.min(
+      (window.innerWidth - padding * 2) / viewerImage.naturalWidth,
+      (window.innerHeight - padding * 2) / viewerImage.naturalHeight,
+      1
+    );
+    viewerState.scale = viewerState.fitScale;
+    viewerState.x = (window.innerWidth - viewerImage.naturalWidth * viewerState.scale) / 2;
+    viewerState.y = (window.innerHeight - viewerImage.naturalHeight * viewerState.scale) / 2;
+    renderViewerImage();
+  }
+
+  function openImageViewer(path, name) {
+    viewerImage.src = path;
+    viewerImage.alt = name;
+    viewerCaption.textContent = name;
+    imageViewer.hidden = false;
+    previousBodyOverflow = document.body.style.overflow;
+    previousBodyPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      const bodyPaddingRight = parseFloat(getComputedStyle(document.body).paddingRight) || 0;
+      document.body.style.paddingRight = `${bodyPaddingRight + scrollbarWidth}px`;
+    }
+    document.body.style.overflow = "hidden";
+    if (viewerImage.complete) fitViewerImage();
+    viewerClose.focus();
+  }
+
+  function closeImageViewer() {
+    if (imageViewer.hidden) return;
+    imageViewer.hidden = true;
+    viewerImage.src = "";
+    document.body.style.overflow = previousBodyOverflow;
+    document.body.style.paddingRight = previousBodyPaddingRight;
+  }
+
+  viewerImage.addEventListener("load", fitViewerImage);
+  viewerClose.addEventListener("click", closeImageViewer);
+  imageViewer.addEventListener("click", event => {
+    if (event.target === imageViewer) closeImageViewer();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeImageViewer();
+  });
+  window.addEventListener("resize", () => {
+    if (!imageViewer.hidden) fitViewerImage();
+  });
+  imageViewer.addEventListener("wheel", event => {
+    event.preventDefault();
+    const oldScale = viewerState.scale;
+    const minScale = viewerState.fitScale * 0.25;
+    const maxScale = Math.max(viewerState.fitScale * 8, 8);
+    const newScale = Math.min(maxScale, Math.max(minScale, oldScale * Math.exp(-event.deltaY * 0.0015)));
+    const imageX = (event.clientX - viewerState.x) / oldScale;
+    const imageY = (event.clientY - viewerState.y) / oldScale;
+    viewerState.x = event.clientX - imageX * newScale;
+    viewerState.y = event.clientY - imageY * newScale;
+    viewerState.scale = newScale;
+    renderViewerImage();
+  }, { passive: false });
+  viewerImage.addEventListener("pointerdown", event => {
+    if (event.button !== 0) return;
+    viewerState.pointerId = event.pointerId;
+    viewerState.startX = event.clientX - viewerState.x;
+    viewerState.startY = event.clientY - viewerState.y;
+    viewerImage.setPointerCapture(event.pointerId);
+    imageViewer.classList.add("dragging");
+  });
+  viewerImage.addEventListener("pointermove", event => {
+    if (event.pointerId !== viewerState.pointerId) return;
+    viewerState.x = event.clientX - viewerState.startX;
+    viewerState.y = event.clientY - viewerState.startY;
+    renderViewerImage();
+  });
+  viewerImage.addEventListener("pointerup", event => {
+    if (event.pointerId !== viewerState.pointerId) return;
+    viewerState.pointerId = null;
+    imageViewer.classList.remove("dragging");
+  });
+  viewerImage.addEventListener("pointercancel", () => {
+    viewerState.pointerId = null;
+    imageViewer.classList.remove("dragging");
+  });
+
+  function appendBadge(parent, status) {
+    const badge = document.createElement("span");
+    badge.className = `badge ${status}`;
+    badge.textContent = statusText(status);
+    parent.appendChild(badge);
+  }
+
+  const overallStatus = document.getElementById("overall-status");
+  overallStatus.classList.add(report.status || "FAIL");
+  overallStatus.textContent = statusText(report.status);
+  document.getElementById("report-meta").textContent =
+    `分支：${report.branch || ""} · 生成时间：${report.generated_at || ""}`;
+
+  const cards = document.getElementById("test-cards");
+  for (const test of report.tests || []) {
+    const card = document.createElement("section");
+    card.className = "card";
+
+    const header = document.createElement("header");
+    const title = document.createElement("h2");
+    title.textContent = test.loader || "unknown";
+    header.appendChild(title);
+    appendBadge(header, test.status || "FAIL");
+    card.appendChild(header);
+
+    const meta = document.createElement("p");
+    meta.className = "meta";
+    meta.textContent = `世界：${test.world || ""} · 耗时：${test.duration_seconds ?? ""} 秒 · Gradle 退出码：${test.gradle_exit_code ?? ""}`;
+    card.appendChild(meta);
+
+    if (test.error) {
+      const error = document.createElement("p");
+      error.className = "error";
+      error.textContent = test.error;
+      card.appendChild(error);
+    }
+    if (test.failure_log) {
+      const paragraph = document.createElement("p");
+      const link = document.createElement("a");
+      link.href = test.failure_log;
+      link.textContent = "查看失败日志";
+      paragraph.appendChild(link);
+      card.appendChild(paragraph);
+    }
+
+    const images = document.createElement("div");
+    images.className = "images";
+    for (const [name, path] of Object.entries(test.checkpoints || {})) {
+      const figure = document.createElement("figure");
+      if (path) {
+        const link = document.createElement("a");
+        link.href = path;
+        link.title = "预览图片";
+        const image = document.createElement("img");
+        image.src = path;
+        image.alt = name;
+        link.addEventListener("click", event => {
+          event.preventDefault();
+          openImageViewer(path, name);
+        });
+        link.appendChild(image);
+        figure.appendChild(link);
+      } else {
+        figure.className = "missing";
+        const missing = document.createElement("div");
+        missing.textContent = "未生成";
+        figure.appendChild(missing);
+      }
+      const caption = document.createElement("figcaption");
+      caption.textContent = name;
+      figure.appendChild(caption);
+      images.appendChild(figure);
+    }
+    card.appendChild(images);
+
+    const table = document.createElement("table");
+    table.innerHTML = "<thead><tr><th>状态</th><th>检查</th><th>详情</th></tr></thead>";
+    const body = document.createElement("tbody");
+    const assertions = test.assertions || [];
+    if (assertions.length === 0) {
+      const row = body.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 3;
+      cell.className = "muted";
+      cell.textContent = "没有收到断言结果";
+    } else {
+      for (const assertion of assertions) {
+        const row = body.insertRow();
+        appendBadge(row.insertCell(), assertion.status || "FAIL");
+        row.insertCell().textContent = assertion.test || "";
+        row.insertCell().textContent = assertion.detail || "";
+      }
+    }
+    table.appendChild(body);
+    card.appendChild(table);
+    cards.appendChild(card);
+  }
+</script>
+</body>
+</html>

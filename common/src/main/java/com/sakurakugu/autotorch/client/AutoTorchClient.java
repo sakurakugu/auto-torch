@@ -25,7 +25,7 @@ import net.minecraft.world.item.ItemStack;
 
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
-    private static final String LOCAL_TEST_OUTPUT_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_DIR";
+    private static final String LOCAL_TEST_PORT_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_PORT";
     private static final String LOCAL_TEST_RUNNER_CLASS =
             "com.sakurakugu.autotorch.localtest.LocalClientTestRunner";
     private static boolean openScreenRequested;
@@ -85,8 +85,8 @@ public final class AutoTorchClient {
     @SuppressWarnings("unchecked")
     private static @Nullable Consumer<Minecraft> createLocalTestRunner() {
         // 正式启动不加载测试类；测试类只存在于开发运行时的 localTest 输出中。
-        String outputDirectory = System.getenv(LOCAL_TEST_OUTPUT_ENVIRONMENT);
-        if (outputDirectory == null || outputDirectory.isBlank()) return null;
+        String port = System.getenv(LOCAL_TEST_PORT_ENVIRONMENT);
+        if (port == null || port.isBlank()) return null;
         try {
             return (Consumer<Minecraft>) Class.forName(LOCAL_TEST_RUNNER_CLASS)
                     .getDeclaredConstructor().newInstance();

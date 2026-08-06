@@ -1,14 +1,19 @@
 package com.sakurakugu.autotorch.localtest;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.function.Consumer;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.LightingScreen;
 import com.sakurakugu.autotorch.client.SelectionState;
@@ -19,13 +24,17 @@ import net.minecraft.core.Direction;
 
 /** 由本地 Python 驱动的客户端冒烟测试；不会进入正式发布 JAR。 */
 public final class LocalClientTestRunner implements Consumer<Minecraft> {
-    private static final String OUTPUT_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_DIR";
+    private static final String HOST_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_HOST";
+    private static final String PORT_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_PORT";
+    private static final String TOKEN_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_TOKEN";
     private static final String WORLD_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_WORLD";
     private static final String CREATE_WORLD_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_CREATE_WORLD";
     private static final int SETTLE_TICKS = 30;
     private static final int CAPTURE_TIMEOUT_TICKS = 20 * 45;
 
-    private final Path outputDirectory;
+    private final Socket socket;
+    private final BufferedReader reader;
+    private final BufferedWriter writer;
     private final String requestedWorld;
     private final boolean autoCreateWorld;
     private Stage stage = Stage.WAITING_FOR_WORLD;
@@ -40,13 +49,23 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
     private boolean createWorldConfirmed;
 
     public LocalClientTestRunner() {
-        String configured = System.getenv(OUTPUT_ENVIRONMENT);
-        if (configured == null || configured.isBlank()) {
-            throw new IllegalStateException("缺少环境变量 " + OUTPUT_ENVIRONMENT);
-        }
-        outputDirectory = Path.of(configured).toAbsolutePath().normalize();
         requestedWorld = requireEnvironment(WORLD_ENVIRONMENT);
         autoCreateWorld = "1".equals(requireEnvironment(CREATE_WORLD_ENVIRONMENT));
+        try {
+            socket = new Socket();
+            socket.connect(new InetSocketAddress(
+                    requireEnvironment(HOST_ENVIRONMENT),
+                    Integer.parseInt(requireEnvironment(PORT_ENVIRONMENT))), 10_000);
+            socket.setTcpNoDelay(true);
+            reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+            writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
+            JsonObject hello = new JsonObject();
+            hello.addProperty("type", "hello");
+            hello.addProperty("token", requireEnvironment(TOKEN_ENVIRONMENT));
+            send(hello);
+        } catch (IOException | NumberFormatException exception) {
+            throw new IllegalStateException("无法连接本地测试驱动", exception);
+        }
     }
 
     @Override
@@ -80,10 +99,6 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
     private void waitForWorld(Minecraft minecraft) throws IOException {
         ticks++;
         if (minecraft.level == null || minecraft.player == null) {
-            if (ticks == 1) {
-                Files.createDirectories(outputDirectory);
-                write("status.txt", "等待进入单人世界\n");
-            }
             createWorldIfNeeded(minecraft);
             return;
         }
@@ -198,19 +213,27 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
 
     private void waitForCapture(Minecraft minecraft, String name, Stage next) throws IOException {
         waitingTicks++;
-        if (Files.exists(outputDirectory.resolve(name + ".captured"))) {
-            appendResult("PASS", name + " 截图", "截图驱动已确认保存");
-            enter(next);
-        } else if (waitingTicks >= CAPTURE_TIMEOUT_TICKS) {
+        while (reader.ready()) {
+            String line = reader.readLine();
+            if (line == null) throw new IOException("本地测试驱动已断开连接");
+            JsonObject message = JsonParser.parseString(line).getAsJsonObject();
+            if ("screenshot_captured".equals(message.get("type").getAsString())
+                    && name.equals(message.get("name").getAsString())) {
+                appendResult("PASS", name + " 截图", "截图驱动已确认保存");
+                enter(next);
+                return;
+            }
+        }
+        if (waitingTicks >= CAPTURE_TIMEOUT_TICKS) {
             throw new IllegalStateException("等待截图超时：" + name);
         }
     }
 
     private void complete(Minecraft minecraft) throws IOException {
         restoreConfiguration();
-        write("status.txt", "PASS\n");
-        write("completed", "PASS\n");
+        sendCompleted("PASS");
         stage = Stage.FINISHED;
+        closeConnection();
         minecraft.stop();
     }
 
@@ -218,12 +241,12 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
         try {
             restoreConfiguration();
             appendResult("FAIL", "客户端冒烟测试", exception.toString());
-            write("status.txt", "FAIL: " + exception + "\n");
-            write("completed", "FAIL\n");
+            sendCompleted("FAIL");
         } catch (IOException ignored) {
-            // 原始异常更重要；文件系统再次失败时直接退出客户端。
+            // 原始异常更重要；通信再次失败时直接退出客户端。
         }
         stage = Stage.FINISHED;
+        closeConnection();
         minecraft.stop();
     }
 
@@ -240,7 +263,11 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
     }
 
     private void checkpoint(String name, String description) throws IOException {
-        write(name + ".ready", description + "\n");
+        JsonObject message = new JsonObject();
+        message.addProperty("type", "checkpoint_ready");
+        message.addProperty("name", name);
+        message.addProperty("description", description);
+        send(message);
     }
 
     private void enter(Stage next) {
@@ -250,14 +277,33 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
     }
 
     private void appendResult(String result, String test, String detail) throws IOException {
-        String line = result + "\t" + test + "\t" + detail.replace('\n', ' ') + System.lineSeparator();
-        Files.writeString(outputDirectory.resolve("results.tsv"), line, StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        JsonObject message = new JsonObject();
+        message.addProperty("type", "assertion");
+        message.addProperty("status", result);
+        message.addProperty("test", test);
+        message.addProperty("detail", detail.replace('\n', ' '));
+        send(message);
     }
 
-    private void write(String name, String content) throws IOException {
-        Files.writeString(outputDirectory.resolve(name), content, StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    private void sendCompleted(String status) throws IOException {
+        JsonObject message = new JsonObject();
+        message.addProperty("type", "completed");
+        message.addProperty("status", status);
+        send(message);
+    }
+
+    private void send(JsonObject message) throws IOException {
+        writer.write(message.toString());
+        writer.newLine();
+        writer.flush();
+    }
+
+    private void closeConnection() {
+        try {
+            socket.close();
+        } catch (IOException ignored) {
+            // 测试已经结束，关闭连接失败不影响最终结果。
+        }
     }
 
     private enum Stage {

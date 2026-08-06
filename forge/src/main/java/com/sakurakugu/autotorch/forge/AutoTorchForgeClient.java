@@ -102,6 +102,7 @@ final class AutoTorchForgeClient {
         private final FeatureRenderDispatcher featureRenderer;
         private ResourceHandle<RenderTarget> mainTarget;
         private SubmitNodeStorage submitNodes;
+        private boolean closed;
 
         private OverlayPass() {
             Minecraft minecraft = Minecraft.getInstance();
@@ -116,7 +117,11 @@ final class AutoTorchForgeClient {
         }
 
         @Override
-        public void extracts(LevelTargetBundle targets, FramePass pass, DeltaTracker deltaTracker) {
+        public synchronized void extracts(LevelTargetBundle targets, FramePass pass, DeltaTracker deltaTracker) {
+            if (closed) {
+                submitNodes = null;
+                return;
+            }
             targets.main = pass.readsAndWrites(targets.main);
             mainTarget = targets.main;
 
@@ -136,8 +141,8 @@ final class AutoTorchForgeClient {
         }
 
         @Override
-        public void executes(LevelRenderState state) {
-            if (submitNodes == null || mainTarget == null) return;
+        public synchronized void executes(LevelRenderState state) {
+            if (closed || submitNodes == null || mainTarget == null) return;
             RenderSystem.outputColorTextureOverride = mainTarget.get().getColorTextureView();
             RenderSystem.outputDepthTextureOverride = mainTarget.get().getDepthTextureView();
             try {
@@ -151,7 +156,12 @@ final class AutoTorchForgeClient {
         }
 
         @Override
-        public void close() {
+        public synchronized void close() {
+            if (closed) return;
+            // Forge 关闭游戏时，已注册的帧 Pass 仍可能被调度一次；先禁止后续渲染，再释放离堆缓冲。
+            closed = true;
+            submitNodes = null;
+            mainTarget = null;
             featureRenderer.close();
             renderBuffers.close();
         }

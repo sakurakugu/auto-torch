@@ -8,6 +8,7 @@ Auto Torch 是一个面向 Minecraft 的自动插火把与光照显示模组，�
 - `fabric`：Fabric 平台入口、网络注册和基于 Night Config 的 TOML 配置适配。
 - `forge`：Forge 平台入口、网络与配置适配，以及模组元数据模板。
 - `neoforge`：NeoForge 平台入口、网络与配置适配，以及模组元数据模板。
+- `tests`：Python 测试脚本。
 - `docs`：使用说明、版本升级和发布文档及 README 图片资源。
 - `tools`：开发辅助脚本，包括 Windows 开发客户端启动脚本和图标生成脚本。
 
