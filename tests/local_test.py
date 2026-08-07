@@ -41,7 +41,8 @@ def parse_arguments(arguments: list[str] | None = None) -> argparse.Namespace | 
     parser = argparse.ArgumentParser(description="自动启动 Minecraft 开发客户端并执行本地冒烟测试")
     parser.add_argument("--loader", choices=(*LOADERS, "all"), default="fabric",
                         help="要测试的加载器；all 表示依次测试全部加载器（默认：fabric）")
-    parser.add_argument("--world", help="存档文件夹名；省略时使用当前 Minecraft 版本号")
+    parser.add_argument("--world", help="普通测试存档文件夹名；指定后不会自动搭建模板")
+    parser.add_argument("--template-world-name", help="模板存档名称；省略时使用当前 Minecraft 版本号")
     parser.add_argument("--java-path", type=Path, help="JDK 根目录")
     parser.add_argument("--timeout-seconds", type=int, default=240)
     actual_arguments = sys.argv[1:] if arguments is None else arguments
@@ -98,9 +99,9 @@ def world_folder_name(world_name: str) -> str:
     return re.sub(r'[\\/."<>|:?*]', "_", world_name)
 
 
-def select_world(loader: str, configured: str | None) -> tuple[str, str, bool]:
+def select_world(loader: str, configured: str | None, template_name: str | None) -> tuple[str, str, bool]:
     saves = REPOSITORY_ROOT / loader / "run" / "saves"
-    world_name = configured or read_minecraft_version()
+    world_name = configured or template_name or read_minecraft_version()
     configured_path = saves / world_name
     world_folder = world_name if (configured_path / "level.dat").is_file() else world_folder_name(world_name)
     world_path = saves / world_folder
@@ -410,7 +411,9 @@ def run_test(arguments: argparse.Namespace, loader: str, branch_name: str,
     started_at = datetime.now(timezone.utc)
     started_monotonic = time.monotonic()
     java_home = select_java_home(arguments.java_path)
-    world_name, world_folder, world_exists = select_world(loader, arguments.world)
+    template_world = arguments.world is None
+    world_name, world_folder, world_exists = select_world(
+        loader, arguments.world, arguments.template_world_name)
     result_directory = branch_directory / loader
     if result_directory.exists():
         shutil.rmtree(result_directory)
@@ -427,6 +430,7 @@ def run_test(arguments: argparse.Namespace, loader: str, branch_name: str,
     environment["AUTOTORCH_LOCAL_TEST_WORLD"] = world_name
     environment["AUTOTORCH_LOCAL_TEST_WORLD_FOLDER"] = world_folder
     environment["AUTOTORCH_LOCAL_TEST_CREATE_WORLD"] = "0" if world_exists else "1"
+    environment["AUTOTORCH_LOCAL_TEST_TEMPLATE_WORLD"] = "1" if template_world else "0"
 
     command = [str(REPOSITORY_ROOT / "gradlew.bat"), f":{loader}:runClient"]
     if world_exists and loader != "neoforge":
@@ -572,6 +576,67 @@ def render_html(report: dict) -> str:
     return template.replace("__REPORT_JSON__", report_json)
 
 
+def markdown_text(value: object) -> str:
+    """将报告字段转换为 Markdown 表格中安全的单行文本。"""
+    return (str(value if value is not None else "")
+            .replace("|", "\\|")
+            .replace("`", "\\`")
+            .replace("\r", " ")
+            .replace("\n", " "))
+
+
+def render_markdown(report: dict) -> str:
+    """把报告数据渲染成便于提交、复制和纯文本查看的 Markdown。"""
+    status = markdown_text(report.get("status") or "FAIL")
+    lines = [
+        "# Auto Torch 本地测试报告",
+        "",
+        f"- 状态：**{status}**",
+        f"- 分支：`{markdown_text(report.get('branch'))}`",
+        f"- 生成时间：`{markdown_text(report.get('generated_at'))}`",
+        "",
+        "## 测试汇总",
+        "",
+        "| 加载器 | 状态 | 世界 | 耗时（秒） | Gradle 退出码 |",
+        "| --- | --- | --- | ---: | ---: |",
+    ]
+    tests = report.get("tests") or []
+    for test in tests:
+        lines.append(
+            f"| {markdown_text(test.get('loader'))} | **{markdown_text(test.get('status') or 'FAIL')}** | "
+            f"{markdown_text(test.get('world'))} | {markdown_text(test.get('duration_seconds'))} | "
+            f"{markdown_text(test.get('gradle_exit_code'))} |"
+        )
+    if not tests:
+        lines.append("| - | **FAIL** | - | - | - |")
+
+    for test in tests:
+        loader = markdown_text(test.get("loader") or "unknown")
+        lines.extend(["", f"## {loader}"])
+        if test.get("error"):
+            lines.extend(["", f"> 错误：{markdown_text(test['error'])}"])
+        if test.get("failure_log"):
+            lines.extend(["", f"[查看失败日志]({markdown_text(test['failure_log'])})"])
+        lines.extend(["", "### 检查结果", "", "| 状态 | 检查 | 详情 |", "| --- | --- | --- |"])
+        assertions = test.get("assertions") or []
+        if assertions:
+            for assertion in assertions:
+                lines.append(
+                    f"| **{markdown_text(assertion.get('status') or 'FAIL')}** | "
+                    f"{markdown_text(assertion.get('test'))} | {markdown_text(assertion.get('detail'))} |"
+                )
+        else:
+            lines.append("| - | 没有收到断言结果 | - |")
+        lines.extend(["", "### 检查点", ""])
+        checkpoints = test.get("checkpoints") or {}
+        for name, path in checkpoints.items():
+            if path:
+                lines.append(f"- {markdown_text(name)}：[查看图片]({markdown_text(path)})")
+            else:
+                lines.append(f"- {markdown_text(name)}：未生成")
+    return "\n".join(lines) + "\n"
+
+
 def write_reports(branch_directory: Path, branch_name: str, tests: dict[str, dict]) -> dict:
     legacy_summary = branch_directory / "summary.csv"
     if legacy_summary.is_file():
@@ -601,6 +666,7 @@ def write_reports(branch_directory: Path, branch_name: str, tests: dict[str, dic
         json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
     )
     (branch_directory / "report.html").write_text(render_html(report), encoding="utf-8")
+    (branch_directory / "report.md").write_text(render_markdown(report), encoding="utf-8")
     return report
 
 
@@ -620,7 +686,9 @@ def main(arguments: list[str] | None = None) -> int:
         for loader in loaders:
             tests[loader] = run_test(parsed, loader, branch_name, branch_directory)
         report = write_reports(branch_directory, branch_name, tests)
-        print(f"汇总报告：{branch_directory / 'report.html'}")
+        print(f"HTML 汇总报告：{branch_directory / 'report.html'}")
+        print(f"Markdown 汇总报告：{branch_directory / 'report.md'}")
+        print(f"JSON 汇总数据：{branch_directory / 'summary.json'}")
         failed_loaders = [loader for loader in loaders if tests[loader]["status"] != "PASS"]
         if failed_loaders:
             raise RuntimeError(f"以下加载器测试未通过：{', '.join(failed_loaders)}")

@@ -12,7 +12,14 @@
     h1, h2 { margin: 0; }
     .summary { display: flex; gap: 14px; align-items: center; margin: 8px 0 24px; }
     .card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 18px 0; }
-    .card header { display: flex; justify-content: space-between; align-items: center; }
+    .card header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .card-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+    .card-toggle { display: grid; width: 30px; height: 30px; padding: 0; place-items: center; border: 1px solid var(--border); border-radius: 6px; background: #f6f8fa; color: #1f2328; cursor: pointer; }
+    .card-toggle::before { width: 10px; height: 10px; content: ""; background: currentColor; clip-path: polygon(0 25%, 14% 11%, 50% 47%, 86% 11%, 100% 25%, 50% 89%); transform: rotate(180deg); }
+    .card.collapsed .card-toggle::before { transform: none; }
+    .card-toggle:hover { background: #eaeef2; }
+    .card-toggle:focus-visible { outline: 3px solid #0969da; outline-offset: 2px; }
+    .card.collapsed > :not(header) { display: none; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
     .PASS { background: #dafbe1; color: var(--pass); }
     .FAIL { background: #ffebe9; color: var(--fail); }
@@ -176,7 +183,25 @@
     const title = document.createElement("h2");
     title.textContent = test.loader || "unknown";
     header.appendChild(title);
-    appendBadge(header, test.status || "FAIL");
+
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
+    appendBadge(actions, test.status || "FAIL");
+
+    const toggle = document.createElement("button");
+    toggle.className = "card-toggle";
+    toggle.type = "button";
+    toggle.title = "收起卡片";
+    toggle.setAttribute("aria-label", `收起 ${title.textContent} 卡片`);
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.addEventListener("click", () => {
+      const collapsed = card.classList.toggle("collapsed");
+      toggle.title = collapsed ? "展开卡片" : "收起卡片";
+      toggle.setAttribute("aria-label", `${collapsed ? "展开" : "收起"} ${title.textContent} 卡片`);
+      toggle.setAttribute("aria-expanded", String(!collapsed));
+    });
+    actions.appendChild(toggle);
+    header.appendChild(actions);
     card.appendChild(header);
 
     const meta = document.createElement("p");

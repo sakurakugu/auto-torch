@@ -10,6 +10,8 @@ import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import com.google.gson.JsonObject;
@@ -19,8 +21,19 @@ import com.sakurakugu.autotorch.client.LightingScreen;
 import com.sakurakugu.autotorch.client.SelectionState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
+import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
+import net.minecraft.client.gui.screens.worldselection.PresetEditor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.permissions.PermissionSet;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.presets.WorldPresets;
+import net.minecraft.world.level.levelgen.FlatLevelSource;
+import net.minecraft.world.level.levelgen.flat.FlatLayerInfo;
 
 /** 由本地 Python 驱动的客户端冒烟测试；不会进入正式发布 JAR。 */
 public final class LocalClientTestRunner implements Consumer<Minecraft> {
@@ -29,6 +42,7 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
     private static final String TOKEN_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_TOKEN";
     private static final String WORLD_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_WORLD";
     private static final String CREATE_WORLD_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_CREATE_WORLD";
+    private static final String TEMPLATE_WORLD_ENVIRONMENT = "AUTOTORCH_LOCAL_TEST_TEMPLATE_WORLD";
     private static final int SETTLE_TICKS = 30;
     private static final int CAPTURE_TIMEOUT_TICKS = 20 * 45;
 
@@ -37,6 +51,7 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
     private final BufferedWriter writer;
     private final String requestedWorld;
     private final boolean autoCreateWorld;
+    private final boolean templateWorld;
     private Stage stage = Stage.WAITING_FOR_WORLD;
     private int ticks;
     private int waitingTicks;
@@ -47,10 +62,12 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
     private boolean configurationCaptured;
     private boolean createWorldRequested;
     private boolean createWorldConfirmed;
+    private CompletableFuture<String> templatePreparation;
 
     public LocalClientTestRunner() {
         requestedWorld = requireEnvironment(WORLD_ENVIRONMENT);
         autoCreateWorld = "1".equals(requireEnvironment(CREATE_WORLD_ENVIRONMENT));
+        templateWorld = "1".equals(requireEnvironment(TEMPLATE_WORLD_ENVIRONMENT));
         try {
             socket = new Socket();
             socket.connect(new InetSocketAddress(
@@ -127,6 +144,7 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
         if (!(minecraft.gui.screen() instanceof CreateWorldScreen screen)) return;
 
         screen.getUiState().setName(requestedWorld);
+        if (templateWorld) configureTemplateWorld(screen.getUiState());
         createWorldConfirmed = true;
         try {
             // 原版没有公开自动确认创建的方法，本地测试通过反射调用创建按钮对应逻辑。
@@ -142,6 +160,29 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
         }
     }
 
+    private static void configureTemplateWorld(WorldCreationUiState state) {
+        state.setGameMode(WorldCreationUiState.SelectedGameMode.CREATIVE);
+        state.setDifficulty(Difficulty.PEACEFUL);
+        state.setAllowCommands(true);
+        state.setGenerateStructures(false);
+        state.getNormalPresetList().stream()
+                .filter(entry -> entry.preset().is(WorldPresets.FLAT))
+                .findFirst()
+                .ifPresentOrElse(state::setWorldType,
+                        () -> { throw new IllegalStateException("创建界面中没有超平坦世界预设"); });
+        var generator = state.getSettings().selectedDimensions().overworld();
+        if (!(generator instanceof FlatLevelSource flatGenerator)) {
+            throw new IllegalStateException("创建界面中的超平坦生成器不可用");
+        }
+        var layers = flatGenerator.settings().getLayersInfo();
+        layers.clear();
+        layers.add(new FlatLayerInfo(1, Blocks.BEDROCK));
+        layers.add(new FlatLayerInfo(113, Blocks.DIRT));
+        layers.add(new FlatLayerInfo(1, Blocks.GRASS_BLOCK));
+        flatGenerator.settings().updateLayers();
+        state.updateDimensions(PresetEditor.flatWorldConfigurator(flatGenerator.settings()));
+    }
+
     private static String requireEnvironment(String name) {
         String value = System.getenv(name);
         if (value == null || value.isBlank()) {
@@ -151,9 +192,104 @@ public final class LocalClientTestRunner implements Consumer<Minecraft> {
     }
 
     private void prepareWorldCheckpoint(Minecraft minecraft) throws IOException {
+        if (templateWorld) {
+            prepareTemplateWorld(minecraft);
+            if (templatePreparation == null || !templatePreparation.isDone()) return;
+            String detail;
+            try {
+                detail = templatePreparation.join();
+            } catch (RuntimeException exception) {
+                Throwable cause = exception.getCause();
+                if (cause instanceof RuntimeException runtimeException) throw runtimeException;
+                throw exception;
+            }
+            if (ticks == 0) appendResult("PASS", "模板世界", detail);
+        }
         if (!settled()) return;
         checkpoint("01-world", "游戏世界已加载");
         enter(Stage.WAITING_WORLD_CAPTURE);
+    }
+
+    private void prepareTemplateWorld(Minecraft minecraft) {
+        if (templatePreparation != null) return;
+        MinecraftServer server = minecraft.getSingleplayerServer();
+        if (server == null) throw new IllegalStateException("模板世界必须运行在单人服务器中");
+        templatePreparation = new CompletableFuture<>();
+        server.execute(() -> {
+            try {
+                templatePreparation.complete(buildAndVerifyTemplate(server));
+            } catch (Exception exception) {
+                templatePreparation.completeExceptionally(exception);
+            }
+        });
+    }
+
+    private static String buildAndVerifyTemplate(MinecraftServer server) {
+        var data = server.getWorldData();
+        data.setGameType(GameType.CREATIVE);
+        data.setDifficulty(Difficulty.PEACEFUL);
+        data.setDifficultyLocked(false);
+        data.setAllowCommands(true);
+        server.getPlayerList().getPlayers().forEach(player -> player.setGameMode(GameType.CREATIVE));
+
+        var source = server.createCommandSourceStack()
+                .withPermission(PermissionSet.ALL_PERMISSIONS)
+                .withSuppressedOutput();
+        List<String> commands = List.of(
+                "gamerule advance_time false",
+                "time set noon",
+                "weather clear",
+                "setworldspawn 0 51 0",
+                // 东侧：石头地板、七格高空气层和实体方块顶板组成的封闭无光室。
+                "fill 16 50 -8 32 58 8 minecraft:tinted_glass",
+                "fill 17 50 -7 31 50 7 minecraft:stone",
+                "fill 17 51 -7 31 57 7 minecraft:air",
+                // 西侧两片区域保留超平坦草地，只替换生物群系。
+                "fillbiome -32 50 -8 -9 50 8 minecraft:swamp",
+                "fillbiome -32 50 16 -9 50 32 minecraft:mangrove_swamp",
+                // 北侧河道为浅水区，东北侧水池提供连续深水柱。
+                "fill 15 50 15 48 50 48 minecraft:air",
+                "fill -8 51 16 8 55 47 minecraft:water",
+                "fillbiome -8 51 16 8 55 47 minecraft:river",
+                "fill -9 50 15 9 50 48 minecraft:air",
+                "fill 16 51 16 47 66 47 minecraft:water",
+                "fillbiome 16 51 16 47 66 47 minecraft:deep_ocean",
+                "setblock 32 62 32 minecraft:water",
+                "fillbiome 32 62 32 32 62 32 minecraft:ocean",
+                "tp @a 0 51 0"
+        );
+        commands.forEach(command -> server.getCommands().performPrefixedCommand(source, command));
+
+        var level = server.overworld();
+        require(data.isFlatWorld(), "存档不是超平坦世界");
+        require(data.getGameType() == GameType.CREATIVE, "默认游戏模式不是创造模式");
+        require(data.getDifficulty() == Difficulty.PEACEFUL, "难度不是和平模式");
+        require(data.isAllowCommands(), "存档未允许作弊");
+        require(level.getBlockState(new BlockPos(0, 50, 0)).is(Blocks.GRASS_BLOCK),
+                "露天超平坦平台缺失");
+        require(level.getBlockState(new BlockPos(0, -64, 0)).is(Blocks.BEDROCK)
+                        && level.getBlockState(new BlockPos(0, 0, 0)).is(Blocks.DIRT)
+                        && level.getBlockState(new BlockPos(0, 50, 0)).is(Blocks.GRASS_BLOCK),
+                "自定义超平坦地形层不完整");
+        require(level.getBlockState(new BlockPos(24, 50, 0)).is(Blocks.STONE)
+                        && level.getBlockState(new BlockPos(24, 54, 0)).isAir()
+                        && level.getBlockState(new BlockPos(24, 58, 0)).is(Blocks.TINTED_GLASS),
+                "无光地下空间结构不完整");
+        require(level.getBiome(new BlockPos(-20, 50, 0)).is(Biomes.SWAMP), "沼泽测试区缺失");
+        require(level.getBiome(new BlockPos(-20, 50, 24)).is(Biomes.MANGROVE_SWAMP),
+                "红树林沼泽测试区缺失");
+        require(level.getBiome(new BlockPos(0, 51, 32)).is(Biomes.RIVER)
+                        && level.getBlockState(new BlockPos(0, 51, 32)).is(Blocks.WATER),
+                "河流测试区缺失");
+        require((level.getBiome(new BlockPos(32, 62, 32)).is(Biomes.DEEP_OCEAN)
+                        || level.getBiome(new BlockPos(32, 62, 32)).is(Biomes.OCEAN))
+                        && level.getBlockState(new BlockPos(32, 62, 32)).is(Blocks.WATER),
+                "海洋深水测试区缺失");
+        return "超平坦、创造、和平、允许作弊；平台、暗室、双沼泽、河流和深水区均已校验";
+    }
+
+    private static void require(boolean condition, String message) {
+        if (!condition) throw new IllegalStateException(message);
     }
 
     private void openSettings(Minecraft minecraft) throws IOException {
