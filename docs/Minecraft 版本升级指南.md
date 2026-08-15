@@ -5,7 +5,7 @@
 ## 1. 升级前检查
 
 1. 阅读根目录 `AGENTS.md`。
-2. 执行 `git status --short --branch`，记录并保留已有改动，然后查看有哪些 `main` 分支的新提交应该合并到但还未合并到 `mc/<目标版本>`的，把它合并过去。
+2. 执行 `git status --short --branch`，记录并保留已有改动，然后查看有哪些 `main` 分支的新提交应该合并到但还未合并到 `mc/<目标版本>`的，把它合并过去。（RELEASE_NOTES.md不要放到 `mc/<目标版本>` 分支）
 3. 检查 `gradle.properties`、根 `build.gradle`、各子模块构建文件、模组元数据、README 和 CI。
 4. 确认 `%JAVA_HOME%` 下存在与 `JavaLanguageVersion` 一致的 JDK。
 
