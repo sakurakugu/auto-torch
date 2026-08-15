@@ -1,58 +1,43 @@
-### Gradle ###
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/**/build/
+### MC Studio 本地状态 ###
+# 包含编辑器布局、个人设置、账号、本机路径和运行端口。
+.mcs/
+studio.json
 
-### IntelliJ IDEA ###
+### Python 生成文件 ###
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+### Python 本地环境 ###
+.venv/
+venv/
+env/
+.env
+*.egg-info/
+
+### 编辑器与操作系统 ###
 .idea/
+.vscode/
 *.iws
 *.iml
 *.ipr
-out/
-!**/src/**/out/
-
-.run/
-
-### Eclipse ###
-.apt_generated
-.classpath
-.eclipse/
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
-!**/src/**/bin/
-
-### VS Code ###
-.vscode/
-
-### 本地环境 ###
-.env
-
-### macOS ###
 .DS_Store
+Thumbs.db
+Desktop.ini
 
-### Minecraft 模组开发 ###
-run/
-!**/src/**/run/
-**/src/generated/**/.cache/
-repo/
-!**/src/**/repo/
-
-### 其他 ###
-other/
-tmp/
-temp/
-
-TODO.md
-
-### Python ###
-*.pyc
-
-### 日志 ###
+### 日志与临时文件 ###
 logs/
 log/
 *.log
+tmp/
+temp/
+
+### 本地导出产物 ###
+*.mcpack
+*.mcaddon
+*.mcworld

@@ -1,0 +1,6 @@
+{
+    "main": {
+        "type": "screen"
+    },
+    "namespace": "autotorch"
+}
