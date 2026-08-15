@@ -45,10 +45,7 @@ Digging out a perimeter is tedious, and placing torches by hand makes it easy to
 
 ## Building
 
-Java 25 is required:
-
 ```powershell
-$env:JAVA_HOME='path to your Java 25 installation'
 .\gradlew.bat build
 ```
 
