@@ -84,10 +84,16 @@ jobs:
         env:
           REQUESTED_MINECRAFT_VERSION: ${{ inputs.minecraft_version }}
         run: |
-          # 每个 origin/mc/<版本> 分支对应一个 Minecraft 发布目标。
+          # 每个 origin/mc/<版本> 分支对应一个 Minecraft 发布目标；网易版和基岩版单独处理。
           all_targets='[]'
           while read -r ref sha; do
             branch="${ref#origin/}"
+            case "$branch" in
+              mc/netease|mc/bedrock)
+                echo "Skipping separately released branch: $branch"
+                continue
+                ;;
+            esac
             minecraft="${branch#mc/}"
             java_version="$(git show "${sha}:build.gradle" | sed -n \
               's/.*java\.toolchain\.languageVersion = JavaLanguageVersion\.of(\([0-9][0-9]*\)).*/\1/p' | head -n 1)"
