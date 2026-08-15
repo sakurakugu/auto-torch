@@ -1,6 +1,7 @@
 # 项目概览
 
 Auto Torch 是一个面向 Minecraft 的自动插火把与光照显示模组，当前主分支适配 Minecraft 最新版，并同时支持 Fabric、Forge 和 NeoForge。主要功能包括纯客户端的附近自动插火把与光照/刷怪风险显示，以及需要客户端和服务端共同安装的区间自动照明任务。
+网易版和基岩版在 mc/netease 和 mc/bedrock 分支中维护。
 
 项目采用 Gradle 多模块结构：
 
