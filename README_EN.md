@@ -47,10 +47,7 @@ Digging out a perimeter is tedious, and placing torches by hand makes it easy to
 
 ## Building
 
-Building requires Java 21; the generated mod runs on Java 17:
-
 ```powershell
-$env:JAVA_HOME='path to your Java 21 installation'
 .\gradlew.bat build
 ```
 
