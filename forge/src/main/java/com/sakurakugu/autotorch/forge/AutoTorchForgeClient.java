@@ -10,6 +10,7 @@ import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import net.minecraft.client.Minecraft;
@@ -80,10 +81,13 @@ final class AutoTorchForgeClient {
     }
 
     private boolean onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
-        if (event.getEntity().level() instanceof ClientLevel clientLevel
-                && client.onLeftClick(clientLevel, event.getItemStack(), event.getPos(),
-                event.getAction() == PlayerInteractEvent.LeftClickBlock.Action.START)) {
-            return true;
+        if (event.getEntity().level() instanceof ClientLevel clientLevel) {
+            // Forge 破坏方块路径不一定触发 ClientLevel 的方块 dirty 通知，提前标记以便渲染阶段复核。
+            LightOverlayState.markBlockDirty(clientLevel, event.getPos()); // 不加这个会慢半拍
+            if (client.onLeftClick(clientLevel, event.getItemStack(), event.getPos(),
+                    event.getAction() == PlayerInteractEvent.LeftClickBlock.Action.START)) {
+                return true;
+            }
         }
         return false;
     }
@@ -125,6 +129,8 @@ final class AutoTorchForgeClient {
                 submitNodes = null;
                 return;
             }
+            // Forge 的客户端 tick 可能早于原版光照传播；在渲染阶段再次扫描以读取已完成更新的光照值。
+            LightOverlayState.tick(minecraft);
             var camera = minecraft.gameRenderer.mainCamera().position();
             SelectionRenderer.extract(BlockPos.containing(camera));
             LightOverlayRenderer.extract();
