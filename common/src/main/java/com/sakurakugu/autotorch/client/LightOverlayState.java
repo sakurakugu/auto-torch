@@ -41,6 +41,7 @@ public final class LightOverlayState {
     private static int ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
     private static final Map<Long, MarkerColumn> columnCache = new HashMap<>();
     private static final Set<Long> urgentColumns = new LinkedHashSet<>();
+    private static final Set<Long> lightUpdateColumns = new LinkedHashSet<>();
     private static final Set<Long> backgroundColumns = new LinkedHashSet<>();
     private static final Set<Long> verificationColumns = new LinkedHashSet<>();
     private static List<MarkerColumn> markerColumns = Collections.emptyList();
@@ -176,6 +177,7 @@ public final class LightOverlayState {
         }
 
         Set<Long> activeQueue = !urgentColumns.isEmpty() ? urgentColumns
+                : !lightUpdateColumns.isEmpty() ? lightUpdateColumns
                 : !backgroundColumns.isEmpty() ? backgroundColumns : verificationColumns;
         boolean cacheChanged = scanQueuedColumns(currentLevel, activeQueue, SCAN_BUDGET_PER_TICK);
         if (visibleAreaChanged || cacheChanged) {
@@ -190,6 +192,7 @@ public final class LightOverlayState {
         ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
         columnCache.clear();
         urgentColumns.clear();
+        lightUpdateColumns.clear();
         backgroundColumns.clear();
         verificationColumns.clear();
         markerColumns = Collections.emptyList();
@@ -261,6 +264,7 @@ public final class LightOverlayState {
             }
             iterator.remove();
             urgentColumns.remove(key);
+            lightUpdateColumns.remove(key);
             backgroundColumns.remove(key);
             verificationColumns.remove(key);
             List<Marker> updatedMarkers = scanColumn(currentLevel, columnX(key), columnZ(key));
@@ -268,6 +272,10 @@ public final class LightOverlayState {
             if (previous == null || previous.minY() != minY || !previous.markers().equals(updatedMarkers)) {
                 columnCache.put(key, new MarkerColumn(key, minY, updatedMarkers));
                 changed = true;
+            }
+            // 方块变更通知可能早于原版光照引擎完成传播；下一 tick 再复核一次，避免缓存瞬时的 0 光照。
+            if (queue == urgentColumns) {
+                lightUpdateColumns.add(key);
             }
         }
         return changed;
@@ -319,6 +327,7 @@ public final class LightOverlayState {
         columnCache.keySet().removeIf(key -> Math.abs(columnX(key) - scanCenter.getX()) > retainedRange
                 || Math.abs(columnZ(key) - scanCenter.getZ()) > retainedRange);
         urgentColumns.removeIf(key -> !isVisibleColumn(key));
+        lightUpdateColumns.removeIf(key -> !isVisibleColumn(key));
         backgroundColumns.removeIf(key -> !isVisibleColumn(key));
         verificationColumns.removeIf(key -> !isVisibleColumn(key));
     }
@@ -372,6 +381,7 @@ public final class LightOverlayState {
             for (int z = minZ; z <= maxZ; z++) {
                 long key = columnKey(x, z);
                 backgroundColumns.remove(key);
+                lightUpdateColumns.remove(key);
                 verificationColumns.remove(key);
                 urgentColumns.add(key);
             }

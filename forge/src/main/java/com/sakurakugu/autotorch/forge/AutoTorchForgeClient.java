@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.forge;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import net.minecraft.client.Minecraft;
@@ -39,8 +40,11 @@ final class AutoTorchForgeClient {
     }
     @SubscribeEvent public void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
         boolean start = selectionClickPos == null || !selectionClickPos.equals(event.getPos());
-        if (event.getEntityPlayer() != null && event.getEntityPlayer().worldObj instanceof WorldClient && client.onLeftClick((WorldClient) event.getEntityPlayer().worldObj, event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos(), start)) {
-            selectionClickPos = event.getPos(); event.setCanceled(true);
+        if (event.getEntityPlayer() != null && event.getEntityPlayer().worldObj instanceof WorldClient) {
+            LightOverlayState.markBlockDirty((WorldClient) event.getEntityPlayer().worldObj, event.getPos());
+            if (client.onLeftClick((WorldClient) event.getEntityPlayer().worldObj, event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos(), start)) {
+                selectionClickPos = event.getPos(); event.setCanceled(true);
+            }
         }
     }
     @SubscribeEvent public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
@@ -50,6 +54,7 @@ final class AutoTorchForgeClient {
     }
     @SubscribeEvent public void onRender(RenderWorldLastEvent event) {
         Minecraft minecraft = Minecraft.getMinecraft(); if (minecraft.theWorld == null) return;
+        LightOverlayState.tick(minecraft);
         Entity view = minecraft.getRenderViewEntity(); if (view == null) return;
         float partial = event.getPartialTicks();
         Vec3d origin = new Vec3d(view.lastTickPosX + (view.posX - view.lastTickPosX) * partial, view.lastTickPosY + (view.posY - view.lastTickPosY) * partial, view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partial);
