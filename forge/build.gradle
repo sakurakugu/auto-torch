@@ -8,6 +8,12 @@ base {
     archivesName = "${mod_id}-${minecraft_version}-forge"
 }
 
+evaluationDependsOn(':common')
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
 sourceSets.main {
     resources.srcDir project(':common').file('src/main/resources')
 }
@@ -55,7 +61,7 @@ dependencies {
 }
 
 def extractLoomMappings = tasks.register('extractLoomMappings', Sync) {
-    from({ zipTree(project(':common').configurations.mappings.singleFile) })
+    from({ zipTree(project(':common').configurations.getByName('mappings').singleFile) })
     include 'mappings/mappings.tiny'
     eachFile { path = 'mappings.tiny' }
     includeEmptyDirs = false

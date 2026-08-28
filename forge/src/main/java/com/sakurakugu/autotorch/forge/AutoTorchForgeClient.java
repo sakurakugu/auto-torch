@@ -198,3 +198,4 @@ final class AutoTorchForgeClient {
         RenderSystem.enableTexture();
     }
 }
+

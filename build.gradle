@@ -18,7 +18,9 @@ subprojects {
     }
 
     plugins.withType(JavaPlugin).configureEach {
-        java.toolchain.languageVersion = JavaLanguageVersion.of(8)
+        java.toolchain.languageVersion = JavaLanguageVersion.of(
+                minecraft_version == '1.16.5' ? 17 : 8
+        )
 
         tasks.withType(JavaCompile).configureEach {
             options.encoding = 'UTF-8'
