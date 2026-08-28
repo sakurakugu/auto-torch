@@ -14,16 +14,13 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
-import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.SpawnPlacementTypes;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import org.jspecify.annotations.Nullable;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
@@ -41,13 +38,14 @@ public final class LightOverlayState {
     private static DisplayMode displayMode = ClientConfig.showsLightOverlayNumbers()
             ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
     private static int horizontalRange = ClientConfig.lightOverlayRange();
-    private static @Nullable ClientLevel level;
-    private static @Nullable BlockPos scanCenter;
+    private static ClientLevel level;
+    private static BlockPos scanCenter;
     private static int minY;
     private static int maxY;
     private static int ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
     private static final Map<Long, MarkerColumn> columnCache = new HashMap<>();
     private static final Set<Long> urgentColumns = new LinkedHashSet<>();
+    private static final Set<Long> lightUpdateColumns = new LinkedHashSet<>();
     private static final Set<Long> backgroundColumns = new LinkedHashSet<>();
     private static final Set<Long> verificationColumns = new LinkedHashSet<>();
     private static List<MarkerColumn> markerColumns = List.of();
@@ -178,6 +176,7 @@ public final class LightOverlayState {
         }
 
         Set<Long> activeQueue = !urgentColumns.isEmpty() ? urgentColumns
+                : !lightUpdateColumns.isEmpty() ? lightUpdateColumns
                 : !backgroundColumns.isEmpty() ? backgroundColumns : verificationColumns;
         boolean cacheChanged = scanQueuedColumns(currentLevel, activeQueue, SCAN_BUDGET_PER_TICK);
         if (visibleAreaChanged || cacheChanged) {
@@ -192,6 +191,7 @@ public final class LightOverlayState {
         ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
         columnCache.clear();
         urgentColumns.clear();
+        lightUpdateColumns.clear();
         backgroundColumns.clear();
         verificationColumns.clear();
         markerColumns = List.of();
@@ -263,6 +263,7 @@ public final class LightOverlayState {
             }
             iterator.remove();
             urgentColumns.remove(key);
+            lightUpdateColumns.remove(key);
             backgroundColumns.remove(key);
             verificationColumns.remove(key);
             List<Marker> updatedMarkers = scanColumn(currentLevel, columnX(key), columnZ(key));
@@ -270,6 +271,10 @@ public final class LightOverlayState {
             if (previous == null || previous.minY() != minY || !previous.markers().equals(updatedMarkers)) {
                 columnCache.put(key, new MarkerColumn(key, minY, updatedMarkers));
                 changed = true;
+            }
+            // 方块变更通知可能早于原版光照引擎完成传播；下一 tick 再复核一次，避免缓存瞬时的 0 光照。
+            if (queue == urgentColumns) {
+                lightUpdateColumns.add(key);
             }
         }
         return changed;
@@ -326,6 +331,7 @@ public final class LightOverlayState {
         columnCache.keySet().removeIf(key -> Math.abs(columnX(key) - scanCenter.getX()) > retainedRange
                 || Math.abs(columnZ(key) - scanCenter.getZ()) > retainedRange);
         urgentColumns.removeIf(key -> !isVisibleColumn(key));
+        lightUpdateColumns.removeIf(key -> !isVisibleColumn(key));
         backgroundColumns.removeIf(key -> !isVisibleColumn(key));
         verificationColumns.removeIf(key -> !isVisibleColumn(key));
     }
@@ -379,6 +385,7 @@ public final class LightOverlayState {
             for (int z = minZ; z <= maxZ; z++) {
                 long key = columnKey(x, z);
                 backgroundColumns.remove(key);
+                lightUpdateColumns.remove(key);
                 verificationColumns.remove(key);
                 urgentColumns.add(key);
             }
@@ -401,7 +408,7 @@ public final class LightOverlayState {
         return (int) key;
     }
 
-    private static @Nullable Marker markerAt(
+    private static Marker markerAt(
             ClientLevel level, BlockPos floorPos, BlockPos feet, BlockPos head,
             BlockState floor, BlockState feetState, BlockState headState
     ) {
@@ -437,7 +444,7 @@ public final class LightOverlayState {
                 && blockLight <= 7
                 && feet.getY() > 50
                 && feet.getY() < 70
-                && level.getBiome(feet).is(BiomeTags.ALLOWS_SURFACE_SLIME_SPAWNS);
+                ;
     }
 
     private static boolean isDrownedRisk(
@@ -462,8 +469,7 @@ public final class LightOverlayState {
                 .getMobs(MobCategory.MONSTER).unwrap().stream()
                 .anyMatch(entry -> entry.type == EntityType.DROWNED);
         return drownedInSpawnList
-                && (level.getBiome(pos).is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
-                || pos.getY() < level.getSeaLevel() - 5);
+                && pos.getY() < level.getSeaLevel() - 5;
     }
 
     private static Marker marker(ClientLevel level, BlockPos pos, RiskType riskType) {
