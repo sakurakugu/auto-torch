@@ -19,22 +19,6 @@ public final class AutoTorchRules {
         return value / divisor + (value % divisor == 0 ? 0 : 1);
     }
 
-    public static int lightOverlayRefreshIntervalTicks(int range) {
-        if (range <= 16) {
-            return 4;
-        }
-        if (range <= 24) {
-            return 8;
-        }
-        if (range <= 32) {
-            return 20;
-        }
-        if (range <= 48) {
-            return 40;
-        }
-        return 80;
-    }
-
     public static boolean boxesIntersect(
             int firstMinX, int firstMinY, int firstMinZ, int firstMaxX, int firstMaxY, int firstMaxZ,
             int secondMinX, int secondMinY, int secondMinZ, int secondMaxX, int secondMaxY, int secondMaxZ
