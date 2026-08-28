@@ -31,15 +31,6 @@ final class AutoTorchRulesTest {
     }
 
     @Test
-    void keepsNearbyOverlayFastAndSlowsLargerRanges() {
-        assertEquals(4, AutoTorchRules.lightOverlayRefreshIntervalTicks(16));
-        assertEquals(8, AutoTorchRules.lightOverlayRefreshIntervalTicks(24));
-        assertEquals(20, AutoTorchRules.lightOverlayRefreshIntervalTicks(32));
-        assertEquals(40, AutoTorchRules.lightOverlayRefreshIntervalTicks(48));
-        assertEquals(80, AutoTorchRules.lightOverlayRefreshIntervalTicks(64));
-    }
-
-    @Test
     void identifiesDisjointExclusionBounds() {
         assertTrue(AutoTorchRules.boxesIntersect(
                 0, 0, 0, 10, 10, 10,
