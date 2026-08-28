@@ -27,8 +27,8 @@ public final class LightOverlayState {
     private static final int VERIFICATION_INTERVAL_TICKS = 100;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
-    private static boolean swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
-    private static boolean drownedDetectionEnabled = ClientConfig.detectsDrowned();
+    private static boolean swampSlimeDetectionEnabled = false;
+    private static boolean drownedDetectionEnabled = false;
     private static DisplayMode displayMode = ClientConfig.showsLightOverlayNumbers()
             ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
     private static int horizontalRange = ClientConfig.lightOverlayRange();
@@ -50,8 +50,8 @@ public final class LightOverlayState {
     /** 配置整体替换后同步运行时缓存。 */
     public static void reloadConfig() {
         enabled = ClientConfig.isLightOverlayEnabled();
-        swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
-        drownedDetectionEnabled = ClientConfig.detectsDrowned();
+        swampSlimeDetectionEnabled = false;
+        drownedDetectionEnabled = false;
         displayMode = ClientConfig.showsLightOverlayNumbers() ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
         horizontalRange = ClientConfig.lightOverlayRange();
         clearScan();
@@ -95,39 +95,27 @@ public final class LightOverlayState {
     }
 
     public static boolean isSwampSlimeDetectionEnabled() {
-        return swampSlimeDetectionEnabled;
+        return false;
     }
 
     public static boolean toggleSwampSlimeDetection() {
-        setSwampSlimeDetectionEnabled(!swampSlimeDetectionEnabled);
-        return swampSlimeDetectionEnabled;
+        return false;
     }
 
     public static void setSwampSlimeDetectionEnabled(boolean value) {
-        if (swampSlimeDetectionEnabled == value) {
-            return;
-        }
-        swampSlimeDetectionEnabled = value;
-        ClientConfig.setDetectsSwampSlimes(value);
-        clearScan();
+        // 1.17.1 及以下版本无法可靠判断沼泽史莱姆的完整生成条件。
     }
 
     public static boolean isDrownedDetectionEnabled() {
-        return drownedDetectionEnabled;
+        return false;
     }
 
     public static boolean toggleDrownedDetection() {
-        setDrownedDetectionEnabled(!drownedDetectionEnabled);
-        return drownedDetectionEnabled;
+        return false;
     }
 
     public static void setDrownedDetectionEnabled(boolean value) {
-        if (drownedDetectionEnabled == value) {
-            return;
-        }
-        drownedDetectionEnabled = value;
-        ClientConfig.setDetectsDrowned(value);
-        clearScan();
+        // 1.12.2 及以下版本没有溺尸实体。
     }
 
     public static int horizontalRange() {
@@ -410,17 +398,14 @@ public final class LightOverlayState {
             return null;
         }
         int blockLight = WorldAccess.blockLight(level, feet);
-        RiskType riskType = blockLight > 0 && isSwampSlimeRisk(level, feet, blockLight)
-                ? RiskType.SWAMP_SLIME : RiskType.NORMAL;
         return new Marker(
                 feet.getImmutable(),
                 blockLight,
                 WorldAccess.skyLight(level, feet),
-                riskType
+                RiskType.NORMAL
         );
     }
 
-    private static boolean isSwampSlimeRisk(World level, BlockPos feet, int blockLight) { return false; }
 
     private static boolean isDrownedRisk(World level, BlockPos feet, BlockPos head) {
         return false;
@@ -442,7 +427,6 @@ public final class LightOverlayState {
 
     public enum RiskType {
         NORMAL,
-        SWAMP_SLIME,
         DROWNED
     }
 
