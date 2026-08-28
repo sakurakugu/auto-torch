@@ -1,18 +1,20 @@
 package com.sakurakugu.autotorch.server;
 
 import java.util.List;
+import java.util.Random;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AreaZoneIndexTest {
     @Test
-    void findsBoxesAcrossNegativeCellBoundaries() {
+    void findsBoxesAcrossNegativeCoordinates() {
         AreaZoneIndex index = new AreaZoneIndex(List.of(new AreaZone(
                 AreaShape.BOX, new BlockPos(-17, -1, -17), new BlockPos(1, 16, 1))));
 
@@ -35,5 +37,69 @@ class AreaZoneIndexTest {
     @Test
     void handlesEmptyIndex() {
         assertFalse(new AreaZoneIndex(List.of()).contains(BlockPos.ZERO));
+    }
+
+    @Test
+    void findsZonesAcrossBvhBranches() {
+        AreaZoneIndex index = new AreaZoneIndex(List.of(
+                box(-200, -10, -200, -180, 10, -180),
+                box(-100, -10, 100, -80, 10, 120),
+                box(0, -10, 0, 20, 10, 20),
+                box(80, -10, -120, 100, 10, -100),
+                box(180, -10, 180, 200, 10, 200)
+        ));
+
+        assertTrue(index.contains(new BlockPos(-190, 0, -190)));
+        assertTrue(index.contains(new BlockPos(10, 0, 10)));
+        assertTrue(index.contains(new BlockPos(190, 0, 190)));
+        assertFalse(index.contains(new BlockPos(50, 0, 50)));
+    }
+
+    @Test
+    void handlesMaximumSizedOverlappingSpheresWithoutExpandingTheirVolume() {
+        List<AreaZone> zones = java.util.stream.IntStream.range(0, 32)
+                .mapToObj(index -> new AreaZone(
+                        AreaShape.SPHERE,
+                        new BlockPos(index * 4, 0, 0),
+                        new BlockPos(index * 4 + AreaZone.MAX_SPHERE_RADIUS, 0, 0)))
+                .toList();
+        AreaZoneIndex index = new AreaZoneIndex(zones);
+
+        assertTrue(index.contains(new BlockPos(0, AreaZone.MAX_SPHERE_RADIUS, 0)));
+        assertTrue(index.contains(new BlockPos(31 * 4, 0, AreaZone.MAX_SPHERE_RADIUS)));
+        assertFalse(index.contains(new BlockPos(0, AreaZone.MAX_SPHERE_RADIUS, 1)));
+        assertFalse(index.contains(new BlockPos(1000, 0, 0)));
+    }
+
+    @Test
+    void matchesDirectZoneChecksForMixedRandomAreas() {
+        Random random = new Random(0xA17EA5L);
+        List<AreaZone> zones = java.util.stream.IntStream.range(0, 32)
+                .mapToObj(index -> randomZone(random, index % 2 == 0 ? AreaShape.BOX : AreaShape.SPHERE))
+                .toList();
+        AreaZoneIndex index = new AreaZoneIndex(zones);
+
+        for (int attempt = 0; attempt < 10_000; attempt++) {
+            BlockPos pos = new BlockPos(
+                    random.nextInt(-300, 301), random.nextInt(-100, 101), random.nextInt(-300, 301));
+            boolean expected = zones.stream().anyMatch(zone -> zone.contains(pos));
+            assertEquals(expected, index.contains(pos), () -> "查询结果不一致: " + pos);
+        }
+    }
+
+    private static AreaZone box(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        return new AreaZone(AreaShape.BOX, new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ));
+    }
+
+    private static AreaZone randomZone(Random random, AreaShape shape) {
+        BlockPos first = new BlockPos(
+                random.nextInt(-200, 201), random.nextInt(-60, 61), random.nextInt(-200, 201));
+        BlockPos second;
+        if (shape == AreaShape.SPHERE) {
+            second = first.offset(random.nextInt(1, 81), random.nextInt(-20, 21), random.nextInt(-20, 21));
+        } else {
+            second = first.offset(random.nextInt(-80, 81), random.nextInt(-40, 41), random.nextInt(-80, 81));
+        }
+        return new AreaZone(shape, first, second);
     }
 }
