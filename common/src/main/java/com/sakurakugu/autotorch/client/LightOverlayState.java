@@ -2,13 +2,17 @@ package com.sakurakugu.autotorch.client;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-import com.sakurakugu.autotorch.AutoTorchRules;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
-import net.minecraft.util.BlockPos;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.block.BlockLeaves;
@@ -20,19 +24,27 @@ public final class LightOverlayState {
     private static final int UP_RANGE = 4;
     private static final int SCAN_BUDGET_PER_TICK = 12_000;
     private static final int HEIGHT = DOWN_RANGE + UP_RANGE + 1;
+    private static final int LIGHT_CHANGE_RADIUS = 15;
+    private static final int CACHE_MARGIN = 16;
+    private static final int VERIFICATION_INTERVAL_TICKS = 100;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
+    private static boolean swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
     private static boolean drownedDetectionEnabled = ClientConfig.detectsDrowned();
     private static DisplayMode displayMode = ClientConfig.showsLightOverlayNumbers()
             ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
     private static int horizontalRange = ClientConfig.lightOverlayRange();
-    private static int scanRange = horizontalRange;
     private static World level;
     private static BlockPos scanCenter;
-    private static int scanIndex;
-    private static int ticksSinceCompleted;
-    private static List<Marker> workingMarkers = new ArrayList<>();
-    private static List<Marker> markers = Collections.emptyList();
+    private static int minY;
+    private static int maxY;
+    private static int ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
+    private static final Map<Long, MarkerColumn> columnCache = new HashMap<>();
+    private static final Set<Long> urgentColumns = new LinkedHashSet<>();
+    private static final Set<Long> lightUpdateColumns = new LinkedHashSet<>();
+    private static final Set<Long> backgroundColumns = new LinkedHashSet<>();
+    private static final Set<Long> verificationColumns = new LinkedHashSet<>();
+    private static List<MarkerColumn> markerColumns = Collections.emptyList();
 
     private LightOverlayState() {
     }
@@ -40,6 +52,7 @@ public final class LightOverlayState {
     /** 配置整体替换后同步运行时缓存。 */
     public static void reloadConfig() {
         enabled = ClientConfig.isLightOverlayEnabled();
+        swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
         drownedDetectionEnabled = ClientConfig.detectsDrowned();
         displayMode = ClientConfig.showsLightOverlayNumbers() ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
         horizontalRange = ClientConfig.lightOverlayRange();
@@ -84,15 +97,21 @@ public final class LightOverlayState {
     }
 
     public static boolean isSwampSlimeDetectionEnabled() {
-        return false;
+        return swampSlimeDetectionEnabled;
     }
 
     public static boolean toggleSwampSlimeDetection() {
-        return false;
+        setSwampSlimeDetectionEnabled(!swampSlimeDetectionEnabled);
+        return swampSlimeDetectionEnabled;
     }
 
     public static void setSwampSlimeDetectionEnabled(boolean value) {
-        // 1.17.1 的客户端生物群系 API 无法可靠判断沼泽史莱姆生成条件。
+        if (swampSlimeDetectionEnabled == value) {
+            return;
+        }
+        swampSlimeDetectionEnabled = value;
+        ClientConfig.setDetectsSwampSlimes(value);
+        clearScan();
     }
 
     public static boolean isDrownedDetectionEnabled() {
@@ -131,8 +150,13 @@ public final class LightOverlayState {
         }
     }
 
+    static List<MarkerColumn> markerColumns() {
+        return markerColumns;
+    }
     public static List<Marker> markers() {
-        return markers;
+        List<Marker> result = new ArrayList<>();
+        for (MarkerColumn column : markerColumns) result.addAll(column.markers());
+        return Collections.unmodifiableList(result);
     }
 
     public static void tick(Minecraft minecraft) {
@@ -146,108 +170,292 @@ public final class LightOverlayState {
         }
 
         BlockPos playerPos = minecraft.thePlayer.getPosition();
-        if (scanCenter == null) {
-            beginScan(playerPos);
-        }
-        int scanVolume = scanVolume();
-        if (scanIndex >= scanVolume) {
-            ticksSinceCompleted++;
-            if (ticksSinceCompleted >= AutoTorchRules.lightOverlayRefreshIntervalTicks(scanRange)
-                    || movedOutsideRefreshArea(playerPos, scanCenter)) {
-                beginScan(playerPos);
-                scanVolume = scanVolume();
-            } else {
-                return;
-            }
+        boolean visibleAreaChanged = updateVisibleArea(playerPos);
+        if (--ticksUntilVerification <= 0) {
+            enqueueVisibleColumns(verificationColumns);
+            ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
         }
 
-        int end = Math.min(scanVolume, scanIndex + SCAN_BUDGET_PER_TICK);
-        BlockPos.MutableBlockPos feet = new BlockPos.MutableBlockPos();
-        while (scanIndex < end) {
-            setPositionForIndex(feet, scanCenter, scanIndex++);
-            Marker marker = markerAt(currentLevel, feet);
-            if (marker != null) {
-                workingMarkers.add(marker);
-            }
+        Set<Long> activeQueue = !urgentColumns.isEmpty() ? urgentColumns
+                : !lightUpdateColumns.isEmpty() ? lightUpdateColumns
+                : !backgroundColumns.isEmpty() ? backgroundColumns : verificationColumns;
+        boolean cacheChanged = scanQueuedColumns(currentLevel, activeQueue, SCAN_BUDGET_PER_TICK);
+        if (visibleAreaChanged || cacheChanged) {
+            publishVisibleMarkers();
         }
-        if (scanIndex >= scanVolume) {
-            markers = Collections.unmodifiableList(new ArrayList<>(workingMarkers));
-            ticksSinceCompleted = 0;
-        }
-    }
-
-    private static void beginScan(BlockPos center) {
-        scanCenter = center.getImmutable();
-        scanRange = horizontalRange;
-        scanIndex = 0;
-        ticksSinceCompleted = 0;
-        workingMarkers = new ArrayList<>();
     }
 
     private static void clearScan() {
         scanCenter = null;
-        scanRange = horizontalRange;
-        scanIndex = 0;
-        ticksSinceCompleted = 0;
-        workingMarkers = new ArrayList<>();
-        markers = Collections.emptyList();
+        minY = 0;
+        maxY = 0;
+        ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
+        columnCache.clear();
+        urgentColumns.clear();
+        lightUpdateColumns.clear();
+        backgroundColumns.clear();
+        verificationColumns.clear();
+        markerColumns = Collections.emptyList();
     }
 
-    private static boolean movedOutsideRefreshArea(BlockPos playerPos, BlockPos center) {
-        return Math.abs(playerPos.getX() - center.getX()) >= 4
-                || Math.abs(playerPos.getY() - center.getY()) >= 4
-                || Math.abs(playerPos.getZ() - center.getZ()) >= 4;
-    }
-
-    private static void setPositionForIndex(BlockPos.MutableBlockPos pos, BlockPos center, int index) {
-        int diameter = scanRange * 2 + 1;
-        int xOffset = index % diameter - scanRange;
-        index /= diameter;
-        int zOffset = index % diameter - scanRange;
-        int yOffset = index / diameter - DOWN_RANGE;
-        pos.set(center.getX() + xOffset, center.getY() + yOffset, center.getZ() + zOffset);
-    }
-
-    private static int scanVolume() {
-        int diameter = scanRange * 2 + 1;
-        return diameter * diameter * HEIGHT;
-    }
-
-    private static Marker markerAt(World level, BlockPos feet) {
-        if (!level.isBlockLoaded(feet)) {
-            return null;
-        }
-        // 1.8.9 没有溺尸；保留配置字段以兼容已有客户端配置，但不生成溺尸标记。
-        if (level.getBlockState(feet).getBlock().getMaterial().isLiquid()
-                || level.getBlockState(feet.up()).getBlock().getMaterial().isLiquid()) {
-            return null;
+    private static boolean updateVisibleArea(BlockPos playerPos) {
+        boolean verticalChanged = scanCenter == null
+                || Math.abs(playerPos.getY() - scanCenter.getY()) >= 4;
+        boolean centerChanged = scanCenter == null
+                || scanCenter.getX() != playerPos.getX()
+                || scanCenter.getZ() != playerPos.getZ()
+                || verticalChanged;
+        if (!verticalChanged && !centerChanged) {
+            return false;
         }
 
-        IBlockState feetState = level.getBlockState(feet);
-        IBlockState headState = level.getBlockState(feet.up());
-        if (feetState.getBlock().getCollisionBoundingBox(level, feet, feetState) != null
-                || headState.getBlock().getCollisionBoundingBox(level, feet.up(), headState) != null) {
+        int centerY = verticalChanged ? playerPos.getY() : scanCenter.getY();
+        scanCenter = new BlockPos(playerPos.getX(), centerY, playerPos.getZ());
+        minY = centerY - DOWN_RANGE;
+        maxY = centerY + UP_RANGE;
+        pruneDistantColumns();
+        enqueueVisibleColumns(backgroundColumns);
+        return true;
+    }
+
+    private static void enqueueVisibleColumns(Set<Long> destination) {
+        if (scanCenter == null) {
+            return;
+        }
+        // 从玩家附近向外加入队列，使首次开启和移动后的近处标记最先出现。
+        int centerX = scanCenter.getX();
+        int centerZ = scanCenter.getZ();
+        for (int radius = 0; radius <= horizontalRange; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                enqueueColumn(destination, centerX + dx, centerZ - radius);
+                if (radius != 0) {
+                    enqueueColumn(destination, centerX + dx, centerZ + radius);
+                }
+            }
+            for (int dz = -radius + 1; dz < radius; dz++) {
+                enqueueColumn(destination, centerX - radius, centerZ + dz);
+                enqueueColumn(destination, centerX + radius, centerZ + dz);
+            }
+        }
+    }
+
+    private static void enqueueColumn(Set<Long> destination, int x, int z) {
+        long key = columnKey(x, z);
+        if (destination == urgentColumns) {
+            backgroundColumns.remove(key);
+            verificationColumns.remove(key);
+        }
+        MarkerColumn cached = columnCache.get(key);
+        if (cached == null || cached.minY() != minY
+                || destination == verificationColumns || destination == urgentColumns) {
+            destination.add(key);
+        }
+    }
+
+    private static boolean scanQueuedColumns(World currentLevel, Set<Long> queue, int budget) {
+        int columnsRemaining = Math.max(1, budget / HEIGHT);
+        boolean changed = false;
+        Iterator<Long> iterator = queue.iterator();
+        while (iterator.hasNext() && columnsRemaining-- > 0) {
+            long key = iterator.next();
+            if (!isVisibleColumn(key)) {
+                iterator.remove();
+                continue;
+            }
+            iterator.remove();
+            urgentColumns.remove(key);
+            lightUpdateColumns.remove(key);
+            backgroundColumns.remove(key);
+            verificationColumns.remove(key);
+            List<Marker> updatedMarkers = scanColumn(currentLevel, columnX(key), columnZ(key));
+            MarkerColumn previous = columnCache.get(key);
+            if (previous == null || previous.minY() != minY || !previous.markers().equals(updatedMarkers)) {
+                columnCache.put(key, new MarkerColumn(key, minY, updatedMarkers));
+                changed = true;
+            }
+            // 方块变更通知可能早于原版光照引擎完成传播；下一 tick 再复核一次，避免缓存瞬时的 0 光照。
+            if (queue == urgentColumns) {
+                lightUpdateColumns.add(key);
+            }
+        }
+        return changed;
+    }
+
+    private static List<Marker> scanColumn(World currentLevel, int x, int z) {
+        if (!currentLevel.isBlockLoaded(new BlockPos(x, minY, z))) return Collections.emptyList();
+        List<Marker> columnMarkers = new ArrayList<>();
+        BlockPos.MutableBlockPos floor = new BlockPos.MutableBlockPos(x, minY - 1, z);
+        BlockPos.MutableBlockPos feet = new BlockPos.MutableBlockPos(x, minY, z);
+        BlockPos.MutableBlockPos head = new BlockPos.MutableBlockPos(x, minY + 1, z);
+        IBlockState floorState = currentLevel.getBlockState(floor);
+        IBlockState feetState = currentLevel.getBlockState(feet);
+        IBlockState headState = currentLevel.getBlockState(head);
+        for (int y = minY; y <= maxY; y++) {
+            floor.setY(y - 1);
+            feet.setY(y);
+            head.setY(y + 1);
+            Marker marker = markerAt(currentLevel, floor, feet, head, floorState, feetState, headState);
+            if (marker != null) {
+                columnMarkers.add(marker);
+            }
+            floorState = feetState;
+            feetState = headState;
+            head.setY(y + 2);
+            headState = currentLevel.getBlockState(head);
+        }
+        return Collections.unmodifiableList(columnMarkers);
+    }
+
+    private static void publishVisibleMarkers() {
+        List<MarkerColumn> visibleColumns = new ArrayList<>();
+        for (Map.Entry<Long, MarkerColumn> entry : columnCache.entrySet()) {
+            if (isVisibleColumn(entry.getKey())) {
+                visibleColumns.add(entry.getValue());
+            }
+        }
+        markerColumns = Collections.unmodifiableList(visibleColumns);
+    }
+
+    private static boolean isVisibleColumn(long key) {
+        return scanCenter != null
+                && Math.abs(columnX(key) - scanCenter.getX()) <= horizontalRange
+                && Math.abs(columnZ(key) - scanCenter.getZ()) <= horizontalRange;
+    }
+
+    private static void pruneDistantColumns() {
+        int retainedRange = horizontalRange + CACHE_MARGIN;
+        columnCache.keySet().removeIf(key -> Math.abs(columnX(key) - scanCenter.getX()) > retainedRange
+                || Math.abs(columnZ(key) - scanCenter.getZ()) > retainedRange);
+        urgentColumns.removeIf(key -> !isVisibleColumn(key));
+        lightUpdateColumns.removeIf(key -> !isVisibleColumn(key));
+        backgroundColumns.removeIf(key -> !isVisibleColumn(key));
+        verificationColumns.removeIf(key -> !isVisibleColumn(key));
+    }
+
+    /** 方块形状变化后刷新其碰撞影响位置以及方块光最多可传播到的列。 */
+    public static void markBlockDirty(World sourceLevel, BlockPos pos) {
+        if (!enabled || sourceLevel != level || !intersectsVerticalRange(pos.getY() - LIGHT_CHANGE_RADIUS,
+                pos.getY() + LIGHT_CHANGE_RADIUS)) {
+            return;
+        }
+        enqueueUrgentRange(pos.getX() - LIGHT_CHANGE_RADIUS, pos.getZ() - LIGHT_CHANGE_RADIUS,
+                pos.getX() + LIGHT_CHANGE_RADIUS, pos.getZ() + LIGHT_CHANGE_RADIUS);
+    }
+
+    /** 客户端收到一节光照数据后，只重扫该节覆盖的可见列。 */
+    public static void markSectionDirty(World sourceLevel, int sectionX, int sectionY, int sectionZ) {
+        int sectionMinY = sectionY << 4;
+        if (!enabled || sourceLevel != level || !intersectsVerticalRange(sectionMinY - 2, sectionMinY + 17)) {
+            return;
+        }
+        enqueueUrgentRange(sectionX << 4, sectionZ << 4,
+                (sectionX << 4) + 15, (sectionZ << 4) + 15);
+    }
+
+    /** 区块载入或批量更新时刷新与当前显示区域相交的节范围。 */
+    public static void markSectionRangeDirty(
+            World sourceLevel, int minSectionX, int minSectionY, int minSectionZ,
+            int maxSectionX, int maxSectionY, int maxSectionZ
+    ) {
+        if (!enabled || sourceLevel != level
+                || !intersectsVerticalRange((minSectionY << 4) - 2, (maxSectionY << 4) + 17)) {
+            return;
+        }
+        enqueueUrgentRange(minSectionX << 4, minSectionZ << 4,
+                (maxSectionX << 4) + 15, (maxSectionZ << 4) + 15);
+    }
+
+    private static void enqueueUrgentRange(int minX, int minZ, int maxX, int maxZ) {
+        if (scanCenter == null) {
+            return;
+        }
+        int visibleMinX = scanCenter.getX() - horizontalRange;
+        int visibleMaxX = scanCenter.getX() + horizontalRange;
+        int visibleMinZ = scanCenter.getZ() - horizontalRange;
+        int visibleMaxZ = scanCenter.getZ() + horizontalRange;
+        minX = Math.max(minX, visibleMinX);
+        maxX = Math.min(maxX, visibleMaxX);
+        minZ = Math.max(minZ, visibleMinZ);
+        maxZ = Math.min(maxZ, visibleMaxZ);
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                long key = columnKey(x, z);
+                backgroundColumns.remove(key);
+                lightUpdateColumns.remove(key);
+                verificationColumns.remove(key);
+                urgentColumns.add(key);
+            }
+        }
+    }
+
+    private static boolean intersectsVerticalRange(int changedMinY, int changedMaxY) {
+        return scanCenter != null && changedMinY <= maxY && changedMaxY >= minY;
+    }
+
+    private static long columnKey(int x, int z) {
+        return (long) x << 32 | z & 0xFFFFFFFFL;
+    }
+
+    private static int columnX(long key) {
+        return (int) (key >> 32);
+    }
+
+    private static int columnZ(long key) {
+        return (int) key;
+    }
+
+    private static Marker markerAt(
+            World level, BlockPos floorPos, BlockPos feet, BlockPos head,
+            IBlockState floor, IBlockState feetState, IBlockState headState
+    ) {
+        if (drownedDetectionEnabled
+                && isDrownedRisk(level, feet, head, floor, feetState, headState)) {
+            return marker(level, feet, RiskType.DROWNED);
+        }
+        if (feetState.getMaterial().isLiquid() || headState.getMaterial().isLiquid()) {
             return null;
         }
 
-        BlockPos floorPos = feet.down();
-        IBlockState floor = level.getBlockState(floorPos);
-        if (floor.getBlock() instanceof BlockLeaves
-                || !floor.getBlock().isSideSolid(level, floorPos, EnumFacing.UP)) {
+        if (feetState.getCollisionBoundingBox(level, feet) != net.minecraft.block.Block.NULL_AABB
+                || headState.getCollisionBoundingBox(level, head) != net.minecraft.block.Block.NULL_AABB) {
+            return null;
+        }
+
+        if (floor.getBlock() instanceof BlockLeaves || !floor.isSideSolid(level, floorPos, EnumFacing.UP)) {
             return null;
         }
         int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, feet);
+        RiskType riskType = blockLight > 0 && isSwampSlimeRisk(level, feet, blockLight)
+                ? RiskType.SWAMP_SLIME : RiskType.NORMAL;
         return new Marker(
-                feet.getImmutable(),
+                feet.toImmutable(),
                 blockLight,
                 level.getLightFor(EnumSkyBlock.SKY, feet),
-                RiskType.NORMAL
+                riskType
         );
+    }
+
+    private static boolean isSwampSlimeRisk(World level, BlockPos feet, int blockLight) { return false; }
+
+    private static boolean isDrownedRisk(
+            World level, BlockPos feet, BlockPos head,
+            IBlockState floorState, IBlockState feetState, IBlockState headState
+    ) {
+        // 每个连续且可生成怪物的水柱中，仅保留最高的完全有效位置。
+        return isDrownedSpawnPosition(level, feet, floorState, feetState)
+                && !isDrownedSpawnPosition(level, head, feetState, headState);
+    }
+
+    private static boolean isDrownedSpawnPosition(
+            World level, BlockPos pos, IBlockState belowState, IBlockState state
+    ) {
+        return false;
+
     }
 
     private static Marker marker(World level, BlockPos pos, RiskType riskType) {
         return new Marker(
-                pos.getImmutable(),
+                pos.toImmutable(),
                 level.getLightFor(EnumSkyBlock.BLOCK, pos),
                 level.getLightFor(EnumSkyBlock.SKY, pos),
                 riskType
@@ -261,27 +469,14 @@ public final class LightOverlayState {
 
     public enum RiskType {
         NORMAL,
+        SWAMP_SLIME,
         DROWNED
     }
 
     public static final class Marker {
-        private final BlockPos pos;
-        private final int blockLight;
-        private final int skyLight;
-        private final RiskType riskType;
-
-        public Marker(BlockPos pos, int blockLight, int skyLight, RiskType riskType) {
-            this.pos = pos;
-            this.blockLight = blockLight;
-            this.skyLight = skyLight;
-            this.riskType = riskType;
-        }
-
-        public BlockPos pos() { return pos; }
-        public int blockLight() { return blockLight; }
-        public int skyLight() { return skyLight; }
-        public RiskType riskType() { return riskType; }
-
+        private final BlockPos pos; private final int blockLight; private final int skyLight; private final RiskType riskType;
+        public Marker(BlockPos pos, int blockLight, int skyLight, RiskType riskType) { this.pos=pos; this.blockLight=blockLight; this.skyLight=skyLight; this.riskType=riskType; }
+        public BlockPos pos() { return pos; } public int blockLight() { return blockLight; } public int skyLight() { return skyLight; } public RiskType riskType() { return riskType; }
         public boolean nightOnly() {
             return blockLight == 0 && skyLight > 0;
         }
@@ -289,5 +484,11 @@ public final class LightOverlayState {
         public boolean isRisk() {
             return blockLight == 0 || riskType != RiskType.NORMAL;
         }
+    }
+
+    static final class MarkerColumn {
+        private final long key; private final int minY; private final List<Marker> markers;
+        MarkerColumn(long key, int minY, List<Marker> markers) { this.key=key; this.minY=minY; this.markers=markers; }
+        long key() { return key; } int minY() { return minY; } List<Marker> markers() { return markers; }
     }
 }

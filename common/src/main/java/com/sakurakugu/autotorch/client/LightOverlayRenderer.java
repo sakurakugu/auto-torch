@@ -1,6 +1,6 @@
 package com.sakurakugu.autotorch.client;
 
-import net.minecraft.client.renderer.WorldRenderer;
+import net.minecraft.client.renderer.VertexBuffer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.Tessellator;
 import java.util.Arrays;
@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.Vec3;
+import net.minecraft.util.math.Vec3d;
 import org.lwjgl.opengl.GL11;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或七段数字。 */
@@ -46,12 +46,12 @@ public final class LightOverlayRenderer {
         renderData = buildRenderData(markers, displayMode);
     }
 
-    public static void render(Vec3 camera) {
+    public static void render(Vec3d camera) {
         renderGeometry(camera, renderData, false);
     }
 
     private static void renderFiltered(
-            Vec3 camera,
+            Vec3d camera,
             Predicate<LightOverlayState.Marker> filter
     ) {
         RenderData current = renderData;
@@ -62,15 +62,15 @@ public final class LightOverlayRenderer {
     }
 
     public static void renderWaterVisible(
-            Vec3 camera, Predicate<Vec3> isVisibleTarget
+            Vec3d camera, Predicate<Vec3d> isVisibleTarget
     ) {
         renderFiltered(camera,
                 marker -> marker.riskType() == LightOverlayState.RiskType.DROWNED
                         && isVisibleTarget.test(markerTarget(marker)));
     }
 
-    private static Vec3 markerTarget(LightOverlayState.Marker marker) {
-        return new Vec3(
+    private static Vec3d markerTarget(LightOverlayState.Marker marker) {
+        return new Vec3d(
                 marker.pos().getX() + 0.5D,
                 marker.pos().getY() + SURFACE_OFFSET,
                 marker.pos().getZ() + 0.5D
@@ -112,7 +112,7 @@ public final class LightOverlayRenderer {
         GlStateManager.enableTexture();
     }
 
-    private static void renderGeometry(Vec3 camera, RenderData data, boolean waterVisible) {
+    private static void renderGeometry(Vec3d camera, RenderData data, boolean waterVisible) {
         if (data == null || data.lineCount() == 0 || Minecraft.getMinecraft().theWorld == null) {
             return;
         }
@@ -122,7 +122,7 @@ public final class LightOverlayRenderer {
             setupLineRenderState(data.displayMode());
         }
         Tessellator tesselator = Tessellator.getInstance();
-        WorldRenderer builder = tesselator.getWorldRenderer();
+        VertexBuffer builder = tesselator.getBuffer();
         builder.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
         builder.setTranslation(-camera.xCoord, -camera.yCoord, -camera.zCoord);
         submitLines(Pose.INSTANCE, new VertexConsumer(builder), data);
@@ -346,9 +346,9 @@ public final class LightOverlayRenderer {
     }
 
     private static final class VertexConsumer {
-        private final WorldRenderer builder;
+        private final VertexBuffer builder;
 
-        private VertexConsumer(WorldRenderer builder) {
+        private VertexConsumer(VertexBuffer builder) {
             this.builder = builder;
         }
 
