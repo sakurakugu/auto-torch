@@ -5,6 +5,7 @@ import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import net.minecraft.client.Minecraft;
@@ -84,9 +85,13 @@ final class AutoTorchForgeClient {
 
     private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
         boolean start = selectionClickPos == null || !selectionClickPos.equals(event.getPos());
-        if (event.getEntity().world instanceof WorldClient
-                && client.onLeftClick((WorldClient) event.getEntity().world, event.getItemStack(), event.getPos(),
-                start)) {
+        if (event.getEntity().world instanceof WorldClient) {
+            // Forge 破坏方块路径不一定触发客户端世界的方块 dirty 通知，提前标记以便渲染阶段复核。
+            LightOverlayState.markBlockDirty((WorldClient) event.getEntity().world, event.getPos());
+            if (!client.onLeftClick((WorldClient) event.getEntity().world, event.getItemStack(), event.getPos(),
+                    start)) {
+                return;
+            }
             // 1.18.2 及其以下的事件没有 START 阶段，取消破坏后还会在长按期间重复触发。
             selectionClickPos = event.getPos().toImmutable();
             event.setCanceled(true);
@@ -105,6 +110,8 @@ final class AutoTorchForgeClient {
     private void onRender(RenderWorldLastEvent event) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.world == null) return;
+        // Forge 客户端 tick 可能早于原版光照传播，在渲染阶段再次复核已完成的更新。
+        LightOverlayState.tick(minecraft);
         Entity viewEntity = minecraft.getRenderViewEntity();
         if (viewEntity == null) return;
         double partialTicks = event.getPartialTicks();
