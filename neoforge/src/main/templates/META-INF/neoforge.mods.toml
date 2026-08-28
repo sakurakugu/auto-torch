@@ -47,8 +47,8 @@ Scans a selected underground area in small server-side batches and places sparse
 '''
 
 # [[mixins]] 块用于向 FML 声明要加载的 Mixin 配置。
-#[[mixins]]
-#config="${mod_id}.mixins.json"
+[[mixins]]
+config="autotorch.client.mixins.json"
 
 # [[accessTransformers]] 块用于声明 AT 文件的位置。
 # 如果省略此块，系统会尝试从 META-INF/accesstransformer.cfg 加载 AT 作为后备方案。
