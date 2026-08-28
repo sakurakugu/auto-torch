@@ -101,9 +101,9 @@ class AreaZoneIndexTest {
                 nextInt(random, -200, 201), nextInt(random, -60, 61), nextInt(random, -200, 201));
         BlockPos second;
         if (shape == AreaShape.SPHERE) {
-            second = first.offset(nextInt(random, 1, 81), nextInt(random, -20, 21), nextInt(random, -20, 21));
+            second = first.add(nextInt(random, 1, 81), nextInt(random, -20, 21), nextInt(random, -20, 21));
         } else {
-            second = first.offset(nextInt(random, -80, 81), nextInt(random, -40, 41), nextInt(random, -80, 81));
+            second = first.add(nextInt(random, -80, 81), nextInt(random, -40, 41), nextInt(random, -80, 81));
         }
         return new AreaZone(shape, first, second);
     }
