@@ -158,6 +158,14 @@ public final class LightOverlayState {
         return markerColumns;
     }
 
+    public static List<Marker> markers() {
+        List<Marker> result = new ArrayList<>();
+        for (MarkerColumn column : markerColumns) {
+            result.addAll(column.markers());
+        }
+        return Collections.unmodifiableList(result);
+    }
+
     public static void tick(Minecraft minecraft) {
         World currentLevel = minecraft.world;
         if (currentLevel != level) {
@@ -168,7 +176,7 @@ public final class LightOverlayState {
             return;
         }
 
-        BlockPos playerPos = minecraft.player.blockPosition();
+        BlockPos playerPos = minecraft.player.getPosition();
         boolean visibleAreaChanged = updateVisibleArea(playerPos);
         if (--ticksUntilVerification <= 0) {
             enqueueVisibleColumns(verificationColumns);
