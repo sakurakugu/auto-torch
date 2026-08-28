@@ -12,6 +12,9 @@ description='''
 Automatic nearby and selected-area torch placement.
 '''
 
+[[mixins]]
+config="autotorch.client.mixins.json"
+
 [[dependencies.${mod_id}]]
     modId="forge"
     mandatory=true
