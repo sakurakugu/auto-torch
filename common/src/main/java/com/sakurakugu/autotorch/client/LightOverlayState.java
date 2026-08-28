@@ -12,7 +12,7 @@ import java.util.Set;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.block.BlockLeaves;
@@ -284,24 +284,17 @@ public final class LightOverlayState {
     private static List<Marker> scanColumn(World currentLevel, int x, int z) {
         if (!currentLevel.isBlockLoaded(new BlockPos(x, minY, z))) return Collections.emptyList();
         List<Marker> columnMarkers = new ArrayList<>();
-        BlockPos.MutableBlockPos floor = new BlockPos.MutableBlockPos(x, minY - 1, z);
-        BlockPos.MutableBlockPos feet = new BlockPos.MutableBlockPos(x, minY, z);
-        BlockPos.MutableBlockPos head = new BlockPos.MutableBlockPos(x, minY + 1, z);
-        IBlockState floorState = currentLevel.getBlockState(floor);
-        IBlockState feetState = currentLevel.getBlockState(feet);
-        IBlockState headState = currentLevel.getBlockState(head);
         for (int y = minY; y <= maxY; y++) {
-            floor.setY(y - 1);
-            feet.setY(y);
-            head.setY(y + 1);
+            BlockPos floor = new BlockPos(x, y - 1, z);
+            BlockPos feet = new BlockPos(x, y, z);
+            BlockPos head = new BlockPos(x, y + 1, z);
+            IBlockState floorState = currentLevel.getBlockState(floor);
+            IBlockState feetState = currentLevel.getBlockState(feet);
+            IBlockState headState = currentLevel.getBlockState(head);
             Marker marker = markerAt(currentLevel, floor, feet, head, floorState, feetState, headState);
             if (marker != null) {
                 columnMarkers.add(marker);
             }
-            floorState = feetState;
-            feetState = headState;
-            head.setY(y + 2);
-            headState = currentLevel.getBlockState(head);
         }
         return Collections.unmodifiableList(columnMarkers);
     }
@@ -412,23 +405,23 @@ public final class LightOverlayState {
                 && isDrownedRisk(level, feet, head, floor, feetState, headState)) {
             return marker(level, feet, RiskType.DROWNED);
         }
-        if (feetState.getMaterial().isLiquid() || headState.getMaterial().isLiquid()) {
+        if (feetState.getBlock().getMaterial().isLiquid() || headState.getBlock().getMaterial().isLiquid()) {
             return null;
         }
 
-        if (feetState.getCollisionBoundingBox(level, feet) != net.minecraft.block.Block.NULL_AABB
-                || headState.getCollisionBoundingBox(level, head) != net.minecraft.block.Block.NULL_AABB) {
+        if (feetState.getBlock().getCollisionBoundingBox(level, feet, feetState) != null
+                || headState.getBlock().getCollisionBoundingBox(level, head, headState) != null) {
             return null;
         }
 
-        if (floor.getBlock() instanceof BlockLeaves || !floor.isSideSolid(level, floorPos, EnumFacing.UP)) {
+        if (floor.getBlock() instanceof BlockLeaves || !floor.getBlock().isSideSolid(level, floorPos, EnumFacing.UP)) {
             return null;
         }
         int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, feet);
         RiskType riskType = blockLight > 0 && isSwampSlimeRisk(level, feet, blockLight)
                 ? RiskType.SWAMP_SLIME : RiskType.NORMAL;
         return new Marker(
-                feet.toImmutable(),
+                feet.getImmutable(),
                 blockLight,
                 level.getLightFor(EnumSkyBlock.SKY, feet),
                 riskType
@@ -455,7 +448,7 @@ public final class LightOverlayState {
 
     private static Marker marker(World level, BlockPos pos, RiskType riskType) {
         return new Marker(
-                pos.toImmutable(),
+                pos.getImmutable(),
                 level.getLightFor(EnumSkyBlock.BLOCK, pos),
                 level.getLightFor(EnumSkyBlock.SKY, pos),
                 riskType
