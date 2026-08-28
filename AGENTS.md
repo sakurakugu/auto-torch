@@ -19,3 +19,4 @@ Auto Torch 是一个面向 Minecraft 的自动插火把与光照显示模组，�
 1. Java 找不到就在 C:\Software\Deps\Java\
 2. 注释用中文
 3. Gradle 首次编译或解析依赖可能耗时较长，执行编译命令时超时时间至少设置为 120 秒
+4. 如果需要 worktrees，放到 `../worktrees` 下，不需要的话，就在当前分支切换即可。

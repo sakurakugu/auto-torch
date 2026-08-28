@@ -2,8 +2,11 @@ package com.sakurakugu.autotorch.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -28,22 +31,23 @@ public final class LightOverlayRenderer {
             0b0111111, 0b0000110, 0b1011011, 0b1001111, 0b1100110,
             0b1101101, 0b1111101, 0b0000111, 0b1111111, 0b1101111
     };
-    private static final List<LightOverlayState.Marker> NO_MARKERS = List.of();
+    private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
+    private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
 
     private LightOverlayRenderer() {
     }
 
     public static void extract() {
-        List<LightOverlayState.Marker> markers = LightOverlayState.isEnabled()
-                ? LightOverlayState.markers() : NO_MARKERS;
+        List<LightOverlayState.MarkerColumn> columns = LightOverlayState.isEnabled()
+                ? LightOverlayState.markerColumns() : NO_COLUMNS;
         LightOverlayState.DisplayMode displayMode = LightOverlayState.displayMode();
         RenderData current = renderData;
-        // 扫描完成时状态会发布新的不可变列表，因此列表身份就是无需遍历的版本标记。
-        if (current != null && current.sourceMarkers() == markers && current.displayMode() == displayMode) {
+        // 状态发布新的不可变列列表，因此列表身份就是无需遍历的版本标记。
+        if (current != null && current.sourceColumns() == columns && current.displayMode() == displayMode) {
             return;
         }
-        renderData = buildRenderData(markers, displayMode);
+        renderData = buildRenderData(columns, displayMode);
     }
 
     public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
@@ -69,6 +73,27 @@ public final class LightOverlayRenderer {
     }
 
     private static RenderData buildRenderData(
+            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
+    ) {
+        Map<Long, ColumnRenderData> previousGeometry = columnGeometry;
+        Map<Long, ColumnRenderData> nextGeometry = new HashMap<>(columns.size());
+        List<ColumnRenderData> visibleGeometry = new ArrayList<>(columns.size());
+        int totalLines = 0;
+        for (LightOverlayState.MarkerColumn column : columns) {
+            ColumnRenderData geometry = previousGeometry.get(column.key());
+            if (geometry == null || geometry.sourceMarkers() != column.markers()
+                    || geometry.displayMode() != displayMode) {
+                geometry = buildColumnRenderData(column.markers(), displayMode);
+            }
+            nextGeometry.put(column.key(), geometry);
+            visibleGeometry.add(geometry);
+            totalLines += geometry.lineCount();
+        }
+        columnGeometry = nextGeometry;
+        return new RenderData(columns, displayMode, List.copyOf(visibleGeometry), totalLines);
+    }
+
+    private static ColumnRenderData buildColumnRenderData(
             List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
     ) {
         GeometryBuilder geometry = new GeometryBuilder(markers.size());
@@ -143,15 +168,17 @@ public final class LightOverlayRenderer {
     }
 
     private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data) {
-        float[] coordinates = data.coordinates();
-        int[] colors = data.colors();
         float lineWidth = data.displayMode() == LightOverlayState.DisplayMode.NUMBERS
                 ? DIGIT_LINE_WIDTH : CROSS_LINE_WIDTH;
-        for (int line = 0, offset = 0; line < data.lineCount(); line++, offset += 6) {
-            line(pose, buffer,
-                    coordinates[offset], coordinates[offset + 1], coordinates[offset + 2],
-                    coordinates[offset + 3], coordinates[offset + 4], coordinates[offset + 5],
-                    colors[line], lineWidth);
+        for (ColumnRenderData column : data.columns()) {
+            float[] coordinates = column.coordinates();
+            int[] colors = column.colors();
+            for (int line = 0, offset = 0; line < column.lineCount(); line++, offset += 6) {
+                line(pose, buffer,
+                        coordinates[offset], coordinates[offset + 1], coordinates[offset + 2],
+                        coordinates[offset + 3], coordinates[offset + 4], coordinates[offset + 5],
+                        colors[line], lineWidth);
+            }
         }
     }
 
@@ -169,6 +196,12 @@ public final class LightOverlayRenderer {
     }
 
     private record RenderData(
+            List<LightOverlayState.MarkerColumn> sourceColumns, LightOverlayState.DisplayMode displayMode,
+            List<ColumnRenderData> columns, int lineCount
+    ) {
+    }
+
+    private record ColumnRenderData(
             List<LightOverlayState.Marker> sourceMarkers, LightOverlayState.DisplayMode displayMode,
             float[] coordinates, int[] colors, int lineCount
     ) {
@@ -207,10 +240,10 @@ public final class LightOverlayRenderer {
             colors = Arrays.copyOf(colors, newLength);
         }
 
-        private RenderData build(
+        private ColumnRenderData build(
                 List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
         ) {
-            return new RenderData(
+            return new ColumnRenderData(
                     markers,
                     displayMode,
                     Arrays.copyOf(coordinates, lineCount * 6),
