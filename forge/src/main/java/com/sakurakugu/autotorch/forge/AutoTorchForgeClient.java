@@ -5,6 +5,7 @@ import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import net.minecraft.client.Minecraft;
@@ -84,12 +85,13 @@ final class AutoTorchForgeClient {
 
     private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
         boolean start = selectionClickPos == null || !selectionClickPos.equals(event.getPos());
-        if (event.getEntity().level instanceof ClientWorld
-                && client.onLeftClick((ClientWorld) event.getEntity().level, event.getItemStack(), event.getPos(),
-                start)) {
-            // 1.18.2 及其以下的事件没有 START 阶段，取消破坏后还会在长按期间重复触发。
-            selectionClickPos = event.getPos().immutable();
-            event.setCanceled(true);
+        if (event.getEntity().level instanceof ClientWorld clientWorld) {
+            LightOverlayState.markBlockDirty(clientWorld, event.getPos());
+            if (client.onLeftClick(clientWorld, event.getItemStack(), event.getPos(), start)) {
+                // 1.18.2 及其以下的事件没有 START 阶段，取消破坏后还会在长按期间重复触发。
+                selectionClickPos = event.getPos().immutable();
+                event.setCanceled(true);
+            }
         }
     }
 
