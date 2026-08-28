@@ -12,11 +12,9 @@ import java.util.Set;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
-import net.minecraft.util.BlockPos;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.world.EnumSkyBlock;
+import com.sakurakugu.autotorch.compat.BlockPos;
+import com.sakurakugu.autotorch.compat.WorldAccess;
 import net.minecraft.block.BlockLeaves;
-import net.minecraft.block.state.IBlockState;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
@@ -169,7 +167,7 @@ public final class LightOverlayState {
             return;
         }
 
-        BlockPos playerPos = minecraft.thePlayer.getPosition();
+        BlockPos playerPos = new BlockPos(minecraft.thePlayer);
         boolean visibleAreaChanged = updateVisibleArea(playerPos);
         if (--ticksUntilVerification <= 0) {
             enqueueVisibleColumns(verificationColumns);
@@ -282,16 +280,13 @@ public final class LightOverlayState {
     }
 
     private static List<Marker> scanColumn(World currentLevel, int x, int z) {
-        if (!currentLevel.isBlockLoaded(new BlockPos(x, minY, z))) return Collections.emptyList();
+        if (!WorldAccess.exists(currentLevel, new BlockPos(x, minY, z))) return Collections.emptyList();
         List<Marker> columnMarkers = new ArrayList<>();
         for (int y = minY; y <= maxY; y++) {
             BlockPos floor = new BlockPos(x, y - 1, z);
             BlockPos feet = new BlockPos(x, y, z);
             BlockPos head = new BlockPos(x, y + 1, z);
-            IBlockState floorState = currentLevel.getBlockState(floor);
-            IBlockState feetState = currentLevel.getBlockState(feet);
-            IBlockState headState = currentLevel.getBlockState(head);
-            Marker marker = markerAt(currentLevel, floor, feet, head, floorState, feetState, headState);
+            Marker marker = markerAt(currentLevel, floor, feet, head);
             if (marker != null) {
                 columnMarkers.add(marker);
             }
@@ -397,60 +392,45 @@ public final class LightOverlayState {
         return (int) key;
     }
 
-    private static Marker markerAt(
-            World level, BlockPos floorPos, BlockPos feet, BlockPos head,
-            IBlockState floor, IBlockState feetState, IBlockState headState
-    ) {
+    private static Marker markerAt(World level, BlockPos floorPos, BlockPos feet, BlockPos head) {
         if (drownedDetectionEnabled
-                && isDrownedRisk(level, feet, head, floor, feetState, headState)) {
+                && isDrownedRisk(level, feet, head)) {
             return marker(level, feet, RiskType.DROWNED);
         }
-        if (feetState.getBlock().getMaterial().isLiquid() || headState.getBlock().getMaterial().isLiquid()) {
+        if (WorldAccess.block(level, feet).getMaterial().isLiquid() || WorldAccess.block(level, head).getMaterial().isLiquid()) {
             return null;
         }
 
-        if (feetState.getBlock().getCollisionBoundingBox(level, feet, feetState) != null
-                || headState.getBlock().getCollisionBoundingBox(level, head, headState) != null) {
+        if (WorldAccess.block(level, feet).getCollisionBoundingBoxFromPool(level, feet.getX(), feet.getY(), feet.getZ()) != null
+                || WorldAccess.block(level, head).getCollisionBoundingBoxFromPool(level, head.getX(), head.getY(), head.getZ()) != null) {
             return null;
         }
 
-        if (floor.getBlock() instanceof BlockLeaves || !floor.getBlock().isSideSolid(level, floorPos, EnumFacing.UP)) {
+        if (WorldAccess.block(level, floorPos) instanceof BlockLeaves || !WorldAccess.isTopSolid(level, floorPos)) {
             return null;
         }
-        int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, feet);
+        int blockLight = WorldAccess.blockLight(level, feet);
         RiskType riskType = blockLight > 0 && isSwampSlimeRisk(level, feet, blockLight)
                 ? RiskType.SWAMP_SLIME : RiskType.NORMAL;
         return new Marker(
                 feet.getImmutable(),
                 blockLight,
-                level.getLightFor(EnumSkyBlock.SKY, feet),
+                WorldAccess.skyLight(level, feet),
                 riskType
         );
     }
 
     private static boolean isSwampSlimeRisk(World level, BlockPos feet, int blockLight) { return false; }
 
-    private static boolean isDrownedRisk(
-            World level, BlockPos feet, BlockPos head,
-            IBlockState floorState, IBlockState feetState, IBlockState headState
-    ) {
-        // 每个连续且可生成怪物的水柱中，仅保留最高的完全有效位置。
-        return isDrownedSpawnPosition(level, feet, floorState, feetState)
-                && !isDrownedSpawnPosition(level, head, feetState, headState);
-    }
-
-    private static boolean isDrownedSpawnPosition(
-            World level, BlockPos pos, IBlockState belowState, IBlockState state
-    ) {
+    private static boolean isDrownedRisk(World level, BlockPos feet, BlockPos head) {
         return false;
-
     }
 
     private static Marker marker(World level, BlockPos pos, RiskType riskType) {
         return new Marker(
                 pos.getImmutable(),
-                level.getLightFor(EnumSkyBlock.BLOCK, pos),
-                level.getLightFor(EnumSkyBlock.SKY, pos),
+                WorldAccess.blockLight(level, pos),
+                WorldAccess.skyLight(level, pos),
                 riskType
         );
     }

@@ -1,7 +1,5 @@
 package com.sakurakugu.autotorch.client;
 
-import net.minecraft.client.renderer.WorldRenderer;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.Tessellator;
 import java.util.Arrays;
 import java.util.Collections;
@@ -70,7 +68,7 @@ public final class LightOverlayRenderer {
     }
 
     private static Vec3 markerTarget(LightOverlayState.Marker marker) {
-        return new Vec3(
+        return Vec3.createVectorHelper(
                 marker.pos().getX() + 0.5D,
                 marker.pos().getY() + SURFACE_OFFSET,
                 marker.pos().getZ() + 0.5D
@@ -121,13 +119,12 @@ public final class LightOverlayRenderer {
         } else {
             setupLineRenderState(data.displayMode());
         }
-        Tessellator tesselator = Tessellator.getInstance();
-        WorldRenderer builder = tesselator.getWorldRenderer();
-        builder.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
-        builder.setTranslation(-camera.xCoord, -camera.yCoord, -camera.zCoord);
-        submitLines(Pose.INSTANCE, new VertexConsumer(builder), data);
+        Tessellator tesselator = Tessellator.instance;
+        tesselator.startDrawing(GL11.GL_LINES);
+        tesselator.setTranslation(-camera.xCoord, -camera.yCoord, -camera.zCoord);
+        submitLines(Pose.INSTANCE, new VertexConsumer(tesselator), data);
         tesselator.draw();
-        builder.setTranslation(0.0D, 0.0D, 0.0D);
+        tesselator.setTranslation(0.0D, 0.0D, 0.0D);
         if (waterVisible) {
             clearWaterVisibleRenderState();
         } else {
@@ -346,24 +343,37 @@ public final class LightOverlayRenderer {
     }
 
     private static final class VertexConsumer {
-        private final WorldRenderer builder;
+        private final Tessellator builder;
+        private double x;
+        private double y;
+        private double z;
+        private int red;
+        private int green;
+        private int blue;
+        private int alpha;
 
-        private VertexConsumer(WorldRenderer builder) {
+        private VertexConsumer(Tessellator builder) {
             this.builder = builder;
         }
 
         private VertexConsumer vertex(Object ignored, float x, float y, float z) {
-            builder.pos(x, y, z);
+            this.x = x;
+            this.y = y;
+            this.z = z;
             return this;
         }
 
         private VertexConsumer color(int red, int green, int blue, int alpha) {
-            builder.color(red, green, blue, alpha);
+            this.red = red;
+            this.green = green;
+            this.blue = blue;
+            this.alpha = alpha;
             return this;
         }
 
         private void endVertex() {
-            builder.endVertex();
+            builder.setColorRGBA(red, green, blue, alpha);
+            builder.addVertex(x, y, z);
         }
     }
 
