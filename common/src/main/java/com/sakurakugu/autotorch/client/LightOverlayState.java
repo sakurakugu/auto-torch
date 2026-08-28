@@ -160,16 +160,16 @@ public final class LightOverlayState {
     }
 
     public static void tick(Minecraft minecraft) {
-        World currentLevel = minecraft.world;
+        World currentLevel = minecraft.theWorld;
         if (currentLevel != level) {
             level = currentLevel;
             clearScan();
         }
-        if (!enabled || currentLevel == null || minecraft.player == null) {
+        if (!enabled || currentLevel == null || minecraft.thePlayer == null) {
             return;
         }
 
-        BlockPos playerPos = minecraft.player.getPosition();
+        BlockPos playerPos = minecraft.thePlayer.getPosition();
         boolean visibleAreaChanged = updateVisibleArea(playerPos);
         if (--ticksUntilVerification <= 0) {
             enqueueVisibleColumns(verificationColumns);
@@ -404,7 +404,7 @@ public final class LightOverlayState {
         return (int) key;
     }
 
-    private static @Nullable Marker markerAt(
+    private static Marker markerAt(
             World level, BlockPos floorPos, BlockPos feet, BlockPos head,
             IBlockState floor, IBlockState feetState, IBlockState headState
     ) {
@@ -451,12 +451,6 @@ public final class LightOverlayState {
     ) {
         return false;
 
-        boolean drownedInSpawnList = level.getBiome(pos).value().getMobSettings()
-                .getMobs(MobCategory.MONSTER).unwrap().stream()
-                .anyMatch(entry -> entry.value().type() == EntityTypes.DROWNED);
-        return drownedInSpawnList
-                && (level.getBiome(pos).is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
-                || pos.getY() < level.getSeaLevel() - 5);
     }
 
     private static Marker marker(World level, BlockPos pos, RiskType riskType) {
