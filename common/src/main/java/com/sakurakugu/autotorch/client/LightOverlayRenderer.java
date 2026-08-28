@@ -135,7 +135,6 @@ public final class LightOverlayRenderer {
     private static int markerColor(LightOverlayState.Marker marker) {
         return switch (marker.riskType()) {
             case DROWNED -> DROWNED_RISK_COLOR;
-            case SWAMP_SLIME -> ALWAYS_RISK_COLOR;
             case NORMAL -> marker.blockLight() > 0 ? SAFE_COLOR
                     : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
         };
