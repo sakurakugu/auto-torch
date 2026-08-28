@@ -18,6 +18,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.world.EnumLightType;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.block.state.BlockFaceShape;
@@ -33,7 +34,7 @@ public final class LightOverlayState {
     private static final int VERIFICATION_INTERVAL_TICKS = 100;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
-    private static boolean swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
+    private static boolean swampSlimeDetectionEnabled = false;
     private static boolean drownedDetectionEnabled = ClientConfig.detectsDrowned();
     private static DisplayMode displayMode = ClientConfig.showsLightOverlayNumbers()
             ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
@@ -56,7 +57,7 @@ public final class LightOverlayState {
     /** 配置整体替换后同步运行时缓存。 */
     public static void reloadConfig() {
         enabled = ClientConfig.isLightOverlayEnabled();
-        swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
+        swampSlimeDetectionEnabled = false;
         drownedDetectionEnabled = ClientConfig.detectsDrowned();
         displayMode = ClientConfig.showsLightOverlayNumbers() ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
         horizontalRange = ClientConfig.lightOverlayRange();
@@ -101,21 +102,15 @@ public final class LightOverlayState {
     }
 
     public static boolean isSwampSlimeDetectionEnabled() {
-        return swampSlimeDetectionEnabled;
+        return false;
     }
 
     public static boolean toggleSwampSlimeDetection() {
-        setSwampSlimeDetectionEnabled(!swampSlimeDetectionEnabled);
-        return swampSlimeDetectionEnabled;
+        return false;
     }
 
     public static void setSwampSlimeDetectionEnabled(boolean value) {
-        if (swampSlimeDetectionEnabled == value) {
-            return;
-        }
-        swampSlimeDetectionEnabled = value;
-        ClientConfig.setDetectsSwampSlimes(value);
-        clearScan();
+        // 1.17.1 及以下版本无法可靠判断沼泽史莱姆的完整生成条件。
     }
 
     public static boolean isDrownedDetectionEnabled() {
@@ -444,9 +439,6 @@ public final class LightOverlayState {
         );
     }
 
-    private static boolean isSwampSlimeRisk(World level, BlockPos feet, int blockLight) {
-        return false;
-    }
 
     private static boolean isDrownedRisk(
             World level, BlockPos feet, BlockPos head,
@@ -467,9 +459,19 @@ public final class LightOverlayState {
             return false;
         }
 
-        boolean drownedInSpawnList = level.getBiome(pos).getSpawns(EnumCreatureType.MONSTER).stream()
+        Biome biome = level.getBiome(pos);
+        return biomeAllowsDrowned(biome)
+                && (biome.getCategory() == Biome.Category.RIVER
+                || pos.getY() < level.getSeaLevel() - 5);
+    }
+
+    private static boolean biomeAllowsDrowned(Biome biome) {
+        boolean drownedInSpawnList = biome.getSpawns(EnumCreatureType.MONSTER).stream()
                 .anyMatch(entry -> entry.entityType == EntityType.DROWNED);
-        return drownedInSpawnList && pos.getY() < level.getSeaLevel() - 5;
+        // 1.21.11 及以下版本客户端不会可靠同步生物群系生成表，海洋和河流使用原版类别兜底。
+        return drownedInSpawnList
+                || biome.getCategory() == Biome.Category.OCEAN
+                || biome.getCategory() == Biome.Category.RIVER;
     }
 
     private static Marker marker(World level, BlockPos pos, RiskType riskType) {
@@ -488,7 +490,6 @@ public final class LightOverlayState {
 
     public enum RiskType {
         NORMAL,
-        SWAMP_SLIME,
         DROWNED
     }
 
