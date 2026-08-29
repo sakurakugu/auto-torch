@@ -88,7 +88,8 @@ final class AutoTorchForgeClient {
 
     private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
         boolean start = selectionClickPos == null || !selectionClickPos.equals(event.getPos());
-        if (event.getEntity().level instanceof ClientWorld clientWorld) {
+        if (event.getEntity().level instanceof ClientWorld) {
+            ClientWorld clientWorld = (ClientWorld) event.getEntity().level;
             LightOverlayState.markBlockDirty(clientWorld, event.getPos());
             if (client.onLeftClick(clientWorld, event.getItemStack(), event.getPos(), start)) {
                 // 1.18.2 及其以下的事件没有 START 阶段，取消破坏后还会在长按期间重复触发。
@@ -99,11 +100,14 @@ final class AutoTorchForgeClient {
     }
 
     private void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getEntity().level instanceof ClientWorld
-                && client.onRightClick((ClientWorld) event.getEntity().level,
-                event.getHand(), event.getItemStack(), event.getPos())) {
-            event.setCancellationResult(ActionResultType.SUCCESS);
-            event.setCanceled(true);
+        if (event.getEntity().level instanceof ClientWorld) {
+            ClientWorld clientWorld = (ClientWorld) event.getEntity().level;
+            // Forge 放置方块时不总会及时触发客户端世界的方块 dirty 通知，提前标记以便渲染阶段复核。
+            LightOverlayState.markBlockDirty(clientWorld, event.getPos());
+            if (client.onRightClick(clientWorld, event.getHand(), event.getItemStack(), event.getPos())) {
+                event.setCancellationResult(ActionResultType.SUCCESS);
+                event.setCanceled(true);
+            }
         }
     }
 

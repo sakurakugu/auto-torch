@@ -52,7 +52,7 @@ public final class LightOverlayState {
     private static final Set<Long> lightUpdateColumns = new LinkedHashSet<>();
     private static final Set<Long> backgroundColumns = new LinkedHashSet<>();
     private static final Set<Long> verificationColumns = new LinkedHashSet<>();
-    private static List<MarkerColumn> markerColumns = List.of();
+    private static List<MarkerColumn> markerColumns = Collections.emptyList();
 
     private LightOverlayState() {
     }
@@ -200,7 +200,7 @@ public final class LightOverlayState {
         lightUpdateColumns.clear();
         backgroundColumns.clear();
         verificationColumns.clear();
-        markerColumns = List.of();
+        markerColumns = Collections.emptyList();
     }
 
     private static boolean updateVisibleArea(BlockPos playerPos) {
@@ -290,7 +290,7 @@ public final class LightOverlayState {
         int chunkX = SectionPos.blockToSectionCoord(x);
         int chunkZ = SectionPos.blockToSectionCoord(z);
         if (!currentLevel.hasChunk(chunkX, chunkZ)) {
-            return List.of();
+            return Collections.emptyList();
         }
         LevelChunk chunk = currentLevel.getChunk(chunkX, chunkZ);
         List<Marker> columnMarkers = new ArrayList<>();
@@ -313,7 +313,7 @@ public final class LightOverlayState {
             head.setY(y + 2);
             headState = chunk.getBlockState(head);
         }
-        return List.copyOf(columnMarkers);
+        return Collections.unmodifiableList(new ArrayList<>(columnMarkers));
     }
 
     private static void publishVisibleMarkers() {
@@ -323,7 +323,7 @@ public final class LightOverlayState {
                 visibleColumns.add(entry.getValue());
             }
         }
-        markerColumns = List.copyOf(visibleColumns);
+        markerColumns = Collections.unmodifiableList(new ArrayList<>(visibleColumns));
     }
 
     private static boolean isVisibleColumn(long key) {
@@ -499,7 +499,24 @@ public final class LightOverlayState {
         DROWNED
     }
 
-    public record Marker(BlockPos pos, int blockLight, int skyLight, RiskType riskType) {
+    public static final class Marker {
+        private final BlockPos pos;
+        private final int blockLight;
+        private final int skyLight;
+        private final RiskType riskType;
+
+        public Marker(BlockPos pos, int blockLight, int skyLight, RiskType riskType) {
+            this.pos = pos;
+            this.blockLight = blockLight;
+            this.skyLight = skyLight;
+            this.riskType = riskType;
+        }
+
+        public BlockPos pos() { return pos; }
+        public int blockLight() { return blockLight; }
+        public int skyLight() { return skyLight; }
+        public RiskType riskType() { return riskType; }
+
         public boolean nightOnly() {
             return blockLight == 0 && skyLight > 0;
         }
@@ -509,6 +526,19 @@ public final class LightOverlayState {
         }
     }
 
-    record MarkerColumn(long key, int minY, List<Marker> markers) {
+    static final class MarkerColumn {
+        private final long key;
+        private final int minY;
+        private final List<Marker> markers;
+
+        MarkerColumn(long key, int minY, List<Marker> markers) {
+            this.key = key;
+            this.minY = minY;
+            this.markers = markers;
+        }
+
+        long key() { return key; }
+        int minY() { return minY; }
+        List<Marker> markers() { return markers; }
     }
 }

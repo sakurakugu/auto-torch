@@ -16,12 +16,12 @@
     "client": ["com.sakurakugu.autotorch.fabric.AutoTorchFabricClient"]
   },
   "mixins": [
-    "autotorch.client.mixins.json"
+    "autotorch.fabric.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${fabric_loader_version}",
     "minecraft": "~${minecraft_version}",
     "java": ">=8",
-    "fabric-api": "*"
+    "fabric": "*"
   }
 }
