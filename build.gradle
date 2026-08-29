@@ -24,6 +24,8 @@ subprojects {
 
         tasks.withType(JavaCompile).configureEach {
             options.encoding = 'UTF-8'
+            // Forge 1.14.4 的运行时固定使用 JDK 8，产物必须兼容 Java 8 字节码。
+            options.release = 8
             options.compilerArgs.add('-Xlint:deprecation')
         }
 
