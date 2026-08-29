@@ -19,8 +19,6 @@ public final class LightOverlayRenderer {
     private static final int SAFE_COLOR = 0xE050E060;
     private static final int SWAMP_SLIME_RISK_COLOR = 0xE0E050E0;
     private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
-    private static final float CROSS_LINE_WIDTH = 2.5F;
-    private static final float DIGIT_LINE_WIDTH = 4.0F;
     private static final double SURFACE_OFFSET = 0.0125D;
     private static final double CROSS_MARGIN = 0.14D;
     private static final double DIGIT_WIDTH = 0.24D;
@@ -61,8 +59,8 @@ public final class LightOverlayRenderer {
         }
 
         poseStack.pushPose();
-        poseStack.translate(-camera.x(), -camera.y(), -camera.z());
-        sink.submit(poseStack, (pose, buffer) -> submitLines(pose, buffer, data));
+        // 顶点在提交时先转换为相机相对坐标，避免大世界坐标分别转 float 后再相减造成精度损失。
+        sink.submit(poseStack, (pose, buffer) -> submitLines(pose, buffer, data, camera));
         poseStack.popPose();
     }
 
@@ -161,31 +159,33 @@ public final class LightOverlayRenderer {
         }
     }
 
-    private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data) {
-        float lineWidth = data.displayMode() == LightOverlayState.DisplayMode.NUMBERS
-                ? DIGIT_LINE_WIDTH : CROSS_LINE_WIDTH;
+    private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
         for (ColumnRenderData column : data.columns()) {
-            float[] coordinates = column.coordinates();
+            double[] coordinates = column.coordinates();
             int[] colors = column.colors();
             for (int line = 0, offset = 0; line < column.lineCount(); line++, offset += 6) {
-                line(pose, buffer,
-                        coordinates[offset], coordinates[offset + 1], coordinates[offset + 2],
-                        coordinates[offset + 3], coordinates[offset + 4], coordinates[offset + 5],
-                        colors[line], lineWidth);
+                double x1 = coordinates[offset] - camera.x();
+                double y1 = coordinates[offset + 1] - camera.y();
+                double z1 = coordinates[offset + 2] - camera.z();
+                double x2 = coordinates[offset + 3] - camera.x();
+                double y2 = coordinates[offset + 4] - camera.y();
+                double z2 = coordinates[offset + 5] - camera.z();
+                line(pose, buffer, x1, y1, z1, x2, y2, z2, colors[line]);
             }
         }
     }
 
     private static void line(
             PoseStack.Pose pose, VertexConsumer buffer,
-            float x1, float y1, float z1, float x2, float y2, float z2, int color, float lineWidth
+            double x1, double y1, double z1, double x2, double y2, double z2,
+            int color
     ) {
-        float nx = x2 - x1;
-        float ny = y2 - y1;
-        float nz = z2 - z1;
-        buffer.vertex(pose.pose(), x1, y1, z1)
+        float nx = (float) (x2 - x1);
+        float ny = (float) (y2 - y1);
+        float nz = (float) (z2 - z1);
+        buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1)
                 .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
-        buffer.vertex(pose.pose(), x2, y2, z2)
+        buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2)
                 .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
     }
 
@@ -197,30 +197,30 @@ public final class LightOverlayRenderer {
 
     private record ColumnRenderData(
             List<LightOverlayState.Marker> sourceMarkers, LightOverlayState.DisplayMode displayMode,
-            float[] coordinates, int[] colors, int lineCount
+            double[] coordinates, int[] colors, int lineCount
     ) {
     }
 
     private static final class GeometryBuilder {
-        private float[] coordinates;
+        private double[] coordinates;
         private int[] colors;
         private int lineCount;
 
         private GeometryBuilder(int markerCount) {
             int initialLines = Math.max(16, markerCount * 2);
-            coordinates = new float[initialLines * 6];
+            coordinates = new double[initialLines * 6];
             colors = new int[initialLines];
         }
 
         private void add(double x1, double y1, double z1, double x2, double y2, double z2, int color) {
             ensureCapacity(lineCount + 1);
             int offset = lineCount * 6;
-            coordinates[offset] = (float) x1;
-            coordinates[offset + 1] = (float) y1;
-            coordinates[offset + 2] = (float) z1;
-            coordinates[offset + 3] = (float) x2;
-            coordinates[offset + 4] = (float) y2;
-            coordinates[offset + 5] = (float) z2;
+            coordinates[offset] = x1;
+            coordinates[offset + 1] = y1;
+            coordinates[offset + 2] = z1;
+            coordinates[offset + 3] = x2;
+            coordinates[offset + 4] = y2;
+            coordinates[offset + 5] = z2;
             colors[lineCount] = color;
             lineCount++;
         }
