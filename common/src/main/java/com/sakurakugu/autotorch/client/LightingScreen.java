@@ -192,7 +192,7 @@ public final class LightingScreen extends Screen {
                 drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage().getFormattedText());
-        }), new TextComponentTranslation("screen.autotorch.drowned_detection.tooltip")));
+        }), new TextComponentTranslation("screen.autotorch.drowned_detection.tooltip.1.12.2")));
         // Minecraft 1.10.2 尚未加入溺尸，保留控件位置但禁止修改无效配置。
         drownedDetectionButton.active = false;
 
@@ -805,7 +805,7 @@ public final class LightingScreen extends Screen {
     }
 
     private ITextComponent drownedDetectionMessage() {
-        return new TextComponentTranslation("screen.autotorch.drowned_detection_unavailable");
+        return new TextComponentTranslation("screen.autotorch.drowned_detection_unavailable.1.12.2-");
     }
 
     private ITextComponent nearbyAutoTorchMessage() {
