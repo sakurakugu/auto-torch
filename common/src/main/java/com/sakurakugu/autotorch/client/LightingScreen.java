@@ -194,7 +194,7 @@ public final class LightingScreen extends Screen {
                 swampSlimeDetectionMessage(), button -> {
             LightOverlayState.toggleSwampSlimeDetection();
             swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
-        }), new TranslatableComponent("screen.autotorch.swamp_slime_detection.tooltip")));
+        }), new TranslatableComponent("screen.autotorch.swamp_slime_detection.tooltip.1.18.2")));
         drownedDetectionButton = addRenderableWidget(withTooltip(button(left + 157, 282, 153, 20,
                 drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
