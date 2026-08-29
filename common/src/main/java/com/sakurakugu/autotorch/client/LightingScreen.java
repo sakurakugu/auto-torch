@@ -792,7 +792,7 @@ public final class LightingScreen extends Screen {
     }
 
     private IChatComponent swampSlimeDetectionMessage() {
-        return new ChatComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable");
+        return new ChatComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-");
     }
 
     private <T extends Button> T addRenderableWidget(T widget) {
