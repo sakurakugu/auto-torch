@@ -48,8 +48,12 @@ final class AutoTorchForgeClient {
         }
     }
     @SubscribeEvent public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getEntityPlayer() != null && event.getEntityPlayer().world instanceof WorldClient && client.onRightClick((WorldClient) event.getEntityPlayer().world, event.getHand(), event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos())) {
-            event.setCanceled(true);
+        if (event.getEntityPlayer() != null && event.getEntityPlayer().world instanceof WorldClient) {
+            // Forge 放置方块时不总会及时触发客户端世界的方块 dirty 通知，提前标记以便渲染阶段复核。
+            LightOverlayState.markBlockDirty((WorldClient) event.getEntityPlayer().world, event.getPos());
+            if (client.onRightClick((WorldClient) event.getEntityPlayer().world, event.getHand(), event.getEntityPlayer().getHeldItem(event.getHand()), event.getPos())) {
+                event.setCanceled(true);
+            }
         }
     }
     @SubscribeEvent public void onRender(RenderWorldLastEvent event) {
