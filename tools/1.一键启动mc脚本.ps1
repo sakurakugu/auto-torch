@@ -76,7 +76,7 @@ if ($Arguments.Count -eq 0 -or $showHelp) {
 
 $projectRoot = [System.IO.Path]::GetFullPath("$PSScriptRoot\..")
 $worktreesRoot = Join-Path (Split-Path -Parent $projectRoot) "worktrees"
-$defaultReleaseRoot = [System.IO.Path]::GetFullPath((Join-Path $projectRoot "..\..\test-mc"))
+$defaultReleaseRoot = "D:\elric\Code\Repos\Minecraft\mod\test-mc"
 
 function Set-JavaEnvironment {
     param([string]$Path)
