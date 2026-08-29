@@ -192,7 +192,7 @@ public final class LightingScreen extends Screen {
                 drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage().getString());
-        }), new TextComponentTranslation("screen.autotorch.drowned_detection.tooltip")));
+        }), new TextComponentTranslation("screen.autotorch.drowned_detection.tooltip.1.17.1-1.13.2")));
 
         nearbyAutoTorchButton = addRenderableWidget(withTooltip(button(left, 326, 153, 20,
                 nearbyAutoTorchMessage(), button -> {
@@ -789,7 +789,7 @@ public final class LightingScreen extends Screen {
     }
 
     private ITextComponent swampSlimeDetectionMessage() {
-        return new TextComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable");
+        return new TextComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-");
     }
 
     private <T extends Button> T addRenderableWidget(T widget) {
