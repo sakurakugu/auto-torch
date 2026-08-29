@@ -8,31 +8,34 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.math.Vec3d;
-import org.lwjgl.opengl.GL11;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 
-/** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或七段数字。 */
+/** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或纹理数字。 */
 public final class LightOverlayRenderer {
+    private static final Identifier NUMBER_TEXTURE =
+            Identifier.fromNamespaceAndPath("autotorch", "textures/misc/light_level_numbers.png");
+    private static final int FULL_BRIGHT_LIGHT = 0xF0;
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
     private static final int SAFE_COLOR = 0xE050E060;
     private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
     private static final float CROSS_LINE_WIDTH = 2.5F;
-    private static final float DIGIT_LINE_WIDTH = 4.0F;
     private static final float LINE_WIDTH_REFERENCE_DISTANCE = 8.0F;
     private static final double LINE_WIDTH_REFERENCE_DISTANCE_SQUARED =
             LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE;
     private static final float MIN_LINE_WIDTH = 0.75F;
     private static final double SURFACE_OFFSET = 0.0125D;
     private static final double CROSS_MARGIN = 0.14D;
-    private static final double DIGIT_WIDTH = 0.24D;
-    private static final double DIGIT_HEIGHT = 0.58D;
-    private static final double DIGIT_GAP = 0.08D;
-    private static final int[] DIGIT_SEGMENTS = {
-            0b0111111, 0b0000110, 0b1011011, 0b1001111, 0b1100110,
-            0b1101101, 0b1111101, 0b0000111, 0b1111111, 0b1101111
-    };
-    private static final List<LightOverlayState.Marker> NO_MARKERS = Collections.emptyList();
+    // 图集中的字形已在 64x64 单元格内居中。
+    private static final double NUMBER_OFFSET_X = 0.0D;
+    private static final double NUMBER_OFFSET_Z = 0.25D;
+    private static final float NUMBER_TEXTURE_CELL_SIZE = 0.25F;
+    private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
+    private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
 
     private LightOverlayRenderer() {
@@ -50,74 +53,25 @@ public final class LightOverlayRenderer {
         renderData = buildRenderData(markers, displayMode);
     }
 
-    public static void render(Vec3d camera) {
-        renderGeometry(camera, renderData, false);
+    public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
+        RenderData data = renderData;
+        if (data == null) {
+            return;
+        }
+        RenderType renderType = data.displayMode() == LightOverlayState.DisplayMode.NUMBERS
+                ? RenderTypes.text(NUMBER_TEXTURE) : RenderTypes.linesTranslucent();
+        GeometryRenderer renderer = data.displayMode() == LightOverlayState.DisplayMode.NUMBERS
+                ? (pose, buffer) -> submitNumbers(pose, buffer, data, camera)
+                : (pose, buffer) -> submitLines(pose, buffer, data, camera);
+        renderGeometry(camera, poseStack, collector, renderType, renderer);
     }
 
-    private static void renderFiltered(
-            Vec3d camera,
-            Predicate<LightOverlayState.Marker> filter
+    private static void renderGeometry(
+            Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector,
+            RenderType renderType, GeometryRenderer renderer
     ) {
-        RenderData current = renderData;
-        if (current == null) return;
-        RenderData filtered = buildRenderData(
-                current.sourceMarkers(), current.displayMode(), filter, 8);
-        renderGeometry(camera, filtered, true);
-    }
-
-    public static void renderWaterVisible(
-            Vec3d camera, Predicate<Vec3d> isVisibleTarget
-    ) {
-        renderFiltered(camera,
-                marker -> marker.riskType() == LightOverlayState.RiskType.DROWNED
-                        && isVisibleTarget.test(markerTarget(marker)));
-    }
-
-    private static Vec3d markerTarget(LightOverlayState.Marker marker) {
-        return new Vec3d(
-                marker.pos().getX() + 0.5D,
-                marker.pos().getY() + SURFACE_OFFSET,
-                marker.pos().getZ() + 0.5D
-        );
-    }
-
-    private static void setupWaterVisibleRenderState() {
-        // 世界渲染回调会继承当前状态，纯色线条需要显式关闭纹理。
-        GlStateManager.disableTexture();
-        GlStateManager.enableBlend();
-        GlStateManager.blendFuncSeparate(
-                GlStateManager.SourceFactor.SRC_ALPHA,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
-                GlStateManager.SourceFactor.ONE,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA
-        );
-        GlStateManager.disableDepthTest();
-        GlStateManager.depthMask(false);
-        GlStateManager.disableCull();
-
-        GlStateManager.pushMatrix();
-        GlStateManager.scalef(0.99975586F, 0.99975586F, 0.99975586F);
-        GlStateManager.lineWidth(Math.max(
-                CROSS_LINE_WIDTH,
-                (float) Minecraft.getMinecraft().displayWidth / 1920.0F * CROSS_LINE_WIDTH
-        ));
-    }
-
-    private static void clearWaterVisibleRenderState() {
-        GlStateManager.lineWidth(1.0F);
-        GlStateManager.popMatrix();
-
-        GlStateManager.enableCull();
-        GlStateManager.depthMask(true);
-        GlStateManager.enableDepthTest();
-        GlStateManager.disableBlend();
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        GlStateManager.enableTexture();
-    }
-
-    private static void renderGeometry(Vec3d camera, RenderData data, boolean waterVisible) {
-        if (data == null || data.lineCount() == 0 || Minecraft.getMinecraft().world == null) {
+        RenderData data = renderData;
+        if (data == null || data.renderableCount() == 0 || Minecraft.getInstance().level == null) {
             return;
         }
         if (waterVisible) {
@@ -141,11 +95,34 @@ public final class LightOverlayRenderer {
 
         poseStack.pushPose();
         // 顶点在提交时先转换为相机相对坐标，避免大世界坐标分别转 float 后再相减造成精度损失。
-        sink.submit(poseStack, (pose, buffer) -> submitLines(pose, buffer, data, camera));
+        collector.submitCustomGeometry(poseStack, renderType, renderer::render);
         poseStack.popPose();
     }
 
     private static RenderData buildRenderData(
+            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
+    ) {
+        Map<Long, ColumnRenderData> previousGeometry = columnGeometry;
+        Map<Long, ColumnRenderData> nextGeometry = new HashMap<>(columns.size());
+        List<ColumnRenderData> visibleGeometry = new ArrayList<>(columns.size());
+        int totalLines = 0;
+        int totalQuads = 0;
+        for (LightOverlayState.MarkerColumn column : columns) {
+            ColumnRenderData geometry = previousGeometry.get(column.key());
+            if (geometry == null || geometry.sourceMarkers() != column.markers()
+                    || geometry.displayMode() != displayMode) {
+                geometry = buildColumnRenderData(column.markers(), displayMode);
+            }
+            nextGeometry.put(column.key(), geometry);
+            visibleGeometry.add(geometry);
+            totalLines += geometry.lineCount();
+            totalQuads += geometry.numberQuads().size();
+        }
+        columnGeometry = nextGeometry;
+        return new RenderData(columns, displayMode, List.copyOf(visibleGeometry), totalLines, totalQuads);
+    }
+
+    private static ColumnRenderData buildColumnRenderData(
             List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
     ) {
         return buildRenderData(markers, displayMode, marker -> true, markers.size());
@@ -180,20 +157,10 @@ public final class LightOverlayRenderer {
     }
 
     private static void addNumber(GeometryBuilder geometry, LightOverlayState.Marker marker) {
-        int value = marker.blockLight();
-        boolean hasTensDigit = value >= 10;
-        int digitCount = hasTensDigit ? 2 : 1;
-        double totalWidth = digitCount * DIGIT_WIDTH + (digitCount - 1) * DIGIT_GAP;
-        double startX = marker.pos().getX() + (1.0D - totalWidth) / 2.0D;
-        double startZ = marker.pos().getZ() + (1.0D - DIGIT_HEIGHT) / 2.0D;
-        double y = marker.pos().getY() + SURFACE_OFFSET;
-        int color = markerColor(marker);
-
-        if (hasTensDigit) {
-            addDigit(geometry, startX, y, startZ, DIGIT_SEGMENTS[value / 10], color);
-            startX += DIGIT_WIDTH + DIGIT_GAP;
-        }
-        addDigit(geometry, startX, y, startZ, DIGIT_SEGMENTS[value % 10], color);
+        geometry.addNumber(marker.pos().getX() + NUMBER_OFFSET_X,
+                marker.pos().getY() + SURFACE_OFFSET,
+                marker.pos().getZ() + NUMBER_OFFSET_Z,
+                marker.blockLight(), markerColor(marker));
     }
 
     private static int markerColor(LightOverlayState.Marker marker) {
@@ -204,33 +171,7 @@ public final class LightOverlayRenderer {
                 : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
     }
 
-    private static void addDigit(
-            GeometryBuilder geometry, double x, double y, double z, int segments, int color
-    ) {
-        double middleZ = z + DIGIT_HEIGHT / 2.0D;
-        double maxX = x + DIGIT_WIDTH;
-        double maxZ = z + DIGIT_HEIGHT;
-        addSegment(geometry, segments, 0, x, y, z, maxX, z, color);
-        addSegment(geometry, segments, 1, maxX, y, z, maxX, middleZ, color);
-        addSegment(geometry, segments, 2, maxX, y, middleZ, maxX, maxZ, color);
-        addSegment(geometry, segments, 3, x, y, maxZ, maxX, maxZ, color);
-        addSegment(geometry, segments, 4, x, y, middleZ, x, maxZ, color);
-        addSegment(geometry, segments, 5, x, y, z, x, middleZ, color);
-        addSegment(geometry, segments, 6, x, y, middleZ, maxX, middleZ, color);
-    }
-
-    private static void addSegment(
-            GeometryBuilder geometry, int segments, int bit,
-            double x1, double y, double z1, double x2, double z2, int color
-    ) {
-        if ((segments & 1 << bit) != 0) {
-            geometry.add(x1, y, z1, x2, y, z2, color);
-        }
-    }
-
     private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
-        float lineWidth = data.displayMode() == LightOverlayState.DisplayMode.NUMBERS
-                ? DIGIT_LINE_WIDTH : CROSS_LINE_WIDTH;
         for (ColumnRenderData column : data.columns()) {
             double[] coordinates = column.coordinates();
             int[] colors = column.colors();
@@ -243,7 +184,7 @@ public final class LightOverlayRenderer {
                 double z2 = coordinates[offset + 5] - camera.z();
                 line(pose, buffer,
                         x1, y1, z1, x2, y2, z2,
-                        colors[line], scaledLineWidth(lineWidth, x1, y1, z1, x2, y2, z2));
+                        colors[line], scaledLineWidth(CROSS_LINE_WIDTH, x1, y1, z1, x2, y2, z2));
             }
         }
     }
@@ -263,6 +204,31 @@ public final class LightOverlayRenderer {
                 (float) (baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / distance));
     }
 
+    private static void submitNumbers(
+            PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera
+    ) {
+        for (ColumnRenderData column : data.columns()) {
+            for (NumberQuad quad : column.numberQuads()) {
+                float x = (float) (quad.x() - camera.x());
+                float y = (float) (quad.y() - camera.y());
+                float z = (float) (quad.z() - camera.z());
+                float u = (quad.value() & 3) * NUMBER_TEXTURE_CELL_SIZE;
+                float v = (quad.value() >> 2) * NUMBER_TEXTURE_CELL_SIZE;
+                buffer.addVertex(pose, x, y, z)
+                        .setUv(u, v).setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
+                buffer.addVertex(pose, x, y, z + 1.0F)
+                        .setUv(u, v + NUMBER_TEXTURE_CELL_SIZE)
+                        .setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
+                buffer.addVertex(pose, x + 1.0F, y, z + 1.0F)
+                        .setUv(u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE)
+                        .setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
+                buffer.addVertex(pose, x + 1.0F, y, z)
+                        .setUv(u + NUMBER_TEXTURE_CELL_SIZE, v)
+                        .setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
+            }
+        }
+    }
+
     private static void line(
             PoseStack.Pose pose, VertexConsumer buffer,
             double x1, double y1, double z1, double x2, double y2, double z2,
@@ -277,21 +243,29 @@ public final class LightOverlayRenderer {
                 .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
     }
 
-    private static VertexConsumer applyColor(VertexConsumer vertex, int color) {
-        return vertex.color((color >> 16) & 0xFF, (color >> 8) & 0xFF,
-                color & 0xFF, (color >>> 24) & 0xFF);
+    private record RenderData(
+            List<LightOverlayState.MarkerColumn> sourceColumns, LightOverlayState.DisplayMode displayMode,
+            List<ColumnRenderData> columns, int lineCount, int quadCount
+    ) {
+        private int renderableCount() {
+            return lineCount + quadCount;
+        }
     }
 
     private record ColumnRenderData(
             List<LightOverlayState.Marker> sourceMarkers, LightOverlayState.DisplayMode displayMode,
-            double[] coordinates, int[] colors, int lineCount
+            double[] coordinates, int[] colors, int lineCount, List<NumberQuad> numberQuads
     ) {
+    }
+
+    private record NumberQuad(double x, double y, double z, int value, int color) {
     }
 
     private static final class GeometryBuilder {
         private double[] coordinates;
         private int[] colors;
         private int lineCount;
+        private final List<NumberQuad> numberQuads = new ArrayList<>();
 
         private GeometryBuilder(int markerCount) {
             int initialLines = Math.max(16, markerCount * 2);
@@ -312,6 +286,10 @@ public final class LightOverlayRenderer {
             lineCount++;
         }
 
+        private void addNumber(double x, double y, double z, int value, int color) {
+            numberQuads.add(new NumberQuad(x, y, z, value, color));
+        }
+
         private void ensureCapacity(int requiredLines) {
             if (requiredLines <= colors.length) {
                 return;
@@ -329,67 +307,14 @@ public final class LightOverlayRenderer {
                     displayMode,
                     Arrays.copyOf(coordinates, lineCount * 6),
                     Arrays.copyOf(colors, lineCount),
-                    lineCount
+                    lineCount,
+                    List.copyOf(numberQuads)
             );
         }
     }
 
-    private enum Pose {
-        INSTANCE;
-
-        private Object pose() {
-            return null;
-        }
-    }
-
-    private static final class VertexConsumer {
-        private final VertexBuffer builder;
-
-        private VertexConsumer(VertexBuffer builder) {
-            this.builder = builder;
-        }
-
-        private VertexConsumer vertex(Object ignored, float x, float y, float z) {
-            builder.pos(x, y, z);
-            return this;
-        }
-
-        private VertexConsumer color(int red, int green, int blue, int alpha) {
-            builder.color(red, green, blue, alpha);
-            return this;
-        }
-
-        private void endVertex() {
-            builder.endVertex();
-        }
-    }
-
-    /** 隔离固定管线调用，避免旧版跨映射时改写 Mojang 的平台辅助类名。 */
-    private static final class GlStateManager {
-        private enum SourceFactor { SRC_ALPHA, ONE }
-        private enum DestFactor { ONE_MINUS_SRC_ALPHA }
-
-        private static void disableTexture() { GL11.glDisable(GL11.GL_TEXTURE_2D); }
-        private static void enableTexture() { GL11.glEnable(GL11.GL_TEXTURE_2D); }
-        private static void enableBlend() { GL11.glEnable(GL11.GL_BLEND); }
-        private static void disableBlend() { GL11.glDisable(GL11.GL_BLEND); }
-        private static void blendFunc(SourceFactor source, DestFactor destination) {
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        }
-        private static void blendFuncSeparate(
-                SourceFactor sourceRgb, DestFactor destinationRgb,
-                SourceFactor sourceAlpha, DestFactor destinationAlpha
-        ) {
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        }
-        private static void disableDepthTest() { GL11.glDisable(GL11.GL_DEPTH_TEST); }
-        private static void enableDepthTest() { GL11.glEnable(GL11.GL_DEPTH_TEST); }
-        private static void depthMask(boolean enabled) { GL11.glDepthMask(enabled); }
-        private static void disableCull() { GL11.glDisable(GL11.GL_CULL_FACE); }
-        private static void enableCull() { GL11.glEnable(GL11.GL_CULL_FACE); }
-        private static void lineWidth(float width) { GL11.glLineWidth(width); }
-        private static void pushMatrix() { GL11.glPushMatrix(); }
-        private static void popMatrix() { GL11.glPopMatrix(); }
-        private static void scalef(float x, float y, float z) { GL11.glScalef(x, y, z); }
+    @FunctionalInterface
+    private interface GeometryRenderer {
+        void render(PoseStack.Pose pose, VertexConsumer buffer);
     }
 }
