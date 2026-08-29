@@ -2,12 +2,14 @@ package com.sakurakugu.autotorch.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-import java.util.function.Predicate;
+import java.util.Map;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.phys.Vec3;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或七段数字。 */
@@ -15,9 +17,14 @@ public final class LightOverlayRenderer {
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
     private static final int SAFE_COLOR = 0xE050E060;
+    private static final int SWAMP_SLIME_RISK_COLOR = 0xE0E050E0;
     private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
     private static final float CROSS_LINE_WIDTH = 2.5F;
     private static final float DIGIT_LINE_WIDTH = 4.0F;
+    private static final float LINE_WIDTH_REFERENCE_DISTANCE = 8.0F;
+    private static final double LINE_WIDTH_REFERENCE_DISTANCE_SQUARED =
+            LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE;
+    private static final float MIN_LINE_WIDTH = 0.75F;
     private static final double SURFACE_OFFSET = 0.0125D;
     private static final double CROSS_MARGIN = 0.14D;
     private static final double DIGIT_WIDTH = 0.24D;
@@ -27,75 +34,68 @@ public final class LightOverlayRenderer {
             0b0111111, 0b0000110, 0b1011011, 0b1001111, 0b1100110,
             0b1101101, 0b1111101, 0b0000111, 0b1111111, 0b1101111
     };
-    private static final List<LightOverlayState.Marker> NO_MARKERS = List.of();
+    private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
+    private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
 
     private LightOverlayRenderer() {
     }
 
     public static void extract() {
-        List<LightOverlayState.Marker> markers = LightOverlayState.isEnabled()
-                ? LightOverlayState.markers() : NO_MARKERS;
+        List<LightOverlayState.MarkerColumn> columns = LightOverlayState.isEnabled()
+                ? LightOverlayState.markerColumns() : NO_COLUMNS;
         LightOverlayState.DisplayMode displayMode = LightOverlayState.displayMode();
         RenderData current = renderData;
-        // 扫描完成时状态会发布新的不可变列表，因此列表身份就是无需遍历的版本标记。
-        if (current != null && current.sourceMarkers() == markers && current.displayMode() == displayMode) {
+        // 状态发布新的不可变列列表，因此列表身份就是无需遍历的版本标记。
+        if (current != null && current.sourceColumns() == columns && current.displayMode() == displayMode) {
             return;
         }
-        renderData = buildRenderData(markers, displayMode);
+        renderData = buildRenderData(columns, displayMode);
     }
 
-    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource buffers) {
-        render(camera, poseStack, buffers, RenderType.lines());
+    public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
+        renderGeometry(camera, poseStack, (stack, renderer) -> collector.submitCustomGeometry(
+                stack, RenderTypes.linesTranslucent(), renderer::render));
     }
 
-    public static void render(
-            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderType renderType
-    ) {
-        renderGeometry(camera, poseStack, renderData, (stack, renderer) ->
-                renderer.render(stack.last(), buffers.getBuffer(renderType)));
-    }
-
-    public static void renderFiltered(
-            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderType renderType,
-            Predicate<LightOverlayState.Marker> filter
-    ) {
-        RenderData current = renderData;
-        if (current == null) return;
-        RenderData filtered = buildRenderData(
-                current.sourceMarkers(), current.displayMode(), filter, 8);
-        renderGeometry(camera, poseStack, filtered, (stack, renderer) ->
-                renderer.render(stack.last(), buffers.getBuffer(renderType)));
-    }
-
-    private static void renderGeometry(
-            Vec3 camera, PoseStack poseStack, RenderData data, GeometrySink sink
-    ) {
+    private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {
+        RenderData data = renderData;
         if (data == null || data.lineCount() == 0 || Minecraft.getInstance().level == null) {
             return;
         }
 
         poseStack.pushPose();
-        poseStack.translate(-camera.x(), -camera.y(), -camera.z());
-        sink.submit(poseStack, (pose, buffer) -> submitLines(pose, buffer, data));
+        // 顶点在提交时先转换为相机相对坐标，避免大世界坐标分别转 float 后再相减造成精度损失。
+        sink.submit(poseStack, (pose, buffer) -> submitLines(pose, buffer, data, camera));
         poseStack.popPose();
     }
 
     private static RenderData buildRenderData(
-            List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
+            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
     ) {
-        return buildRenderData(markers, displayMode, marker -> true, markers.size());
+        Map<Long, ColumnRenderData> previousGeometry = columnGeometry;
+        Map<Long, ColumnRenderData> nextGeometry = new HashMap<>(columns.size());
+        List<ColumnRenderData> visibleGeometry = new ArrayList<>(columns.size());
+        int totalLines = 0;
+        for (LightOverlayState.MarkerColumn column : columns) {
+            ColumnRenderData geometry = previousGeometry.get(column.key());
+            if (geometry == null || geometry.sourceMarkers() != column.markers()
+                    || geometry.displayMode() != displayMode) {
+                geometry = buildColumnRenderData(column.markers(), displayMode);
+            }
+            nextGeometry.put(column.key(), geometry);
+            visibleGeometry.add(geometry);
+            totalLines += geometry.lineCount();
+        }
+        columnGeometry = nextGeometry;
+        return new RenderData(columns, displayMode, List.copyOf(visibleGeometry), totalLines);
     }
 
-    private static RenderData buildRenderData(
-            List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode,
-            Predicate<LightOverlayState.Marker> filter, int expectedMarkerCount
+    private static ColumnRenderData buildColumnRenderData(
+            List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
     ) {
-        GeometryBuilder geometry = new GeometryBuilder(expectedMarkerCount);
+        GeometryBuilder geometry = new GeometryBuilder(markers.size());
         for (LightOverlayState.Marker marker : markers) {
-            if (!filter.test(marker)) {
-                continue;
-            }
             if (displayMode == LightOverlayState.DisplayMode.NUMBERS) {
                 addNumber(geometry, marker);
                 continue;
@@ -134,6 +134,7 @@ public final class LightOverlayRenderer {
 
     private static int markerColor(LightOverlayState.Marker marker) {
         return switch (marker.riskType()) {
+            case SWAMP_SLIME -> SWAMP_SLIME_RISK_COLOR;
             case DROWNED -> DROWNED_RISK_COLOR;
             case NORMAL -> marker.blockLight() > 0 ? SAFE_COLOR
                     : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
@@ -164,63 +165,87 @@ public final class LightOverlayRenderer {
         }
     }
 
-    private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data) {
-        float[] coordinates = data.coordinates();
-        int[] colors = data.colors();
+    private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
         float lineWidth = data.displayMode() == LightOverlayState.DisplayMode.NUMBERS
                 ? DIGIT_LINE_WIDTH : CROSS_LINE_WIDTH;
-        for (int line = 0, offset = 0; line < data.lineCount(); line++, offset += 6) {
-            line(pose, buffer,
-                    coordinates[offset], coordinates[offset + 1], coordinates[offset + 2],
-                    coordinates[offset + 3], coordinates[offset + 4], coordinates[offset + 5],
-                    colors[line], lineWidth);
+        for (ColumnRenderData column : data.columns()) {
+            double[] coordinates = column.coordinates();
+            int[] colors = column.colors();
+            for (int line = 0, offset = 0; line < column.lineCount(); line++, offset += 6) {
+                double x1 = coordinates[offset] - camera.x();
+                double y1 = coordinates[offset + 1] - camera.y();
+                double z1 = coordinates[offset + 2] - camera.z();
+                double x2 = coordinates[offset + 3] - camera.x();
+                double y2 = coordinates[offset + 4] - camera.y();
+                double z2 = coordinates[offset + 5] - camera.z();
+                line(pose, buffer,
+                        x1, y1, z1, x2, y2, z2,
+                        colors[line], scaledLineWidth(lineWidth, x1, y1, z1, x2, y2, z2));
+            }
         }
+    }
+
+    private static float scaledLineWidth(float baseWidth,
+                                         double x1, double y1, double z1,
+                                         double x2, double y2, double z2) {
+        double x = (x1 + x2) * 0.5D;
+        double y = (y1 + y2) * 0.5D;
+        double z = (z1 + z2) * 0.5D;
+        double distanceSquared = x * x + y * y + z * z;
+        if (distanceSquared <= LINE_WIDTH_REFERENCE_DISTANCE_SQUARED) {
+            return baseWidth;
+        }
+        double distance = Math.sqrt(distanceSquared);
+        return Math.max(MIN_LINE_WIDTH,
+                (float) (baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / distance));
     }
 
     private static void line(
             PoseStack.Pose pose, VertexConsumer buffer,
-            float x1, float y1, float z1, float x2, float y2, float z2, int color, float lineWidth
+            double x1, double y1, double z1, double x2, double y2, double z2,
+            int color, float lineWidth
     ) {
-        float nx = x2 - x1;
-        float ny = y2 - y1;
-        float nz = z2 - z1;
-        applyColor(buffer.vertex(pose.pose(), x1, y1, z1), color)
-                .normal(pose.normal(), nx, ny, nz).endVertex();
-        applyColor(buffer.vertex(pose.pose(), x2, y2, z2), color)
-                .normal(pose.normal(), nx, ny, nz).endVertex();
-    }
-
-    private static VertexConsumer applyColor(VertexConsumer vertex, int color) {
-        return vertex.color((color >> 16) & 0xFF, (color >> 8) & 0xFF,
-                color & 0xFF, (color >>> 24) & 0xFF);
+        float nx = (float) (x2 - x1);
+        float ny = (float) (y2 - y1);
+        float nz = (float) (z2 - z1);
+        buffer.addVertex(pose, (float) x1, (float) y1, (float) z1)
+                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
+        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2)
+                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
     }
 
     private record RenderData(
+            List<LightOverlayState.MarkerColumn> sourceColumns, LightOverlayState.DisplayMode displayMode,
+            List<ColumnRenderData> columns, int lineCount
+    ) {
+    }
+
+    private record ColumnRenderData(
             List<LightOverlayState.Marker> sourceMarkers, LightOverlayState.DisplayMode displayMode,
-            float[] coordinates, int[] colors, int lineCount
+            double[] coordinates, int[] colors, int lineCount
     ) {
     }
 
     private static final class GeometryBuilder {
-        private float[] coordinates;
+        private double[] coordinates;
         private int[] colors;
         private int lineCount;
 
         private GeometryBuilder(int markerCount) {
             int initialLines = Math.max(16, markerCount * 2);
-            coordinates = new float[initialLines * 6];
+            coordinates = new double[initialLines * 6];
             colors = new int[initialLines];
         }
 
         private void add(double x1, double y1, double z1, double x2, double y2, double z2, int color) {
             ensureCapacity(lineCount + 1);
             int offset = lineCount * 6;
-            coordinates[offset] = (float) x1;
-            coordinates[offset + 1] = (float) y1;
-            coordinates[offset + 2] = (float) z1;
-            coordinates[offset + 3] = (float) x2;
-            coordinates[offset + 4] = (float) y2;
-            coordinates[offset + 5] = (float) z2;
+            coordinates[offset] = x1;
+            coordinates[offset + 1] = y1;
+            coordinates[offset + 2] = z1;
+            coordinates[offset + 3] = x2;
+            coordinates[offset + 4] = y2;
+            coordinates[offset + 5] = z2;
             colors[lineCount] = color;
             lineCount++;
         }
@@ -234,10 +259,10 @@ public final class LightOverlayRenderer {
             colors = Arrays.copyOf(colors, newLength);
         }
 
-        private RenderData build(
+        private ColumnRenderData build(
                 List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
         ) {
-            return new RenderData(
+            return new ColumnRenderData(
                     markers,
                     displayMode,
                     Arrays.copyOf(coordinates, lineCount * 6),
