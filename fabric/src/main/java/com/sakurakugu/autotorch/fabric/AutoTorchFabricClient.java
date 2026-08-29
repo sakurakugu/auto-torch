@@ -5,6 +5,7 @@ import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
@@ -71,6 +72,10 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         });
 
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
+            if (level instanceof ClientLevel) {
+                // Fabric 低版本不一定及时触发客户端世界的方块失效通知，提前标记以便下一 tick 复核。
+                LightOverlayState.markBlockDirty((ClientLevel) level, pos);
+            }
             if (level instanceof ClientLevel
                     && client.onLeftClick((ClientLevel) level, player.getItemInHand(hand), pos, true)) {
                 return InteractionResult.SUCCESS;
@@ -78,6 +83,10 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             return InteractionResult.PASS;
         });
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+            if (level instanceof ClientLevel) {
+                // 方块放置后的光照传播可能晚于交互回调，提前标记放置位置附近的缓存列。
+                LightOverlayState.markBlockDirty((ClientLevel) level, hit.getBlockPos());
+            }
             if (level instanceof ClientLevel
                     && client.onRightClick((ClientLevel) level, hand, player.getItemInHand(hand), hit.getBlockPos())) {
                 return InteractionResult.SUCCESS;
