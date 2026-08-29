@@ -66,10 +66,13 @@ final class AutoTorchForgeClient {
     }
 
     private void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getEntity().level() instanceof ClientLevel clientLevel
-                && client.onRightClick(clientLevel, event.getHand(), event.getItemStack(), event.getPos())) {
-            event.setCancellationResult(InteractionResult.SUCCESS);
-            event.setCanceled(true);
+        if (event.getEntity().level() instanceof ClientLevel clientLevel) {
+            // Forge 放置方块时不总会及时触发客户端世界的方块 dirty 通知，提前标记以便渲染阶段复核。
+            LightOverlayState.markBlockDirty(clientLevel, event.getPos());
+            if (client.onRightClick(clientLevel, event.getHand(), event.getItemStack(), event.getPos())) {
+                event.setCancellationResult(InteractionResult.SUCCESS);
+                event.setCanceled(true);
+            }
         }
     }
 
