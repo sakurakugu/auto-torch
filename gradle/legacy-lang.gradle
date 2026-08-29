@@ -50,11 +50,8 @@ def generateLegacyLang = tasks.register("generateLegacyLang") {
                     )
                 }
 
-                if (value.contains("\r") || value.contains("\n")) {
-                    throw new GradleException(
-                            "${jsonFile.name} 中的 ${key} 包含换行符"
-                    )
-                }
+                // .lang 使用字面量 \\n
+                value = value.replace("\r\n", "\\n").replace("\r", "\\n").replace("\n", "\\n")
 
                 content.append(key)
                         .append("=")
