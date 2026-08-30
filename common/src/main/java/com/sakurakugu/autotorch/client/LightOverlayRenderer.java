@@ -205,15 +205,18 @@ public final class LightOverlayRenderer {
                 float size = quad.size();
                 float u = (quad.value() & 3) * NUMBER_TEXTURE_CELL_SIZE;
                 float v = (quad.value() >> 2) * NUMBER_TEXTURE_CELL_SIZE;
-                buffer.vertex(pose.pose(), x, y, z).uv(u, v)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
-                buffer.vertex(pose.pose(), x, y, z + size).uv(u, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
-                buffer.vertex(pose.pose(), x + size, y, z + size)
+                // 1.19.2 的 POSITION_COLOR_TEX_LIGHTMAP 格式要求按颜色、UV、光照 UV 的顺序提交属性。
+                buffer.vertex(pose.pose(), x, y, z).color(quad.color()).uv(u, v)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
+                buffer.vertex(pose.pose(), x, y, z + size).color(quad.color())
+                        .uv(u, v + NUMBER_TEXTURE_CELL_SIZE)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
+                buffer.vertex(pose.pose(), x + size, y, z + size).color(quad.color())
                         .uv(u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
-                buffer.vertex(pose.pose(), x + size, y, z).uv(u + NUMBER_TEXTURE_CELL_SIZE, v)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
+                buffer.vertex(pose.pose(), x + size, y, z).color(quad.color())
+                        .uv(u + NUMBER_TEXTURE_CELL_SIZE, v)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
             }
         }
     }
