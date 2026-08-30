@@ -52,6 +52,8 @@ public final class SelectionRenderer {
     private static final int DRAFT_FACE_COLOR = 0x2870A0FF;
     private static final int SELECTION_FACE_COLOR = 0x2850FF70;
     private static final int EXCLUSION_FACE_COLOR = 0x30FF5050;
+    /** 方框面向外偏移，避免与方块面共面导致深度冲突。 */
+    private static final double FACE_OFFSET = 1.0D / 1024.0D;
     private static final int SPHERE_LONGITUDE_SEGMENTS = 24;
     private static final int SPHERE_LATITUDE_SEGMENTS = 12;
     private static final double[] SPHERE_LONGITUDE_COS = new double[SPHERE_LONGITUDE_SEGMENTS + 1];
@@ -181,7 +183,8 @@ public final class SelectionRenderer {
                 renderSphereFaces(pose, buffer, zone, faceColor);
             }
         } else {
-            renderBoxFaces(pose, buffer, AABB.encapsulatingFullBlocks(zone.min(), zone.max()), faceColor);
+            renderBoxFaces(pose, buffer,
+                    AABB.encapsulatingFullBlocks(zone.min(), zone.max()).inflate(FACE_OFFSET), faceColor);
         }
     }
 
