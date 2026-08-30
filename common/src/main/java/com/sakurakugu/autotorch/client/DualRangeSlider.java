@@ -2,14 +2,18 @@ package com.sakurakugu.autotorch.client;
 
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
+import net.minecraft.resources.ResourceLocation;
 
 /** 可复用的双端点范围滑动条。 */
 public class DualRangeSlider extends Button {
+    private static final ResourceLocation SLIDER_LOCATION = new ResourceLocation("autotorch", "textures/gui/slider.png");
     private final int minValue;
     private final int maxValue;
     private final int maxSpan;
@@ -51,11 +55,16 @@ public class DualRangeSlider extends Button {
 
     @Override
     public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-        int trackY = y + getHeight() / 2 - 2;
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        fill(poseStack, x + 4, trackY, x + getWidth() - 4, trackY + 4, 0xFF606060);
-        fill(poseStack, lowX, trackY, highX, trackY + 4, 0xFF3A5F8A);
+        RenderSystem.setShader(GameRenderer::getPositionTexShader);
+        RenderSystem.setShaderTexture(0, SLIDER_LOCATION);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
+        drawNineSliced(poseStack, x, y, getWidth(), getHeight(), 20, 4, 200, 20, 0, isFocused() ? 20 : 0);
+        fill(poseStack, lowX, y + 1, highX, y + getHeight() - 1, 0xFF3A5F8A);
         drawThumb(poseStack, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(poseStack, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
         drawCenteredString(poseStack, Minecraft.getInstance().font, getMessage(),
@@ -63,13 +72,58 @@ public class DualRangeSlider extends Button {
     }
 
     private void drawThumb(PoseStack poseStack, int thumbX, boolean highlighted) {
-        int color = highlighted ? 0xFFFFFFFF : 0xFFD0D0D0;
-        fill(poseStack, thumbX - 3, y, thumbX + 4, y + getHeight(), color);
-        int outlineColor = 0xFF303030;
-        fill(poseStack, thumbX - 3, y, thumbX + 4, y + 1, outlineColor);
-        fill(poseStack, thumbX - 3, y + getHeight() - 1, thumbX + 4, y + getHeight(), outlineColor);
-        fill(poseStack, thumbX - 3, y, thumbX - 2, y + getHeight(), outlineColor);
-        fill(poseStack, thumbX + 3, y, thumbX + 4, y + getHeight(), outlineColor);
+        drawNineSliced(poseStack, thumbX - 4, y, 8, getHeight(), 20, 4, 200, 20, 0, highlighted ? 60 : 40);
+    }
+
+    private static void drawNineSliced(PoseStack poseStack, int x, int y, int width, int height,
+            int cornerWidth, int cornerHeight, int textureWidth, int textureHeight, int u, int v) {
+        int left = Math.min(cornerWidth, width / 2);
+        int right = Math.min(cornerWidth, width - left);
+        int top = Math.min(cornerHeight, height / 2);
+        int bottom = Math.min(cornerHeight, height - top);
+        int centerWidth = width - left - right;
+        int centerHeight = height - top - bottom;
+        int sourceCenterWidth = Math.max(1, textureWidth - cornerWidth * 2);
+        int sourceCenterHeight = Math.max(1, textureHeight - cornerHeight * 2);
+        blitPatch(poseStack, x, y, left, top, u, v, left, top);
+        blitPatch(poseStack, x + width - right, y, right, top, u + textureWidth - right, v, right, top);
+        blitPatch(poseStack, x, y + height - bottom, left, bottom, u, v + textureHeight - bottom, left, bottom);
+        blitPatch(poseStack, x + width - right, y + height - bottom, right, bottom,
+                u + textureWidth - right, v + textureHeight - bottom, right, bottom);
+        if (centerWidth > 0) {
+            blitRepeatingPatch(poseStack, x + left, y, centerWidth, top, u + cornerWidth, v, sourceCenterWidth, top);
+            blitRepeatingPatch(poseStack, x + left, y + height - bottom, centerWidth, bottom,
+                    u + cornerWidth, v + textureHeight - bottom, sourceCenterWidth, bottom);
+        }
+        if (centerHeight > 0) {
+            blitRepeatingPatch(poseStack, x, y + top, left, centerHeight, u, v + cornerHeight, left, sourceCenterHeight);
+            blitRepeatingPatch(poseStack, x + width - right, y + top, right, centerHeight,
+                    u + textureWidth - right, v + cornerHeight, right, sourceCenterHeight);
+        }
+        if (centerWidth > 0 && centerHeight > 0) {
+            blitRepeatingPatch(poseStack, x + left, y + top, centerWidth, centerHeight,
+                    u + cornerWidth, v + cornerHeight, sourceCenterWidth, sourceCenterHeight);
+        }
+    }
+
+    private static void blitPatch(PoseStack poseStack, int x, int y, int width, int height,
+            int u, int v, int sourceWidth, int sourceHeight) {
+        if (width > 0 && height > 0) {
+            blit(poseStack, x, y, width, height, u, v, sourceWidth, sourceHeight, 256, 256);
+        }
+    }
+
+    private static void blitRepeatingPatch(PoseStack poseStack, int x, int y, int width, int height,
+            int u, int v, int sourceWidth, int sourceHeight) {
+        if (width <= 0 || height <= 0 || sourceWidth <= 0 || sourceHeight <= 0) return;
+        for (int offsetY = 0; offsetY < height; offsetY += sourceHeight) {
+            int tileHeight = Math.min(sourceHeight, height - offsetY);
+            for (int offsetX = 0; offsetX < width; offsetX += sourceWidth) {
+                int tileWidth = Math.min(sourceWidth, width - offsetX);
+                blitPatch(poseStack, x + offsetX, y + offsetY, tileWidth, tileHeight,
+                        u, v, tileWidth, tileHeight);
+            }
+        }
     }
 
     private boolean isThumbHovered(int mouseX, int mouseY, int x) {
