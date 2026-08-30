@@ -3,6 +3,7 @@
   "key.autotorch.open_screen": "Open Auto Torch screen",
   "key.autotorch.toggle_light_overlay": "Toggle light-risk overlay",
   "screen.autotorch.title": "Interval Auto Torch",
+  "screen.autotorch.reset": "Reset",
   "screen.autotorch.range_hint": "Wooden axe: left=A, right=B; for spheres A=center and A-B=radius",
   "screen.autotorch.shape_sphere": "Blue shape: sphere",
   "screen.autotorch.shape_box": "Blue shape: box",
