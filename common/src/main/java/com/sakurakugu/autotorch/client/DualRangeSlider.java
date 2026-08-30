@@ -3,19 +3,13 @@ package com.sakurakugu.autotorch.client;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 
 /** 可复用的双端点范围滑动条。 */
 public class DualRangeSlider extends Button {
-    private static final Identifier SLIDER = Identifier.withDefaultNamespace("widget/slider");
-    private static final Identifier HANDLE = Identifier.withDefaultNamespace("widget/slider_handle");
-    private static final Identifier HANDLE_HIGHLIGHTED = Identifier.withDefaultNamespace("widget/slider_handle_highlighted");
-
     private final int minValue;
     private final int maxValue;
     private final int maxSpan;
@@ -56,20 +50,22 @@ public class DualRangeSlider extends Button {
     }
 
     @Override
-    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SLIDER, getX(), getY(), getWidth(), getHeight());
+    protected void renderContents(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        int trackY = getY() + getHeight() / 2 - 1;
+        graphics.fill(getX() + 4, trackY, getRight() - 4, trackY + 3, 0xFF6E6E6E);
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        graphics.fill(lowX, getY() + 1, highX, getBottom() - 1, 0xFF3A5F8A);
+        graphics.fill(lowX, trackY, highX, trackY + 3, 0xFF3A5F8A);
         drawThumb(graphics, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(graphics, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
-        graphics.centeredText(Minecraft.getInstance().font, getMessage(),
+        graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(),
                 getX() + getWidth() / 2, getY() + 5, 0xFFFFFFFF);
     }
 
-    private void drawThumb(GuiGraphicsExtractor graphics, int x, boolean highlighted) {
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, highlighted ? HANDLE_HIGHLIGHTED : HANDLE,
-                x - 4, getY(), 8, getHeight());
+    private void drawThumb(GuiGraphics graphics, int x, boolean highlighted) {
+        int color = highlighted ? 0xFFFFFFFF : 0xFFC0C0C0;
+        graphics.fill(x - 3, getY() + 2, x + 4, getBottom() - 2, color);
+        graphics.renderOutline(x - 3, getY() + 2, 7, getHeight() - 4, 0xFF404040);
     }
 
     private boolean isThumbHovered(int mouseX, int mouseY, int x) {
