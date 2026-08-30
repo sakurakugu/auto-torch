@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -37,6 +38,7 @@ public final class LightOverlayRenderer {
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
+    private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
     }
@@ -62,14 +64,18 @@ public final class LightOverlayRenderer {
             // 方框数字样式：数字平面置于方框内部，方框单独使用线段渲染以保持清晰边界。
             ResourceLocation numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
-            renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.text(numberTexture)),
+            RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
+                    ? RenderType.textSeeThrough(numberTexture) : RenderType.text(numberTexture);
+            renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.lines()),
+                renderGeometry(camera, poseStack, buffers.getBuffer(
+                        ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                         (pose, buffer) -> submitLines(pose, buffer, data, camera));
             }
         } else {
-            renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.lines()),
+            renderGeometry(camera, poseStack, buffers.getBuffer(
+                    ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                     (pose, buffer) -> submitLines(pose, buffer, data, camera));
         }
     }
