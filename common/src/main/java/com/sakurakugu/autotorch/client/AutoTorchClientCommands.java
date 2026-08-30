@@ -232,11 +232,10 @@ public final class AutoTorchClientCommands {
 
     private static int setOverlayMode(LightOverlayState.DisplayMode mode) {
         LightOverlayState.setDisplayMode(mode);
-        return feedback("command.autotorch.overlay_mode",
-                Component.translatable(mode == LightOverlayState.DisplayMode.CROSSES
-                        ? "command.autotorch.mode_crosses"
-                        : mode == LightOverlayState.DisplayMode.NUMBERS
-                        ? "command.autotorch.mode_numbers" : "command.autotorch.mode_boxed_numbers"));
+        return feedback("command.autotorch.overlay_mode", new TextComponentTranslation(
+                mode == LightOverlayState.DisplayMode.CROSSES ? "command.autotorch.mode_crosses"
+                        : mode == LightOverlayState.DisplayMode.NUMBERS ? "command.autotorch.mode_numbers"
+                        : "command.autotorch.mode_boxed_numbers"));
     }
 
     private static <S> BlockPos position(CommandContext<S> context, String name) {
