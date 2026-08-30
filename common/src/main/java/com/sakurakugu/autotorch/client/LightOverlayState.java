@@ -11,11 +11,12 @@ import java.util.Set;
 
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.EntityLiving;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldEntitySpawner;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.EnumSkyBlock;
-import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.block.state.BlockFaceShape;
 
@@ -415,8 +416,11 @@ public final class LightOverlayState {
             return null;
         }
 
-        if (floor.getBlock() instanceof BlockLeaves
-                || floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) != BlockFaceShape.SOLID) {
+        if (floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) != BlockFaceShape.SOLID) {
+            return null;
+        }
+        if (!WorldEntitySpawner.canCreatureTypeSpawnAtLocation(
+                EntityLiving.SpawnPlacementType.ON_GROUND, level, feet)) {
             return null;
         }
         int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, feet);
