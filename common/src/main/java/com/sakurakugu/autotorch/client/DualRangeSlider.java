@@ -2,14 +2,17 @@ package com.sakurakugu.autotorch.client;
 
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
+import net.minecraft.resources.ResourceLocation;
 
 /** 可复用的双端点范围滑动条。 */
 public class DualRangeSlider extends Button {
+    private static final ResourceLocation SLIDER_LOCATION = new ResourceLocation("autotorch", "textures/gui/slider.png");
     private final int minValue;
     private final int maxValue;
     private final int maxSpan;
@@ -51,11 +54,12 @@ public class DualRangeSlider extends Button {
 
     @Override
     public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-        int trackY = y + getHeight() / 2 - 2;
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        fill(poseStack, x + 4, trackY, x + getWidth() - 4, trackY + 4, 0xFF606060);
-        fill(poseStack, lowX, trackY, highX, trackY + 4, 0xFF3A5F8A);
+        Minecraft.getInstance().getTextureManager().bind(SLIDER_LOCATION);
+        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F); RenderSystem.enableBlend(); RenderSystem.defaultBlendFunc(); RenderSystem.enableDepthTest();
+        drawNineSliced(poseStack, x, y, getWidth(), getHeight(), 20, 4, 200, 20, 0, isFocused() ? 20 : 0);
+        fill(poseStack, lowX, y + 1, highX, y + getHeight() - 1, 0xFF3A5F8A);
         drawThumb(poseStack, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(poseStack, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
         drawCenteredString(poseStack, Minecraft.getInstance().font, getMessage(),
@@ -63,14 +67,16 @@ public class DualRangeSlider extends Button {
     }
 
     private void drawThumb(PoseStack poseStack, int thumbX, boolean highlighted) {
-        int color = highlighted ? 0xFFFFFFFF : 0xFFD0D0D0;
-        fill(poseStack, thumbX - 3, y, thumbX + 4, y + getHeight(), color);
-        int outlineColor = 0xFF303030;
-        fill(poseStack, thumbX - 3, y, thumbX + 4, y + 1, outlineColor);
-        fill(poseStack, thumbX - 3, y + getHeight() - 1, thumbX + 4, y + getHeight(), outlineColor);
-        fill(poseStack, thumbX - 3, y, thumbX - 2, y + getHeight(), outlineColor);
-        fill(poseStack, thumbX + 3, y, thumbX + 4, y + getHeight(), outlineColor);
+        drawNineSliced(poseStack, thumbX - 4, y, 8, getHeight(), 20, 4, 200, 20, 0, highlighted ? 60 : 40);
     }
+
+    private static void drawNineSliced(PoseStack p, int x, int y, int w, int h, int cw, int ch, int tw, int th, int u, int v) {
+        int l=Math.min(cw,w/2),r=Math.min(cw,w-l),t=Math.min(ch,h/2),b=Math.min(ch,h-t),mw=w-l-r,mh=h-t-b,sw=Math.max(1,tw-cw*2),sh=Math.max(1,th-ch*2);
+        blitPatch(p,x,y,l,t,u,v,l,t); blitPatch(p,x+w-r,y,r,t,u+tw-r,v,r,t); blitPatch(p,x,y+h-b,l,b,u,v+th-b,l,b); blitPatch(p,x+w-r,y+h-b,r,b,u+tw-r,v+th-b,r,b);
+        if(mw>0){blitRepeatingPatch(p,x+l,y,mw,t,u+cw,v,sw,t);blitRepeatingPatch(p,x+l,y+h-b,mw,b,u+cw,v+th-b,sw,b);} if(mh>0){blitRepeatingPatch(p,x,y+t,l,mh,u,v+ch,l,sh);blitRepeatingPatch(p,x+w-r,y+t,r,mh,u+tw-r,v+ch,r,sh);} if(mw>0&&mh>0)blitRepeatingPatch(p,x+l,y+t,mw,mh,u+cw,v+ch,sw,sh);
+    }
+    private static void blitPatch(PoseStack p,int x,int y,int w,int h,int u,int v,int sw,int sh){if(w>0&&h>0)blit(p,x,y,w,h,u,v,sw,sh,256,256);}
+    private static void blitRepeatingPatch(PoseStack p,int x,int y,int w,int h,int u,int v,int sw,int sh){if(w<=0||h<=0||sw<=0||sh<=0)return;for(int oy=0;oy<h;oy+=sh)for(int ox=0;ox<w;ox+=sw){int tw=Math.min(sw,w-ox),th=Math.min(sh,h-oy);blitPatch(p,x+ox,y+oy,tw,th,u,v,tw,th);}}
 
     private boolean isThumbHovered(int mouseX, int mouseY, int x) {
         return mouseY >= y && mouseY < y + getHeight() && Math.abs(mouseX - x) <= 6;
@@ -119,4 +125,3 @@ public class DualRangeSlider extends Button {
 
     private int clamp(int value) { return Math.max(minValue, Math.min(maxValue, value)); }
 }
-
