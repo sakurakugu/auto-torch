@@ -2,11 +2,14 @@ package com.sakurakugu.autotorch.client;
 
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.ResourceLocation;
 
 /** 适配旧版 GuiButton 事件模型的双端点范围滑动条。 */
 final class DualRangeSlider extends Button {
+    private static final ResourceLocation SLIDER_LOCATION = new ResourceLocation("autotorch", "textures/gui/slider.png");
     private final int minValue;
     private final int maxValue;
     private final int maxSpan;
@@ -50,6 +53,9 @@ final class DualRangeSlider extends Button {
 
     @Override
     protected void renderButton(int mouseX, int mouseY, float partialTicks) {
+        Minecraft.getInstance().getTextureManager().bindTexture(SLIDER_LOCATION);
+        GlStateManager.color4f(1.0F, 1.0F, 1.0F, 1.0F); GlStateManager.enableBlend();
+        drawModalRectWithCustomSizedTexture(x, y, 0, isFocused() ? 20 : 0, width, height, 256, 256);
         fill(x, y + height / 2 - 1, x + width, y + height / 2 + 1, 0xFF8A8A8A);
         int lowX = position(lowerValue);
         int highX = position(upperValue);
