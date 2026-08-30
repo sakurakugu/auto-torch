@@ -2,7 +2,6 @@ package com.sakurakugu.autotorch.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.sakurakugu.autotorch.mixin.client.RenderTypeInvoker;
 import net.minecraft.client.renderer.RenderType;
 import org.lwjgl.opengl.GL11;
 

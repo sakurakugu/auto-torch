@@ -1,4 +1,4 @@
-package com.sakurakugu.autotorch.mixin.client;
+package com.sakurakugu.autotorch.client;
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.minecraft.client.renderer.RenderType;
