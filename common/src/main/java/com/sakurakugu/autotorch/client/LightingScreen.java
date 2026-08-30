@@ -50,6 +50,7 @@ public final class LightingScreen extends Screen {
     private Button woodenAxeSelectionButton;
     private Button startTaskButton;
     private Button cancelTaskButton;
+    private Button resetButton;
     private boolean consumeTorches;
     private boolean undergroundOnly;
     private boolean syncingInputs;
@@ -60,7 +61,12 @@ public final class LightingScreen extends Screen {
     private Component rangeMessage = Component.empty();
 
     public LightingScreen() {
+        this(0);
+    }
+
+    private LightingScreen(int initialScrollOffset) {
         super(Component.translatable("screen.autotorch.title"));
+        scrollOffset = initialScrollOffset;
         consumeTorches = initialConsumeTorches();
         undergroundOnly = ClientConfig.isDefaultUndergroundOnly();
     }
@@ -69,6 +75,11 @@ public final class LightingScreen extends Screen {
     protected void init() {
         BlockPos playerPos = minecraft.player == null ? BlockPos.ZERO : minecraft.player.blockPosition();
         int left = panelLeft();
+
+        Component resetMessage = Component.translatable("screen.autotorch.reset");
+        resetButton = addRenderableWidget(new ResetButton(resetButtonX(resetMessage), 2,
+                font.width(resetMessage), 16, resetMessage, panelLeft(), panelLeft() + 310,
+                button -> resetLightingTaskSettings()));
 
         shapeButton = addRenderableWidget(Button.builder(shapeMessage(), button -> {
             SelectionState.setShape(SelectionState.shape() == AreaShape.BOX ? AreaShape.SPHERE : AreaShape.BOX);
@@ -181,6 +192,10 @@ public final class LightingScreen extends Screen {
             LightOverlayState.toggle();
             lightOverlayButton.setMessage(lightOverlayMessage());
         }).bounds(left, 258, 106, 20).build());
+        Component lightOverlayResetMessage = Component.translatable("screen.autotorch.reset");
+        addRenderableWidget(new ResetButton(resetButtonX(lightOverlayResetMessage), 242,
+                font.width(lightOverlayResetMessage), 16, lightOverlayResetMessage, panelLeft(), panelLeft() + 310,
+                button -> resetLightOverlaySettings()));
         lightOverlayModeButton = addRenderableWidget(Button.builder(lightOverlayModeMessage(), button -> {
             LightOverlayState.cycleDisplayMode();
             lightOverlayModeButton.setMessage(lightOverlayModeMessage());
@@ -213,6 +228,10 @@ public final class LightingScreen extends Screen {
         }).bounds(left, 350, 153, 20)
                 .tooltip(Tooltip.create(Component.translatable("screen.autotorch.nearby_auto_torch.tooltip")))
                 .build());
+        Component nearbyResetMessage = Component.translatable("screen.autotorch.reset");
+        addRenderableWidget(new ResetButton(resetButtonX(nearbyResetMessage), 334,
+                font.width(nearbyResetMessage), 16, nearbyResetMessage, panelLeft(), panelLeft() + 310,
+                button -> resetNearbyAutoTorchSettings()));
         addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 350, 153, 20));
         nearbyAutoTorchSkyLightButton = addRenderableWidget(Button.builder(nearbyAutoTorchSkyLightMessage(), button -> {
             ClientConfig.setIncludesSkyLight(!ClientConfig.includesSkyLight());
@@ -233,6 +252,29 @@ public final class LightingScreen extends Screen {
         boolean enabled = ServerConfigState.lightingTaskEnabled();
         if (startTaskButton != null) startTaskButton.active = enabled;
         if (cancelTaskButton != null) cancelTaskButton.active = enabled;
+    }
+
+    private void resetLightingTaskSettings() {
+        ClientConfig.resetLightingTaskDefaults();
+        SelectionState.reloadConfig();
+        PlatformNetworking.sendToServer(new SetSelectionToolPayload(
+                ClientConfig.isWoodenAxeSelectionEnabled()));
+        reopenAtCurrentScrollOffset();
+    }
+
+    private void resetLightOverlaySettings() {
+        ClientConfig.resetLightOverlayDefaults();
+        LightOverlayState.reloadConfig();
+        reopenAtCurrentScrollOffset();
+    }
+
+    private void resetNearbyAutoTorchSettings() {
+        ClientConfig.resetNearbyAutoTorchDefaults();
+        reopenAtCurrentScrollOffset();
+    }
+
+    private void reopenAtCurrentScrollOffset() {
+        minecraft.gui.setScreen(new LightingScreen(scrollOffset));
     }
 
     private void createCoordinateRow(EditBox[] boxes, int left, int y, BlockPos initial) {
@@ -972,6 +1014,34 @@ public final class LightingScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    /** 标题区域内仅在悬停时显示文字的重置入口。 */
+    private int resetButtonX(Component message) {
+        return panelLeft() + 310 - font.width(message);
+    }
+
+    private static final class ResetButton extends Button {
+        private final int hoverLeft;
+        private final int hoverRight;
+
+        private ResetButton(int x, int y, int width, int height, Component message,
+                            int hoverLeft, int hoverRight, OnPress onPress) {
+            super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+            this.hoverLeft = hoverLeft;
+            this.hoverRight = hoverRight;
+        }
+
+        @Override
+        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+            boolean rowHovered = mouseX >= hoverLeft && mouseX < hoverRight
+                    && mouseY >= getY() && mouseY < getBottom();
+            if (isHoveredOrFocused() || rowHovered) {
+                graphics.text(Minecraft.getInstance().font, getMessage(), getRight() -
+                        Minecraft.getInstance().font.width(getMessage()), getY() + 4,
+                        isHoveredOrFocused() ? 0xFFFFFF00 : 0xFFFFFFFF);
+            }
+        }
     }
 
     private static final class LightRangeSlider extends AbstractSliderButton {
