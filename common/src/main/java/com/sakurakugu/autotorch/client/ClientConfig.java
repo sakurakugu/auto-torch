@@ -5,6 +5,8 @@ import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 
+import java.util.List;
+
 import static com.sakurakugu.autotorch.config.ConfigDefinitions.*;
 
 /** Loader-neutral facade for persistent client settings. */
@@ -20,14 +22,35 @@ public final class ClientConfig {
 
     /** 恢复全部客户端配置并立即持久化。 */
     public static void resetDefaults() {
-        for (Value definition : CLIENT) {
-            if (definition instanceof BooleanValue) {
-                BooleanValue value = (BooleanValue) definition;
-                backend.setBoolean(value.key(), value.defaultValue());
-            } else if (definition instanceof IntValue) {
-                IntValue value = (IntValue) definition;
-                backend.setInt(value.key(), value.defaultValue());
-            }
+        reset(CLIENT);
+    }
+
+    public static void resetNearbyAutoTorchDefaults() {
+        reset(List.of(NEARBY_AUTO_TORCH_ENABLED, NEARBY_AUTO_TORCH_LIGHT_THRESHOLD,
+                NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT));
+    }
+
+    public static void resetLightOverlayDefaults() {
+        reset(List.of(LIGHT_OVERLAY_ENABLED, LIGHT_OVERLAY_HORIZONTAL_RANGE,
+                LIGHT_OVERLAY_RENDER_THROUGH,
+                LIGHT_OVERLAY_DOWN_RANGE, LIGHT_OVERLAY_UP_RANGE,
+                LIGHT_OVERLAY_SHOW_NUMBERS, LIGHT_OVERLAY_MODE,
+                LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED));
+    }
+
+    public static void resetLightingTaskDefaults() {
+        reset(List.of(SELECTION_OVERLAY_ENABLED, SELECTION_OVERLAY_LINES_ONLY,
+                SELECTION_OVERLAY_SMOOTH_SPHERES, TASK_DEFAULT_MAX_TORCHES,
+                TASK_DEFAULT_MIN_SPACING, TASK_DEFAULT_LIGHT_THRESHOLD,
+                TASK_DEFAULT_UNDERGROUND_ONLY, TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES,
+                TASK_DEFAULT_SURVIVAL_CONSUMES_TORCHES,
+                TASK_DEFAULT_WOODEN_AXE_SELECTION_ENABLED));
+    }
+
+    private static void reset(List<Value> definitions) {
+        for (var definition : definitions) {
+            if (definition instanceof BooleanValue value) backend.setBoolean(value.key(), value.defaultValue());
+            else if (definition instanceof IntValue value) backend.setInt(value.key(), value.defaultValue());
         }
         backend.save();
     }
@@ -40,6 +63,8 @@ public final class ClientConfig {
     public static void setIncludesSkyLight(boolean value) { setBool(NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT, value); }
     public static boolean isLightOverlayEnabled() { return bool(LIGHT_OVERLAY_ENABLED); }
     public static void setLightOverlayEnabled(boolean value) { setBool(LIGHT_OVERLAY_ENABLED, value); }
+    public static boolean isLightOverlayRenderThrough() { return bool(LIGHT_OVERLAY_RENDER_THROUGH); }
+    public static void setLightOverlayRenderThrough(boolean value) { setBool(LIGHT_OVERLAY_RENDER_THROUGH, value); }
     public static int lightOverlayRange() { return integer(LIGHT_OVERLAY_HORIZONTAL_RANGE); }
     public static void setLightOverlayRange(int value) { setInt(LIGHT_OVERLAY_HORIZONTAL_RANGE, value); }
     public static int lightOverlayDownRange() { return integer(LIGHT_OVERLAY_DOWN_RANGE); }
