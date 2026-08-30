@@ -27,10 +27,8 @@ import net.minecraft.world.level.chunk.LevelChunk;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
-    private static final int DOWN_RANGE = 16;
-    private static final int UP_RANGE = 4;
+    private static final int MAX_VERTICAL_RANGE = 64;
     private static final int SCAN_BUDGET_PER_TICK = 12_000;
-    private static final int HEIGHT = DOWN_RANGE + UP_RANGE + 1;
     private static final int LIGHT_CHANGE_RADIUS = 15;
     private static final int CACHE_MARGIN = 16;
     private static final int VERIFICATION_INTERVAL_TICKS = 100;
@@ -40,6 +38,8 @@ public final class LightOverlayState {
     private static boolean drownedDetectionEnabled = ClientConfig.detectsDrowned();
     private static DisplayMode displayMode = modeFromConfig();
     private static int horizontalRange = ClientConfig.lightOverlayRange();
+    private static int downRange = ClientConfig.lightOverlayDownRange();
+    private static int upRange = ClientConfig.lightOverlayUpRange();
     private static ClientLevel level;
     private static BlockPos scanCenter;
     private static int minY;
@@ -62,6 +62,9 @@ public final class LightOverlayState {
         drownedDetectionEnabled = ClientConfig.detectsDrowned();
         displayMode = modeFromConfig();
         horizontalRange = ClientConfig.lightOverlayRange();
+        downRange = ClientConfig.lightOverlayDownRange();
+        upRange = ClientConfig.lightOverlayUpRange();
+        normalizeVerticalRange();
         clearScan();
     }
 
@@ -157,6 +160,34 @@ public final class LightOverlayState {
         }
     }
 
+    public static int downRange() { return downRange; }
+    public static int upRange() { return upRange; }
+
+    public static void setDownRange(int value) {
+        int clamped = Math.max(0, Math.min(MAX_VERTICAL_RANGE - upRange, value));
+        if (downRange != clamped) {
+            downRange = clamped;
+            ClientConfig.setLightOverlayDownRange(clamped);
+            clearScan();
+        }
+    }
+
+    public static void setUpRange(int value) {
+        int clamped = Math.max(0, Math.min(MAX_VERTICAL_RANGE - downRange, value));
+        if (upRange != clamped) {
+            upRange = clamped;
+            ClientConfig.setLightOverlayUpRange(clamped);
+            clearScan();
+        }
+    }
+
+    private static void normalizeVerticalRange() {
+        if (downRange + upRange > MAX_VERTICAL_RANGE) {
+            upRange = Math.max(0, MAX_VERTICAL_RANGE - downRange);
+            ClientConfig.setLightOverlayUpRange(upRange);
+        }
+    }
+
     static List<MarkerColumn> markerColumns() {
         return markerColumns;
     }
@@ -213,8 +244,8 @@ public final class LightOverlayState {
 
         int centerY = verticalChanged ? playerPos.getY() : scanCenter.getY();
         scanCenter = new BlockPos(playerPos.getX(), centerY, playerPos.getZ());
-        minY = centerY - DOWN_RANGE;
-        maxY = centerY + UP_RANGE;
+        minY = centerY - downRange;
+        maxY = centerY + upRange;
         pruneDistantColumns();
         enqueueVisibleColumns(backgroundColumns);
         return true;
@@ -255,7 +286,7 @@ public final class LightOverlayState {
     }
 
     private static boolean scanQueuedColumns(ClientLevel currentLevel, Set<Long> queue, int budget) {
-        int columnsRemaining = Math.max(1, budget / HEIGHT);
+        int columnsRemaining = Math.max(1, budget / (downRange + upRange + 1));
         boolean changed = false;
         Iterator<Long> iterator = queue.iterator();
         while (iterator.hasNext() && columnsRemaining-- > 0) {
