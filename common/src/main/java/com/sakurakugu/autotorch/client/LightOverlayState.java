@@ -20,6 +20,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 
@@ -426,7 +427,8 @@ public final class LightOverlayState {
             return null;
         }
 
-        if (!Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)) {
+        if (floor.getBlock() instanceof LeavesBlock
+                || !Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)) {
             return null;
         }
         int blockLight = level.getBrightness(LightLayer.BLOCK, feet);
