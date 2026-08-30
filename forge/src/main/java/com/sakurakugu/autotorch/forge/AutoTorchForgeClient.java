@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.forge;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.LightOverlayState;
@@ -44,6 +45,7 @@ final class AutoTorchForgeClient {
     private void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(AutoTorchClient.OPEN_SCREEN);
         event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH);
     }
 
     private void registerClientCommands(RegisterClientCommandsEvent event) {
@@ -91,6 +93,7 @@ final class AutoTorchForgeClient {
         SelectionRenderer.render(camera, poseStack, buffers);
         LightOverlayRenderer.render(camera, poseStack, buffers);
         buffers.endBatch(RenderType.lines());
+        buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
         buffers.endBatch(SelectionRenderer.faceRenderType());
     }
 }

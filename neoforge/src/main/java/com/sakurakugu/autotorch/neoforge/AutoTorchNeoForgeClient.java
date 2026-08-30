@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.neoforge;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -41,6 +42,7 @@ public final class AutoTorchNeoForgeClient {
     private void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(AutoTorchClient.OPEN_SCREEN);
         event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH);
     }
 
     private void registerClientCommands(RegisterClientCommandsEvent event) {
@@ -78,6 +80,7 @@ public final class AutoTorchNeoForgeClient {
         SelectionRenderer.render(camera, event.getPoseStack(), buffers);
         LightOverlayRenderer.render(camera, event.getPoseStack(), buffers);
         buffers.endBatch(RenderType.lines());
+        buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
         buffers.endBatch(SelectionRenderer.faceRenderType());
     }
 }

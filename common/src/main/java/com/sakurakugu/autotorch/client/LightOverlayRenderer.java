@@ -7,18 +7,19 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或纹理数字。 */
 public final class LightOverlayRenderer {
-    private static final Identifier NUMBER_TEXTURE =
-            Identifier.fromNamespaceAndPath("autotorch", "textures/misc/light_level_numbers_large.png");
-    private static final Identifier MEDIUM_NUMBER_TEXTURE =
-            Identifier.fromNamespaceAndPath("autotorch", "textures/misc/light_level_numbers_medium.png");
+    private static final ResourceLocation NUMBER_TEXTURE =
+            new ResourceLocation("autotorch", "textures/misc/light_level_numbers_large.png");
+    private static final ResourceLocation MEDIUM_NUMBER_TEXTURE =
+            new ResourceLocation("autotorch", "textures/misc/light_level_numbers_medium.png");
     private static final int FULL_BRIGHT_LIGHT = 0xF0;
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
@@ -42,6 +43,7 @@ public final class LightOverlayRenderer {
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
+    private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
     }
@@ -65,16 +67,20 @@ public final class LightOverlayRenderer {
         }
         if (data.displayMode() != LightOverlayState.DisplayMode.CROSSES) {
             // 方框数字样式：数字平面置于方框内部，方框单独使用线段渲染以保持清晰边界。
-            Identifier numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
+            ResourceLocation numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
-            renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.text(numberTexture)),
+            RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
+                    ? RenderType.textSeeThrough(numberTexture) : RenderType.text(numberTexture);
+            renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.lines()),
+                renderGeometry(camera, poseStack, buffers.getBuffer(
+                        ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                         (pose, buffer) -> submitLines(pose, buffer, data, camera));
             }
         } else {
-            renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.lines()),
+            renderGeometry(camera, poseStack, buffers.getBuffer(
+                    ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                     (pose, buffer) -> submitLines(pose, buffer, data, camera));
         }
     }
@@ -221,17 +227,15 @@ public final class LightOverlayRenderer {
                 float size = quad.size();
                 float u = (quad.value() & 3) * NUMBER_TEXTURE_CELL_SIZE;
                 float v = (quad.value() >> 2) * NUMBER_TEXTURE_CELL_SIZE;
-                buffer.addVertex(pose, x, y, z)
-                        .setUv(u, v).setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
-                buffer.addVertex(pose, x, y, z + size)
-                        .setUv(u, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
-                buffer.addVertex(pose, x + size, y, z + size)
-                        .setUv(u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
-                buffer.addVertex(pose, x + size, y, z)
-                        .setUv(u + NUMBER_TEXTURE_CELL_SIZE, v)
-                        .setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
+                buffer.vertex(pose, x, y, z).uv(u, v).uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT)
+                        .color(quad.color()).endVertex();
+                buffer.vertex(pose, x, y, z + size).uv(u, v + NUMBER_TEXTURE_CELL_SIZE)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
+                buffer.vertex(pose, x + size, y, z + size).uv(u + NUMBER_TEXTURE_CELL_SIZE,
+                        v + NUMBER_TEXTURE_CELL_SIZE).uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT)
+                        .color(quad.color()).endVertex();
+                buffer.vertex(pose, x + size, y, z).uv(u + NUMBER_TEXTURE_CELL_SIZE, v)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
             }
         }
     }
