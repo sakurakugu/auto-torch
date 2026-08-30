@@ -2,12 +2,16 @@ package com.sakurakugu.autotorch.client;
 
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import com.mojang.blaze3d.platform.GlStateManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.GuiComponent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 /** 可复用的双端点范围滑动条。 */
 final class DualRangeSlider extends Button {
+    private static final ResourceLocation SLIDER_LOCATION = new ResourceLocation("autotorch", "textures/gui/slider.png");
     private final int minValue;
     private final int maxValue;
     private final int maxSpan;
@@ -42,7 +46,9 @@ final class DualRangeSlider extends Button {
 
     @Override
     public void renderButton(int mouseX, int mouseY, float partialTick) {
-        fill(x, y + height / 2 - 1, x + width, y + height / 2 + 1, 0xFF8A8A8A);
+        Minecraft.getInstance().getTextureManager().bind(SLIDER_LOCATION);
+        GlStateManager.color4f(1, 1, 1, 1); GlStateManager.enableBlend(); GlStateManager.enableDepthTest();
+        GuiComponent.blit(x, y, 0, 0, isFocused() ? 20 : 0, width, height, 256, 256);
         int lowX = position(lowerValue);
         int highX = position(upperValue);
         fill(lowX, y + height / 2 - 2, highX, y + height / 2 + 2, 0xFF3A5F8A);
@@ -52,9 +58,7 @@ final class DualRangeSlider extends Button {
     }
 
     private void drawThumb(int thumbX, boolean highlighted) {
-        int color = highlighted ? 0xFFFFFFFF : 0xFFB0B0B0;
-        fill(thumbX - 3, y + 2, thumbX + 4, y + height - 2, color);
-        fill(thumbX - 2, y + 3, thumbX + 3, y + height - 3, 0xFF606060);
+        GuiComponent.blit(thumbX - 4, y, 0, 0, highlighted ? 60 : 40, 8, height, 256, 256);
     }
 
     private boolean isThumbHovered(int mouseX, int mouseY, int thumbX) {
