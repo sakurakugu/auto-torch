@@ -1,9 +1,12 @@
 package com.sakurakugu.autotorch.client;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.util.ResourceLocation;
 
 /** 使用 1.13 按钮输入实现离散数值滑块。 */
 abstract class AbstractSliderButton extends Button {
+    private static final ResourceLocation WIDGETS_LOCATION = new ResourceLocation("minecraft", "textures/gui/widgets.png");
     protected double value;
     private boolean dragging;
 
@@ -33,20 +36,22 @@ abstract class AbstractSliderButton extends Button {
 
     @Override
     protected void renderButton(int mouseX, int mouseY, float partialTicks) {
-        // 只借用禁用按钮的灰色背景，滑动条本身仍保持可交互。
+        // 借用禁用按钮底图，再叠加带悬停状态的纹理滑块头。
         boolean enabledBeforeRender = enabled;
+        String messageBeforeRender = displayString;
         enabled = false;
+        displayString = "";
         super.renderButton(mouseX, mouseY, partialTicks);
+        displayString = messageBeforeRender;
         enabled = enabledBeforeRender;
 
-        // 补画旧版 GuiButton 缺少的滑块头。
-        int trackLeft = x + 4;
-        int trackRight = x + width - 4;
-
-        int handleCenter = trackLeft + (int) Math.round(value * (trackRight - trackLeft));
-        int handleColor = isHovered() ? 0xFFFFFFFF : 0xFFD0D0D0;
-        fill(handleCenter - 3, y + 2, handleCenter + 3, y + height - 2, 0xFF606060);
-        fill(handleCenter - 2, y + 3, handleCenter + 2, y + height - 3, handleColor);
+        Minecraft.getMinecraft().getTextureManager().bindTexture(WIDGETS_LOCATION);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+        int handleLeft = x + (int) (value * (width - 8));
+        int textureY = isHovered() ? 86 : 66;
+        drawModalRectWithCustomSizedTexture(handleLeft, y, 0, textureY, 4, height, 256, 256);
+        drawModalRectWithCustomSizedTexture(handleLeft + 4, y, 196, textureY, 4, height, 256, 256);
         drawCenteredString(Minecraft.getMinecraft().fontRenderer, getMessage(),
                 x + width / 2, y + (height - 8) / 2, 0xFFFFFFFF);
     }
