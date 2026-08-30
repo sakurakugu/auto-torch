@@ -42,6 +42,10 @@ public final class ClientConfig {
     public static void setLightOverlayEnabled(boolean value) { setBool(LIGHT_OVERLAY_ENABLED, value); }
     public static int lightOverlayRange() { return integer(LIGHT_OVERLAY_HORIZONTAL_RANGE); }
     public static void setLightOverlayRange(int value) { setInt(LIGHT_OVERLAY_HORIZONTAL_RANGE, value); }
+    public static int lightOverlayDownRange() { return integer(LIGHT_OVERLAY_DOWN_RANGE); }
+    public static void setLightOverlayDownRange(int value) { setInt(LIGHT_OVERLAY_DOWN_RANGE, value); }
+    public static int lightOverlayUpRange() { return integer(LIGHT_OVERLAY_UP_RANGE); }
+    public static void setLightOverlayUpRange(int value) { setInt(LIGHT_OVERLAY_UP_RANGE, value); }
     public static boolean showsLightOverlayNumbers() { return bool(LIGHT_OVERLAY_SHOW_NUMBERS); }
     public static void setShowsLightOverlayNumbers(boolean value) { setBool(LIGHT_OVERLAY_SHOW_NUMBERS, value); }
     public static int lightOverlayMode() { return integer(LIGHT_OVERLAY_MODE); }
