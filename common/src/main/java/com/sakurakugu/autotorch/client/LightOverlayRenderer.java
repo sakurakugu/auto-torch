@@ -16,7 +16,9 @@ import net.minecraft.world.phys.Vec3;
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或纹理数字。 */
 public final class LightOverlayRenderer {
     private static final ResourceLocation NUMBER_TEXTURE =
-            new ResourceLocation("autotorch", "textures/misc/light_level_numbers.png");
+            new ResourceLocation("autotorch", "textures/misc/light_level_numbers_large.png");
+    private static final ResourceLocation MEDIUM_NUMBER_TEXTURE =
+            new ResourceLocation("autotorch", "textures/misc/light_level_numbers_medium.png");
     private static final int FULL_BRIGHT_LIGHT = 0xF0;
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
@@ -28,6 +30,9 @@ public final class LightOverlayRenderer {
     // 图集中的字形已在 64x64 单元格内居中。
     private static final double NUMBER_OFFSET_X = 0.0D;
     private static final double NUMBER_OFFSET_Z = 0.25D;
+    private static final double BOXED_NUMBER_OFFSET_Z = 0.0D;
+    private static final double NUMBER_MARGIN = 0.1D;
+    private static final double NUMBER_SIZE = 1.0D;
     private static final float NUMBER_TEXTURE_CELL_SIZE = 0.25F;
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
@@ -53,12 +58,20 @@ public final class LightOverlayRenderer {
         if (data == null) {
             return;
         }
-        RenderType renderType = data.displayMode() == LightOverlayState.DisplayMode.NUMBERS
-                ? RenderType.text(NUMBER_TEXTURE) : RenderType.lines();
-        GeometryRenderer renderer = data.displayMode() == LightOverlayState.DisplayMode.NUMBERS
-                ? (pose, buffer) -> submitNumbers(pose, buffer, data, camera)
-                : (pose, buffer) -> submitLines(pose, buffer, data, camera);
-        renderGeometry(camera, poseStack, buffers.getBuffer(renderType), renderer);
+        if (data.displayMode() != LightOverlayState.DisplayMode.CROSSES) {
+            // 方框数字样式：数字平面置于方框内部，方框单独使用线段渲染以保持清晰边界。
+            ResourceLocation numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
+                    ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
+            renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.text(numberTexture)),
+                    (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
+            if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
+                renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.lines()),
+                        (pose, buffer) -> submitLines(pose, buffer, data, camera));
+            }
+        } else {
+            renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.lines()),
+                    (pose, buffer) -> submitLines(pose, buffer, data, camera));
+        }
     }
 
     private static void renderGeometry(
@@ -104,7 +117,15 @@ public final class LightOverlayRenderer {
         GeometryBuilder geometry = new GeometryBuilder(markers.size());
         for (LightOverlayState.Marker marker : markers) {
             if (displayMode == LightOverlayState.DisplayMode.NUMBERS) {
-                addNumber(geometry, marker);
+                addNumber(geometry, marker, false);
+                continue;
+            }
+            if (displayMode == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
+                addNumber(geometry, marker, true);
+                // 绿色标记表示光照已高于刷怪阈值，只显示数字，不再绘制外围边框。
+                if (marker.isRisk()) {
+                    addNumberBox(geometry, marker);
+                }
                 continue;
             }
             if (!marker.isRisk()) {
@@ -122,11 +143,24 @@ public final class LightOverlayRenderer {
         return geometry.build(markers, displayMode);
     }
 
-    private static void addNumber(GeometryBuilder geometry, LightOverlayState.Marker marker) {
+    private static void addNumber(GeometryBuilder geometry, LightOverlayState.Marker marker, boolean boxed) {
         geometry.addNumber(marker.pos().getX() + NUMBER_OFFSET_X,
                 marker.pos().getY() + SURFACE_OFFSET,
-                marker.pos().getZ() + NUMBER_OFFSET_Z,
-                marker.blockLight(), markerColor(marker));
+                marker.pos().getZ() + (boxed ? BOXED_NUMBER_OFFSET_Z : NUMBER_OFFSET_Z),
+                marker.blockLight(), markerColor(marker), boxed ? (float) NUMBER_SIZE : 1.0F);
+    }
+
+    private static void addNumberBox(GeometryBuilder geometry, LightOverlayState.Marker marker) {
+        double x0 = marker.pos().getX() + NUMBER_MARGIN;
+        double x1 = marker.pos().getX() + 1.0D - NUMBER_MARGIN;
+        double y = marker.pos().getY() + SURFACE_OFFSET;
+        double z0 = marker.pos().getZ() + NUMBER_MARGIN;
+        double z1 = marker.pos().getZ() + 1.0D - NUMBER_MARGIN;
+        int color = markerColor(marker);
+        geometry.add(x0, y, z0, x0, y, z1, color);
+        geometry.add(x0, y, z1, x1, y, z1, color);
+        geometry.add(x1, y, z1, x1, y, z0, color);
+        geometry.add(x1, y, z0, x0, y, z0, color);
     }
 
     private static int markerColor(LightOverlayState.Marker marker) {
@@ -162,17 +196,18 @@ public final class LightOverlayRenderer {
                 float x = (float) (quad.x() - camera.x());
                 float y = (float) (quad.y() - camera.y());
                 float z = (float) (quad.z() - camera.z());
+                float size = quad.size();
                 float u = (quad.value() & 3) * NUMBER_TEXTURE_CELL_SIZE;
                 float v = (quad.value() >> 2) * NUMBER_TEXTURE_CELL_SIZE;
-                buffer.vertex(pose.pose(), x, y, z).uv(u, v)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
-                buffer.vertex(pose.pose(), x, y, z + 1.0F).uv(u, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
-                buffer.vertex(pose.pose(), x + 1.0F, y, z + 1.0F)
-                        .uv(u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
-                buffer.vertex(pose.pose(), x + 1.0F, y, z).uv(u + NUMBER_TEXTURE_CELL_SIZE, v)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
+        buffer.vertex(pose.pose(), x, y, z).uv(u, v)
+                .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
+        buffer.vertex(pose.pose(), x, y, z + size).uv(u, v + NUMBER_TEXTURE_CELL_SIZE)
+                .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
+        buffer.vertex(pose.pose(), x + size, y, z + size)
+                .uv(u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE)
+                .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
+        buffer.vertex(pose.pose(), x + size, y, z).uv(u + NUMBER_TEXTURE_CELL_SIZE, v)
+                .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color(quad.color()).endVertex();
             }
         }
     }
@@ -205,7 +240,7 @@ public final class LightOverlayRenderer {
     ) {
     }
 
-    private record NumberQuad(double x, double y, double z, int value, int color) {
+    private record NumberQuad(double x, double y, double z, int value, int color, float size) {
     }
 
     private static final class GeometryBuilder {
@@ -233,8 +268,8 @@ public final class LightOverlayRenderer {
             lineCount++;
         }
 
-        private void addNumber(double x, double y, double z, int value, int color) {
-            numberQuads.add(new NumberQuad(x, y, z, value, color));
+        private void addNumber(double x, double y, double z, int value, int color, float size) {
+            numberQuads.add(new NumberQuad(x, y, z, value, color, size));
         }
 
         private void ensureCapacity(int requiredLines) {
