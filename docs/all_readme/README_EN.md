@@ -1,6 +1,6 @@
 # Auto Torch
 
-English | [简体中文](README.md)
+English | [简体中文](../../README.md)
 
 An automatic torch placement and light level overlay mod for Minecraft 1.7.10~26.2 on NeoForge, Forge, and Fabric.
 
@@ -80,8 +80,9 @@ When contributing a translation, submit the `.json` file in a pull request targe
 > `.json` files will be automatically converted to `.lang` files by a script.
 
 1. Fork this repository and create a new branch from `main`.
-2. Copy `zh_cn.json` on that branch, then translate it manually or with the help of AI.
-3. Commit the translated file and make sure it uses UTF-8 encoding.
+2. Copy `zh_cn.json` on that branch, then translate it manually or with the help of AI (preferably with manual proofreading).
+3. Add a corresponding README file for the language.
+4. Commit the translated file and make sure it uses UTF-8 encoding.
 
 ## Features
 
