@@ -4,8 +4,7 @@
   "package": "com.sakurakugu.autotorch.mixin.client",
   "compatibilityLevel": "JAVA_8",
   "client": [
-    "ClientLevelMixin",
-    "RenderTypeInvoker"
+    "ClientLevelMixin"
   ],
   "injectors": {
     "defaultRequire": 1
