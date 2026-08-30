@@ -33,6 +33,7 @@ public final class LightingScreen extends Screen {
     private Button convertShapeButton;
     private Button sphereDisplayButton;
     private Button displayButton;
+    private Button moreSettingsButton;
     private Button useCurrentFirstButton;
     private Button useCurrentSecondButton;
     private Button setLightingButton;
@@ -82,12 +83,16 @@ public final class LightingScreen extends Screen {
                     SelectionState.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY
                             ? SelectionState.SphereDisplayMode.SMOOTH : SelectionState.SphereDisplayMode.BLOCKY;
             SelectionState.setSphereDisplayMode(next);
-            sphereDisplayButton.setMessage(sphereDisplayMessage().getString());
-        }));
-        displayButton = addRenderableWidget(button(left + 224, 20, 86, 20, displayMessage(), button -> {
+            sphereDisplayButton.setMessage(sphereDisplayMessage());
+        }).bounds(left + 216, 88, 94, 20).build());
+        displayButton = addRenderableWidget(Button.builder(displayMessage(), button -> {
             cycleSelectionDisplay();
-            displayButton.setMessage(displayMessage().getString());
-        }));
+            displayButton.setMessage(displayMessage());
+        }).bounds(left + 130, 20, 90, 20).build());
+        moreSettingsButton = addRenderableWidget(Button.builder(
+                Component.translatable("screen.autotorch.more_settings"), button -> {
+                    // 更多设置入口暂不包含具体选项。
+                }).bounds(left + 224, 20, 86, 20).build());
 
         createCoordinateRow(first, left, 44, SelectionState.first(playerPos));
         useCurrentFirstButton = addRenderableWidget(button(left + 190, 44, 120, 20, firstPointMessage(), button -> {
@@ -365,6 +370,7 @@ public final class LightingScreen extends Screen {
                     : Math.abs(secondPos.getX() - firstPos.getX()) + 1));
             dimensions[1].visible = !sphere;
             dimensions[2].visible = !sphere;
+            sphereDisplayButton.visible = sphere;
             if (!sphere) {
                 dimensions[1].setValue(Integer.toString(Math.abs(secondPos.getZ() - firstPos.getZ()) + 1));
                 dimensions[2].setValue(Integer.toString(Math.abs(secondPos.getY() - firstPos.getY()) + 1));
