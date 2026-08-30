@@ -1,6 +1,6 @@
 # Auto Torch
 
-[English](README_EN.md) | 简体中文
+[English](./docs/all_readme/README_EN.md) | 简体中文
 
 适用于 Minecraft 1.7.10 / Forge 的自动插火把和光照显示模组。
 
@@ -81,8 +81,9 @@
 > `.json`会用脚本自动转换成 `.lang` 文件。
 
 1. Fork 本仓库，从 `main` 分支创建一个新分支。
-2. 在目标分支中复制语言文件 `zh_cn.json`，然后人工或让AI翻译。
-3. 然后提交，记得查看是否是 `UTF-8` 编码。
+2. 在目标分支中复制语言文件 `zh_cn.json`，然后人工或让AI翻译（最好人工校对）。
+3. 添加对应语言的 README 文件。
+4. 然后提交，记得查看是否是 `UTF-8` 编码。
 
 ## 功能
 
