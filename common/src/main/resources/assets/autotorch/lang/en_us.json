@@ -15,6 +15,7 @@
   "screen.autotorch.display_faces": "Display: faces",
   "screen.autotorch.display_lines": "Display: lines",
   "screen.autotorch.display_off": "Display: off",
+  "screen.autotorch.more_settings": "More settings",
   "screen.autotorch.use_current_a": "Set current pos as point A",
   "screen.autotorch.use_current_b": "Set current pos as point B",
   "screen.autotorch.use_current_center": "Set current pos as center C",
