@@ -15,6 +15,7 @@
   "screen.autotorch.display_faces": "显示：面",
   "screen.autotorch.display_lines": "显示：线",
   "screen.autotorch.display_off": "显示：关",
+  "screen.autotorch.more_settings": "更多设置",
   "screen.autotorch.use_current_a": "当前位置设为 A 点",
   "screen.autotorch.use_current_b": "当前位置设为 B 点",
   "screen.autotorch.use_current_center": "当前位置设为圆心 C",
