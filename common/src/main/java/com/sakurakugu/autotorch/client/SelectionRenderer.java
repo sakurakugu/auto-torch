@@ -5,31 +5,58 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.VertexFormat;
 
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
 public final class SelectionRenderer {
+    private static final int DEPTH_LEQUAL = 0x0203;
+    private static final RenderType FACE_RENDER_TYPE = new RenderType(
+            "autotorch_selection_faces",
+            DefaultVertexFormat.POSITION_COLOR,
+            VertexFormat.Mode.QUADS,
+            1536,
+            false,
+            true,
+            () -> {
+                RenderSystem.setShader(GameRenderer::getPositionColorShader);
+                RenderSystem.enableBlend();
+                RenderSystem.defaultBlendFunc();
+                RenderSystem.enableDepthTest();
+                RenderSystem.depthFunc(DEPTH_LEQUAL);
+                RenderSystem.disableCull();
+                RenderSystem.depthMask(false);
+                // 将贴合方块的选区面略微拉近，避免移动时与方块表面发生深度闪烁。
+                RenderSystem.polygonOffset(-1.0F, -10.0F);
+                RenderSystem.enablePolygonOffset();
+            },
+            () -> {
+                RenderSystem.polygonOffset(0.0F, 0.0F);
+                RenderSystem.disablePolygonOffset();
+                RenderSystem.depthMask(true);
+                RenderSystem.enableCull();
+                RenderSystem.disableBlend();
+            }
+    ) {};
     private static final int DRAFT_LINE_COLOR = 0xD070A0FF;
     private static final int SELECTION_LINE_COLOR = 0xD050FF70;
     private static final int EXCLUSION_LINE_COLOR = 0xD0FF5050;
     private static final int DRAFT_FACE_COLOR = 0x2870A0FF;
     private static final int SELECTION_FACE_COLOR = 0x2850FF70;
     private static final int EXCLUSION_FACE_COLOR = 0x30FF5050;
-    private static final float LINE_WIDTH_REFERENCE_DISTANCE = 8.0F;
-    private static final double LINE_WIDTH_REFERENCE_DISTANCE_SQUARED =
-            LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE;
-    private static final float MIN_LINE_WIDTH = 0.75F;
     private static final int SPHERE_LONGITUDE_SEGMENTS = 24;
     /** 平滑球体线框中相邻圆环的目标间距（方块）。 */
     private static final double SMOOTH_SPHERE_LINE_SPACING = 8.0D;
@@ -99,9 +126,9 @@ public final class SelectionRenderer {
         renderRevision = SelectionState.renderRevision();
     }
 
-    public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
-        renderGeometry(camera, poseStack,
-                (stack, renderType, renderer) -> collector.submitCustomGeometry(stack, renderType, renderer::render));
+    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource buffers) {
+        renderGeometry(camera, poseStack, (stack, renderType, renderer) ->
+                renderer.render(stack.last(), buffers.getBuffer(renderType)));
     }
 
     private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {
@@ -112,7 +139,7 @@ public final class SelectionRenderer {
         poseStack.pushPose();
         // 顶点在提交时转换为相机相对坐标，避免大世界坐标分别转 float 后再相减造成精度损失。
         RenderType renderType = data.displayMode() == SelectionState.DisplayMode.LINES
-                ? RenderTypes.linesTranslucent() : RenderTypes.debugFilledBox();
+                ? RenderType.lines() : FACE_RENDER_TYPE;
         sink.submit(poseStack, renderType, (pose, buffer) -> renderZones(pose, buffer, data, camera));
         poseStack.popPose();
     }
@@ -152,8 +179,7 @@ public final class SelectionRenderer {
                     renderSphereLines(pose, buffer, zone, lineColor, width, camera);
                 }
             } else {
-                renderBoxLines(pose, buffer,
-                        AABB.encapsulatingFullBlocks(zone.min(), zone.max()), lineColor, width, camera);
+                renderBoxLines(pose, buffer, fullBlockBounds(zone), lineColor, width, camera);
             }
         } else if (zone.shape() == AreaShape.SPHERE) {
             if (data.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY) {
@@ -163,8 +189,15 @@ public final class SelectionRenderer {
                 renderSphereFaces(pose, buffer, zone, faceColor, camera);
             }
         } else {
-            renderBoxFaces(pose, buffer, AABB.encapsulatingFullBlocks(zone.min(), zone.max()), faceColor, camera);
+            renderBoxFaces(pose, buffer, fullBlockBounds(zone), faceColor, camera);
         }
+    }
+
+    private static AABB fullBlockBounds(AreaZone zone) {
+        return new AABB(
+                zone.min().getX(), zone.min().getY(), zone.min().getZ(),
+                zone.max().getX() + 1, zone.max().getY() + 1, zone.max().getZ() + 1
+        );
     }
 
     private static void renderBoxLines(PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color, float width,
@@ -445,10 +478,10 @@ public final class SelectionRenderer {
             int latitude, int longitude, int color, Vec3 camera
     ) {
         double horizontal = SPHERE_LATITUDE_COS[latitude] * radius;
-        buffer.addVertex(pose,
+        buffer.vertex(pose.pose(),
                 (float) (cx + SPHERE_LONGITUDE_COS[longitude] * horizontal - camera.x()),
                 (float) (cy + SPHERE_LATITUDE_SIN[latitude] * radius - camera.y()),
-                (float) (cz + SPHERE_LONGITUDE_SIN[longitude] * horizontal - camera.z())).setColor(color);
+                (float) (cz + SPHERE_LONGITUDE_SIN[longitude] * horizontal - camera.z())).color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).endVertex();
     }
 
     private static void quad(
@@ -456,15 +489,11 @@ public final class SelectionRenderer {
             double x1, double y1, double z1, double x2, double y2, double z2,
             double x3, double y3, double z3, double x4, double y4, double z4, int color, Vec3 camera
     ) {
-        // 调试填充渲染会剔除背面，因此同时提交反向面，保证从选区内部也能看到边界。
-        buffer.addVertex(pose, (float) (x1 - camera.x()), (float) (y1 - camera.y()), (float) (z1 - camera.z())).setColor(color);
-        buffer.addVertex(pose, (float) (x2 - camera.x()), (float) (y2 - camera.y()), (float) (z2 - camera.z())).setColor(color);
-        buffer.addVertex(pose, (float) (x3 - camera.x()), (float) (y3 - camera.y()), (float) (z3 - camera.z())).setColor(color);
-        buffer.addVertex(pose, (float) (x4 - camera.x()), (float) (y4 - camera.y()), (float) (z4 - camera.z())).setColor(color);
-        buffer.addVertex(pose, (float) (x4 - camera.x()), (float) (y4 - camera.y()), (float) (z4 - camera.z())).setColor(color);
-        buffer.addVertex(pose, (float) (x3 - camera.x()), (float) (y3 - camera.y()), (float) (z3 - camera.z())).setColor(color);
-        buffer.addVertex(pose, (float) (x2 - camera.x()), (float) (y2 - camera.y()), (float) (z2 - camera.z())).setColor(color);
-        buffer.addVertex(pose, (float) (x1 - camera.x()), (float) (y1 - camera.y()), (float) (z1 - camera.z())).setColor(color);
+        // 选区面使用独立四边形且不写深度，保证水面等透明内容仍能正常渲染。
+        buffer.vertex(pose.pose(), (float) (x1 - camera.x()), (float) (y1 - camera.y()), (float) (z1 - camera.z())).color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).endVertex();
+        buffer.vertex(pose.pose(), (float) (x2 - camera.x()), (float) (y2 - camera.y()), (float) (z2 - camera.z())).color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).endVertex();
+        buffer.vertex(pose.pose(), (float) (x3 - camera.x()), (float) (y3 - camera.y()), (float) (z3 - camera.z())).color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).endVertex();
+        buffer.vertex(pose.pose(), (float) (x4 - camera.x()), (float) (y4 - camera.y()), (float) (z4 - camera.z())).color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).endVertex();
     }
 
     private static void line(
@@ -494,26 +523,10 @@ public final class SelectionRenderer {
             ny /= length;
             nz /= length;
         }
-        float lineWidth = scaledLineWidth(width, x1, y1, z1, x2, y2, z2);
-        buffer.addVertex(pose, (float) x1, (float) y1, (float) z1)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
-        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
-    }
-
-    private static float scaledLineWidth(float baseWidth,
-                                         double x1, double y1, double z1,
-                                         double x2, double y2, double z2) {
-        double x = (x1 + x2) * 0.5D;
-        double y = (y1 + y2) * 0.5D;
-        double z = (z1 + z2) * 0.5D;
-        double distanceSquared = x * x + y * y + z * z;
-        if (distanceSquared <= LINE_WIDTH_REFERENCE_DISTANCE_SQUARED) {
-            return baseWidth;
-        }
-        double distance = Math.sqrt(distanceSquared);
-        return Math.max(MIN_LINE_WIDTH,
-                (float) (baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / distance));
+        buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1)
+                .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).normal(pose.normal(), nx, ny, nz).endVertex();
+        buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2)
+                .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).normal(pose.normal(), nx, ny, nz).endVertex();
     }
 
     private record RenderData(
@@ -524,6 +537,10 @@ public final class SelectionRenderer {
             SelectionState.SphereDisplayMode sphereDisplayMode,
             Map<Long, BlockySphereMesh> blockySphereMeshes
     ) {
+    }
+
+    public static RenderType faceRenderType() {
+        return FACE_RENDER_TYPE;
     }
 
     @FunctionalInterface

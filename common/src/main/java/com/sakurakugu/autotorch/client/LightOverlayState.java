@@ -14,16 +14,16 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
-import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.FluidTags;
-import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.SpawnPlacementTypes;
+import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
-import org.jspecify.annotations.Nullable;
+import net.minecraft.world.level.biome.Biome;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
@@ -40,8 +40,8 @@ public final class LightOverlayState {
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static int downRange = ClientConfig.lightOverlayDownRange();
     private static int upRange = ClientConfig.lightOverlayUpRange();
-    private static @Nullable ClientLevel level;
-    private static @Nullable BlockPos scanCenter;
+    private static ClientLevel level;
+    private static BlockPos scanCenter;
     private static int minY;
     private static int maxY;
     private static int ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
@@ -442,7 +442,7 @@ public final class LightOverlayState {
         return (int) key;
     }
 
-    private static @Nullable Marker markerAt(
+    private static Marker markerAt(
             ClientLevel level, BlockPos floorPos, BlockPos feet, BlockPos head,
             BlockState floor, BlockState feetState, BlockState headState
     ) {
@@ -462,27 +462,17 @@ public final class LightOverlayState {
         if (!Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)) {
             return null;
         }
-        if (!SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityTypes.ZOMBIE)) {
+        if (!NaturalSpawner.isSpawnPositionOk(
+                SpawnPlacements.Type.ON_GROUND, level, feet, EntityType.ZOMBIE)) {
             return null;
         }
         int blockLight = level.getBrightness(LightLayer.BLOCK, feet);
-        RiskType riskType = blockLight > 0 && isSwampSlimeRisk(level, feet, blockLight)
-                ? RiskType.SWAMP_SLIME : RiskType.NORMAL;
         return new Marker(
                 feet.immutable(),
                 blockLight,
                 level.getBrightness(LightLayer.SKY, feet),
-                riskType
+                RiskType.NORMAL
         );
-    }
-
-    private static boolean isSwampSlimeRisk(ClientLevel level, BlockPos feet, int blockLight) {
-        return swampSlimeDetectionEnabled
-                && blockLight <= 7
-                && feet.getY() > 50
-                && feet.getY() < 70
-                && level.getBiome(feet).is(BiomeTags.ALLOWS_SURFACE_SLIME_SPAWNS)
-                && SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityTypes.SLIME);
     }
 
     private static boolean isDrownedRisk(
@@ -497,18 +487,23 @@ public final class LightOverlayState {
     private static boolean isDrownedSpawnPosition(
             ClientLevel level, BlockPos pos, BlockState belowState, BlockState state
     ) {
-        if (level.getBrightness(LightLayer.BLOCK, pos) != 0
+        if (level.getBrightness(LightLayer.BLOCK, pos) > 7
                 || !state.getFluidState().is(FluidTags.WATER)
                 || !belowState.getFluidState().is(FluidTags.WATER)
-                || !SpawnPlacementTypes.IN_WATER.isSpawnPositionOk(level, pos, EntityTypes.DROWNED)) {
+                || level.getFluidState(pos.above()).is(FluidTags.WATER)
+                || !NaturalSpawner.isSpawnPositionOk(
+                        SpawnPlacements.Type.IN_WATER, level, pos, EntityType.DROWNED)) {
             return false;
         }
 
-        boolean drownedInSpawnList = level.getBiome(pos).value().getMobSettings()
+        Biome biome = level.getBiome(pos);
+        boolean drownedInSpawnList = biome.getMobSettings()
                 .getMobs(MobCategory.MONSTER).unwrap().stream()
-                .anyMatch(entry -> entry.value().type() == EntityTypes.DROWNED);
-        return drownedInSpawnList
-                && (level.getBiome(pos).is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
+                .anyMatch(entry -> entry.type == EntityType.DROWNED);
+        return (drownedInSpawnList
+                || biome.getBiomeCategory() == Biome.BiomeCategory.OCEAN
+                || biome.getBiomeCategory() == Biome.BiomeCategory.RIVER)
+                && (biome.getBiomeCategory() == Biome.BiomeCategory.RIVER
                 || pos.getY() < level.getSeaLevel() - 5);
     }
 

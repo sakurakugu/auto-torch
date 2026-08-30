@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.fabric;
 import com.mojang.brigadier.CommandDispatcher;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -60,6 +61,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         AutoTorchClient client = new AutoTorchClient();
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        KeyBindingHelper.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH);
         ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
             client.tick();
             updateCommandSuggestions(minecraft);
@@ -91,6 +93,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             LightOverlayRenderer.render(camera, poseStack, buffers);
             // 自定义几何必须在当前相机模型视图仍有效时提交，不能留到共享缓冲区稍后冲刷。
             buffers.endBatch(RenderType.lines());
+            buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
             buffers.endBatch(SelectionRenderer.faceRenderType());
         });
     }
@@ -100,8 +103,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             suggestionCommands = null;
             return;
         }
-        // Fabric API 复制客户端命令时会把与服务端同名的根节点子命令复制到临时节点，
-        // 这里像 1.15.2 一样手动合并到连接命令树，保证客户端命令补全仍然存在。
+        // 服务端命令树会与客户端命令树共用补全调度器，连接后合并一次以保留本地子命令补全。
         CommandDispatcher<SharedSuggestionProvider> commands = minecraft.player.connection.getCommands();
         if (commands != suggestionCommands) {
             AutoTorchClientCommands.register(commands);
