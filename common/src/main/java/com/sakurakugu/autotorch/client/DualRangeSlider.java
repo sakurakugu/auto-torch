@@ -3,10 +3,13 @@ package com.sakurakugu.autotorch.client;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.IChatComponent;
+import net.minecraft.util.ResourceLocation;
 
 /** 适配旧版 GuiButton 事件模型的双端点范围滑动条。 */
 final class DualRangeSlider extends Button {
+    private static final ResourceLocation SLIDER_LOCATION = new ResourceLocation("autotorch", "textures/gui/slider.png");
     private final int minValue, maxValue, maxSpan;
     private final BiFunction<Integer, Integer, IChatComponent> messageFactory;
     private final BiConsumer<Integer, Integer> changeListener;
@@ -26,6 +29,10 @@ final class DualRangeSlider extends Button {
     boolean drag(double mouseX) { if (draggingThumb == 0) return false; update(mouseX); return true; }
     boolean stopDrag() { if (draggingThumb == 0) return false; draggingThumb = 0; return true; }
     @Override protected void renderButton(int mouseX, int mouseY, float partialTicks) {
+        Minecraft.getMinecraft().getTextureManager().bindTexture(SLIDER_LOCATION);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+        drawModalRectWithCustomSizedTexture(xPosition, yPosition, 0, isFocused() ? 20 : 0, width, height, 256, 256);
         fill(xPosition, yPosition + height / 2 - 1, xPosition + width, yPosition + height / 2 + 1, 0xFF8A8A8A);
         int lowX = position(lowerValue), highX = position(upperValue);
         fill(lowX, yPosition + height / 2 - 2, highX, yPosition + height / 2 + 2, 0xFF3A5F8A);
