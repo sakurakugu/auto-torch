@@ -19,7 +19,7 @@ final class ColoredButton extends Button {
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int color = !active ? 0xCC555555 : isHoveredOrFocused() ? hoveredColor : backgroundColor;
-        graphics.fill(getX() + 2, getY() + 2, getRight() - 2, getBottom() - 2, color);
+        graphics.fill(getX() + 2, getY() + 2, getX() + getWidth() - 2, getY() + getHeight() - 2, color);
         drawColoredBevel(graphics, color);
         graphics.renderOutline(getX(), getY(), getWidth(), getHeight(), isHoveredOrFocused() ? 0xFFFFFFFF : 0xFFB0B0B0);
         graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(), getX() + getWidth() / 2, getY() + 6,
@@ -32,8 +32,8 @@ final class ColoredButton extends Button {
         int corner = shade(color, 0.78f);
         int left = getX() + 1;
         int top = getY() + 1;
-        int right = getRight() - 2;
-        int bottom = getBottom() - 2;
+        int right = getX() + getWidth() - 2;
+        int bottom = getY() + getHeight() - 2;
         graphics.fill(left + 1, top, right, top + 1, highlight);
         graphics.fill(left, top + 1, left + 1, bottom, highlight);
         graphics.fill(left, top, left + 1, top + 1, highlight);
