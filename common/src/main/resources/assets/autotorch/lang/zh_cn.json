@@ -3,6 +3,7 @@
   "key.autotorch.open_screen": "打开自动插火把面板",
   "key.autotorch.toggle_light_overlay": "开关光照显示",
   "screen.autotorch.title": "区间自动插火把",
+  "screen.autotorch.reset": "重置",
   "screen.autotorch.range_hint": "木斧左键 A、右键 B；球形中 A 为圆心、A 到 B 为半径",
   "screen.autotorch.shape_sphere": "蓝色选区形状：圆形",
   "screen.autotorch.shape_box": "蓝色选区形状：区间",
