@@ -226,3 +226,4 @@ Lowering `scanBudgetPerTaskTick` and `globalScanBudgetPerTick` reduces the per-t
 - A Bedrock Edition port was started, but Bedrock proved less developer-friendly than Java Edition for custom rendering, UI configuration, and related features, so the port has been canceled. Anyone interested is welcome to create their own port.
   - As for LeviLamina on Bedrock Edition, an evaluation found that all of the mod's features could be supported, but because the Bedrock ecosystem is lacking, there are no plans to port it.
 - Minecraft Java Edition versions earlier than 1.7.10 are not planned to be supported because doing so would require extensive changes, and no official Forge downloads for those versions could be found.
+- Regarding the sky light display feature, no practical use has been identified, so it is not planned to be added at this time.
