@@ -21,7 +21,7 @@ import com.sakurakugu.autotorch.network.PlatformNetworking;
 
 /** 自动照明的参数界面，负责选区管理、客户端校验和任务提交。 */
 public final class LightingScreen extends Screen {
-    private static final int CONTENT_HEIGHT = 374;
+    private static final int CONTENT_HEIGHT = 398;
     private static final int VIEWPORT_MARGIN = 4;
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int MIN_SCROLLBAR_HEIGHT = 20;
@@ -186,31 +186,38 @@ public final class LightingScreen extends Screen {
             lightOverlayModeButton.setMessage(lightOverlayModeMessage());
         }).bounds(left + 110, 258, 88, 20).build());
         addRenderableWidget(new LightRangeSlider(left + 202, 258, 108, 20));
+        addRenderableWidget(new DualRangeSlider(left, 282, 310, 20, -64, 64, 64,
+                -LightOverlayState.downRange(), LightOverlayState.upRange(),
+                (lower, upper) -> Component.translatable("screen.autotorch.light_overlay_height_value", lower, upper),
+                (lower, upper) -> {
+                    LightOverlayState.setDownRange(-lower);
+                    LightOverlayState.setUpRange(upper);
+                }));
 
         swampSlimeDetectionButton = addRenderableWidget(Button.builder(swampSlimeDetectionMessage(), button -> {
             LightOverlayState.toggleSwampSlimeDetection();
             swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
-        }).bounds(left, 282, 153, 20)
+        }).bounds(left, 306, 153, 20)
                 .tooltip(Tooltip.create(Component.translatable("screen.autotorch.swamp_slime_detection.tooltip")))
                 .build());
         drownedDetectionButton = addRenderableWidget(Button.builder(drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage());
-        }).bounds(left + 157, 282, 153, 20)
+        }).bounds(left + 157, 306, 153, 20)
                 .tooltip(Tooltip.create(Component.translatable("screen.autotorch.drowned_detection.tooltip")))
                 .build());
 
         nearbyAutoTorchButton = addRenderableWidget(Button.builder(nearbyAutoTorchMessage(), button -> {
             ClientConfig.setNearbyAutoTorchEnabled(!ClientConfig.isNearbyAutoTorchEnabled());
             nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage());
-        }).bounds(left, 326, 153, 20)
+        }).bounds(left, 350, 153, 20)
                 .tooltip(Tooltip.create(Component.translatable("screen.autotorch.nearby_auto_torch.tooltip")))
                 .build());
-        addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 326, 153, 20));
+        addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 350, 153, 20));
         nearbyAutoTorchSkyLightButton = addRenderableWidget(Button.builder(nearbyAutoTorchSkyLightMessage(), button -> {
             ClientConfig.setIncludesSkyLight(!ClientConfig.includesSkyLight());
             nearbyAutoTorchSkyLightButton.setMessage(nearbyAutoTorchSkyLightMessage());
-        }).bounds(left, 350, 310, 20).build());
+        }).bounds(left, 374, 310, 20).build());
 
         scrollOffset = Math.min(scrollOffset, maxScrollOffset());
         moveWidgets(-scrollOffset);
@@ -946,9 +953,9 @@ public final class LightingScreen extends Screen {
         graphics.fill(left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
         graphics.centeredText(font, Component.translatable("screen.autotorch.light_overlay_title"),
                 width / 2, 246 - offset, 0xFFFFFFFF);
-        graphics.fill(left, 310 - offset, left + 310, 311 - offset, 0xFF606060);
+        graphics.fill(left, 334 - offset, left + 310, 335 - offset, 0xFF606060);
         graphics.centeredText(font, Component.translatable("screen.autotorch.nearby_auto_torch_title"),
-                width / 2, 314 - offset, 0xFFFFFFFF);
+                width / 2, 338 - offset, 0xFFFFFFFF);
         graphics.disableScissor();
 
         if (maxScrollOffset() > 0) {
