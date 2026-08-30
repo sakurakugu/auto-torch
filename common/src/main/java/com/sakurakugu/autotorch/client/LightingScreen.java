@@ -1023,7 +1023,7 @@ public final class LightingScreen extends Screen {
 
     @Override
     public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-        RenderSystem.enableScissor(0, VIEWPORT_MARGIN, width, height - VIEWPORT_MARGIN);
+        enableViewportScissor();
         super.render(poseStack, mouseX, mouseY, partialTick);
         int left = panelLeft();
         int offset = scrollOffset;
@@ -1074,6 +1074,13 @@ public final class LightingScreen extends Screen {
                 }
             }
         }
+    }
+
+    private void enableViewportScissor() {
+        double scale = minecraft.getWindow().getGuiScale();
+        int bottom = (int) Math.round(VIEWPORT_MARGIN * scale);
+        int viewportHeight = (int) Math.round((height - VIEWPORT_MARGIN * 2) * scale);
+        RenderSystem.enableScissor(0, bottom, minecraft.getWindow().getWidth(), viewportHeight);
     }
 
     @Override
