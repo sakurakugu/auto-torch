@@ -11,11 +11,12 @@ import java.util.Set;
 
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.EntityLiving;
 import net.minecraft.world.World;
+import net.minecraft.world.SpawnerAnimals;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.EnumSkyBlock;
-import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.state.IBlockState;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
@@ -402,7 +403,11 @@ public final class LightOverlayState {
             return null;
         }
 
-        if (floor.getBlock() instanceof BlockLeaves || !floor.getBlock().isSideSolid(level, floorPos, EnumFacing.UP)) {
+        if (!floor.getBlock().isSideSolid(level, floorPos, EnumFacing.UP)) {
+            return null;
+        }
+        if (!SpawnerAnimals.canCreatureTypeSpawnAtLocation(
+                EntityLiving.SpawnPlacementType.ON_GROUND, level, feet)) {
             return null;
         }
         int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, feet);
