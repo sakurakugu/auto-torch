@@ -7,6 +7,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.LightOverlayState;
@@ -62,6 +63,7 @@ final class AutoTorchForgeClient {
     private void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(AutoTorchClient.OPEN_SCREEN);
         event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH);
     }
 
     private void registerClientCommands(RegisterClientCommandsEvent event) {
@@ -117,9 +119,9 @@ final class AutoTorchForgeClient {
         var poseStack = event.getPoseStack();
         var buffers = minecraft.renderBuffers().bufferSource();
         SelectionRenderer.render(camera, poseStack, buffers);
-        RenderType lightRenderType = shaderTransparency ? LIGHT_OVERLAY_LINES : RenderType.lines();
-        LightOverlayRenderer.render(camera, poseStack, buffers, lightRenderType);
+        LightOverlayRenderer.render(camera, poseStack, buffers);
         buffers.endBatch(RenderType.lines());
+        buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
         buffers.endBatch(SelectionRenderer.faceRenderType());
         if (shaderTransparency) {
             buffers.endBatch(LIGHT_OVERLAY_LINES);
