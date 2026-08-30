@@ -24,6 +24,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.world.InteractionResult;
 
@@ -75,10 +76,15 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             var camera = context.camera().getPosition();
             SelectionRenderer.extract(context.camera().getBlockPosition());
             LightOverlayRenderer.extract();
-            // 1.21.1 在此阶段不提供矩阵栈，世界坐标只需要减去相机位置。
+            // BEFORE_ENTITIES 不提供可修改的矩阵栈，需要显式应用当前相机的视图矩阵。
             PoseStack poseStack = new PoseStack();
-            SelectionRenderer.render(camera, poseStack, context.consumers());
-            LightOverlayRenderer.render(camera, poseStack, context.consumers());
+            poseStack.mulPose(context.positionMatrix());
+            var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+            SelectionRenderer.render(camera, poseStack, buffers);
+            LightOverlayRenderer.render(camera, poseStack, buffers);
+            // 在当前相机矩阵仍有效时冲刷自定义几何，避免延迟提交导致位置漂移。
+            buffers.endBatch(RenderType.lines());
+            buffers.endBatch(RenderType.debugStructureQuads());
         });
     }
 
