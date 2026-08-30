@@ -26,8 +26,10 @@ final class ColoredButton extends Button {
         int textureY = !active ? 46 : highlighted ? 86 : 66;
         RenderSystem.setShader(GameRenderer::getPositionTexShader);
         RenderSystem.setShaderTexture(0, WIDGETS_LOCATION);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
         drawNineSliced(poseStack, x, y, getWidth(), getHeight(), 20, 4, 200, 20, 0, textureY);
         int color = !active ? 0xCC555555 : highlighted ? hoveredColor : backgroundColor;
         fill(poseStack, x + 2, y + 2, x + getWidth() - 2, y + getHeight() - 2, color);

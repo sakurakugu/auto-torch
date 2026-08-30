@@ -58,8 +58,10 @@ public class DualRangeSlider extends Button {
         int highX = position(upperValue);
         RenderSystem.setShader(GameRenderer::getPositionTexShader);
         RenderSystem.setShaderTexture(0, SLIDER_LOCATION);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
         drawNineSliced(poseStack, x, y, getWidth(), getHeight(), 20, 4, 200, 20, 0, isFocused() ? 20 : 0);
         fill(poseStack, lowX, y + 1, highX, y + getHeight() - 1, 0xFF3A5F8A);
         drawThumb(poseStack, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
