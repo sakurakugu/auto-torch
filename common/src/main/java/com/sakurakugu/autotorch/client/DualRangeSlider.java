@@ -6,9 +6,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 /** 可复用的双端点范围滑动条。 */
 public class DualRangeSlider extends Button {
+    private static final ResourceLocation SLIDER_LOCATION = ResourceLocation.tryBuild("minecraft", "textures/gui/slider.png");
     private final int minValue;
     private final int maxValue;
     private final int maxSpan;
@@ -50,11 +52,11 @@ public class DualRangeSlider extends Button {
 
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        int trackY = getY() + getHeight() / 2 - 2;
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        graphics.fill(getX() + 4, trackY, getX() + getWidth() - 4, trackY + 4, 0xFF606060);
-        graphics.fill(lowX, trackY, highX, trackY + 4, 0xFF3A5F8A);
+        graphics.blitNineSliced(SLIDER_LOCATION, getX(), getY(), getWidth(), getHeight(),
+                20, 4, 200, 20, 0, isFocused() ? 20 : 0);
+        graphics.fill(lowX, getY() + 1, highX, getY() + getHeight() - 1, 0xFF3A5F8A);
         drawThumb(graphics, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(graphics, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
         graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(),
@@ -62,9 +64,8 @@ public class DualRangeSlider extends Button {
     }
 
     private void drawThumb(GuiGraphics graphics, int x, boolean highlighted) {
-        int color = highlighted ? 0xFFFFFFFF : 0xFFD0D0D0;
-        graphics.fill(x - 3, getY(), x + 4, getY() + getHeight(), color);
-        graphics.renderOutline(x - 3, getY(), 7, getHeight(), 0xFF303030);
+        graphics.blitNineSliced(SLIDER_LOCATION, x - 4, getY(), 8, getHeight(),
+                20, 4, 200, 20, 0, highlighted ? 60 : 40);
     }
 
     private boolean isThumbHovered(int mouseX, int mouseY, int x) {
