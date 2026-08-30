@@ -67,7 +67,7 @@ public final class LightingScreen extends Screen {
     protected void init() {
         tooltips.clear();
         BlockPos playerPos = minecraft.thePlayer == null
-                ? BlockPos.ORIGIN : new BlockPos(minecraft.thePlayer);
+                ? BlockPos.ORIGIN : new BlockPos(minecraft.thePlayer).down();
         int left = panelLeft();
 
         shapeButton = addRenderableWidget(button(left, 20, 126, 20, shapeMessage(), button -> {
@@ -705,7 +705,7 @@ public final class LightingScreen extends Screen {
 
     private BlockPos currentPosition() {
         return minecraft.thePlayer == null
-                ? BlockPos.ORIGIN : new BlockPos(minecraft.thePlayer);
+                ? BlockPos.ORIGIN : new BlockPos(minecraft.thePlayer).down();
     }
 
     private static void setPosition(EditBox[] boxes, BlockPos pos) {

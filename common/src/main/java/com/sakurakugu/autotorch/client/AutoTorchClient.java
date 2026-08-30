@@ -40,7 +40,7 @@ public final class AutoTorchClient {
             }
         }
         BlockPos currentPosition = minecraft.thePlayer == null
-                ? BlockPos.ORIGIN : new BlockPos(minecraft.thePlayer);
+                ? BlockPos.ORIGIN : new BlockPos(minecraft.thePlayer).down();
         // 切换世界或退出存档时重置选区，避免把旧维度坐标带入新世界。
         SelectionState.updateLevel(minecraft.theWorld, currentPosition);
         LightOverlayState.tick(minecraft);
