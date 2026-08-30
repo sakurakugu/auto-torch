@@ -303,7 +303,7 @@ public final class LightingScreen extends Screen {
                         syncingInputs = false;
                     }
                     dimensionClamped = true;
-                } else if (radius < 1) {
+                } else if (radius < 0) {
                     throw new IllegalArgumentException("Out of range");
                 }
                 updatedSecond = offsetChecked(anchor, radius, 0, 0);
@@ -449,10 +449,6 @@ public final class LightingScreen extends Screen {
                         Math.min((long) max.getX() - min.getX(), (long) max.getY() - min.getY()),
                         (long) max.getZ() - min.getZ());
                 int radius = (int) (shortestExtent / 2L);
-                if (radius < 1) {
-                    error = new TranslatableComponent("screen.autotorch.convert_box_too_small");
-                    return;
-                }
                 if (radius > ServerConfigState.maxSphereRadius()) {
                     error = new TranslatableComponent("screen.autotorch.convert_sphere_too_large");
                     return;
@@ -565,7 +561,7 @@ public final class LightingScreen extends Screen {
         if (zone.shape() == AreaShape.SPHERE) {
             long maxRadiusSquared = (long) ServerConfigState.maxSphereRadius()
                     * ServerConfigState.maxSphereRadius();
-            if (zone.radiusSquared() <= 0L || zone.radiusSquared() > maxRadiusSquared) {
+            if (zone.radiusSquared() > maxRadiusSquared) {
                 throw new IllegalArgumentException("Sphere radius out of range");
             }
             return;
