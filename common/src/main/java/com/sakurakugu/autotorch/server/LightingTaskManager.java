@@ -130,7 +130,7 @@ public final class LightingTaskManager {
     private static boolean isValidZone(AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
             long maxRadiusSquared = (long) ServerConfig.maxSphereRadius() * ServerConfig.maxSphereRadius();
-            return zone.radiusSquared() > 0L && zone.radiusSquared() <= maxRadiusSquared;
+            return zone.radiusSquared() <= maxRadiusSquared;
         }
         BlockPos min = zone.min();
         BlockPos max = zone.max();
