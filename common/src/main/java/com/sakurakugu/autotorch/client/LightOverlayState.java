@@ -11,10 +11,11 @@ import java.util.Set;
 
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.world.World;
+import net.minecraft.world.SpawnerAnimals;
 import com.sakurakugu.autotorch.compat.BlockPos;
 import com.sakurakugu.autotorch.compat.WorldAccess;
-import net.minecraft.block.BlockLeaves;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
@@ -394,7 +395,11 @@ public final class LightOverlayState {
             return null;
         }
 
-        if (WorldAccess.block(level, floorPos) instanceof BlockLeaves || !WorldAccess.isTopSolid(level, floorPos)) {
+        if (!WorldAccess.isTopSolid(level, floorPos)) {
+            return null;
+        }
+        if (!SpawnerAnimals.canCreatureTypeSpawnAtLocation(
+                EnumCreatureType.monster, level, feet.getX(), feet.getY(), feet.getZ())) {
             return null;
         }
         int blockLight = WorldAccess.blockLight(level, feet);
