@@ -117,6 +117,7 @@ final class AutoTorchForgeClient {
                 PoseStack poseStack = new PoseStack();
                 SelectionRenderer.render(state.cameraRenderState.pos, poseStack, buffers);
                 LightOverlayRenderer.render(state.cameraRenderState.pos, poseStack, buffers);
+                LightOverlayRenderer.endBatches(buffers);
                 buffers.endBatch(RenderTypes.debugFilledBox());
                 buffers.endBatch(RenderTypes.linesTranslucent());
             } finally {

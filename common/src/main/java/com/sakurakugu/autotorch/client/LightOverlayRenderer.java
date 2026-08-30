@@ -124,6 +124,29 @@ public final class LightOverlayRenderer {
         }
     }
 
+    /**
+     * 在当前世界渲染通道结束前提交覆盖层使用的批次。
+     * Forge 26.1.2 的帧通道不会自动提交自定义的透视渲染类型；若延后到原版阶段提交，
+     * 其时的视图矩阵已切换，标记会随相机移动。
+     */
+    public static void endBatches(MultiBufferSource.BufferSource buffers) {
+        RenderData data = renderData;
+        if (data == null) {
+            return;
+        }
+        if (data.displayMode() != LightOverlayState.DisplayMode.CROSSES) {
+            Identifier numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
+                    ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
+            buffers.endBatch(ClientConfig.isLightOverlayRenderThrough()
+                    ? RenderTypes.textSeeThrough(numberTexture) : RenderTypes.text(numberTexture));
+        }
+        if (data.displayMode() == LightOverlayState.DisplayMode.CROSSES
+                || data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
+            buffers.endBatch(ClientConfig.isLightOverlayRenderThrough()
+                    ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent());
+        }
+    }
+
     private static void renderGeometry(
             Vec3 camera, PoseStack poseStack, GeometrySink sink, GeometryRenderer renderer
     ) {
