@@ -83,6 +83,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
             SelectionRenderer.render(camera, poseStack, buffers);
             LightOverlayRenderer.render(camera, poseStack, buffers);
+            LightOverlayRenderer.endBatches(buffers);
             // 在当前相机矩阵仍有效时冲刷自定义几何，避免延迟提交导致位置漂移。
             buffers.endBatch(RenderType.lines());
             buffers.endBatch(RenderType.debugStructureQuads());

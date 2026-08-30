@@ -85,6 +85,27 @@ public final class LightOverlayRenderer {
         }
     }
 
+    /**
+     * 在 Fabric 世界渲染阶段结束覆盖层批次，确保数字和透视线框使用当前相机矩阵绘制。
+     */
+    public static void endBatches(MultiBufferSource.BufferSource buffers) {
+        RenderData data = renderData;
+        if (data == null) {
+            return;
+        }
+        if (data.displayMode() != LightOverlayState.DisplayMode.CROSSES) {
+            ResourceLocation numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
+                    ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
+            buffers.endBatch(ClientConfig.isLightOverlayRenderThrough()
+                    ? RenderType.textSeeThrough(numberTexture) : RenderType.text(numberTexture));
+        }
+        if (data.displayMode() == LightOverlayState.DisplayMode.CROSSES
+                || data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
+            buffers.endBatch(ClientConfig.isLightOverlayRenderThrough()
+                    ? SEE_THROUGH_LINES : RenderType.lines());
+        }
+    }
+
     private static void renderGeometry(
             Vec3 camera, PoseStack poseStack, VertexConsumer buffer, GeometryRenderer renderer
     ) {
