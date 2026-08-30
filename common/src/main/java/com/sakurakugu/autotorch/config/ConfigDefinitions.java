@@ -16,6 +16,7 @@ public final class ConfigDefinitions {
     public static final BooleanValue LIGHT_OVERLAY_ENABLED = bool("lightOverlay.enabled", false);
     public static final IntValue LIGHT_OVERLAY_HORIZONTAL_RANGE = integer("lightOverlay.horizontalRange", 16, 1, 64);
     public static final BooleanValue LIGHT_OVERLAY_SHOW_NUMBERS = bool("lightOverlay.showNumbers", false);
+    public static final IntValue LIGHT_OVERLAY_MODE = integer("lightOverlay.mode", 0, 0, 2);
     public static final BooleanValue LIGHT_OVERLAY_DETECT_SWAMP_SLIMES = bool("lightOverlay.detectSwampSlimes", false);
     public static final BooleanValue LIGHT_OVERLAY_DETECT_DROWNED = bool("lightOverlay.detectDrowned", false);
     public static final BooleanValue SELECTION_OVERLAY_ENABLED = bool("selectionOverlay.enabled", true);
@@ -48,7 +49,7 @@ public final class ConfigDefinitions {
     public static final List<Value> CLIENT = List.of(
             NEARBY_AUTO_TORCH_ENABLED, NEARBY_AUTO_TORCH_LIGHT_THRESHOLD,
             NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT, LIGHT_OVERLAY_ENABLED,
-            LIGHT_OVERLAY_HORIZONTAL_RANGE, LIGHT_OVERLAY_SHOW_NUMBERS,
+            LIGHT_OVERLAY_HORIZONTAL_RANGE, LIGHT_OVERLAY_SHOW_NUMBERS, LIGHT_OVERLAY_MODE,
             LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED,
             SELECTION_OVERLAY_ENABLED, SELECTION_OVERLAY_LINES_ONLY,
             SELECTION_OVERLAY_SMOOTH_SPHERES, TASK_DEFAULT_MAX_TORCHES,
