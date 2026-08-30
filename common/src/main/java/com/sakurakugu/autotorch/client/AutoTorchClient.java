@@ -34,6 +34,10 @@ public final class AutoTorchClient {
             GLFW.GLFW_KEY_F7,
             CATEGORY
     );
+    public static final KeyMapping TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH = new KeyMapping(
+            "key.autotorch.toggle_light_overlay_render_through",
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F8, CATEGORY
+    );
 
     public void tick() {
         Minecraft minecraft = Minecraft.getInstance();
@@ -61,6 +65,15 @@ public final class AutoTorchClient {
                 boolean enabled = LightOverlayState.toggle();
                 minecraft.gui.setOverlayMessage(new TranslatableComponent(enabled
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
+            }
+        }
+        while (TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH.consumeClick()) {
+            if (minecraft.player != null) {
+                boolean enabled = !ClientConfig.isLightOverlayRenderThrough();
+                ClientConfig.setLightOverlayRenderThrough(enabled);
+                minecraft.gui.setOverlayMessage(new TranslatableComponent(enabled
+                        ? "message.autotorch.light_overlay_render_through_on"
+                        : "message.autotorch.light_overlay_render_through_off"), false);
             }
         }
     }

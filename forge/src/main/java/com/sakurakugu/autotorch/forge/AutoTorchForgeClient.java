@@ -6,6 +6,7 @@ import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.brigadier.CommandDispatcher;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.LightOverlayState;
@@ -72,6 +73,7 @@ final class AutoTorchForgeClient {
         event.enqueueWork(() -> {
             ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
             ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+            ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH);
         });
     }
 
@@ -139,13 +141,8 @@ final class AutoTorchForgeClient {
         SelectionRenderer.render(camera, poseStack, buffers);
         LightOverlayRenderer.render(camera, poseStack, buffers);
         buffers.endBatch(RenderType.lines());
+        buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
         buffers.endBatch(SelectionRenderer.faceRenderType());
-        if (!Minecraft.useShaderTransparency()
-                && minecraft.level.getFluidState(levelCamera.getBlockPosition()).isEmpty()) {
-            LightOverlayRenderer.renderFiltered(camera, poseStack, buffers, WATER_VISIBLE_LINES,
-                    marker -> isVisibleDrownedMarker(minecraft, camera, levelCamera.getEntity(), marker));
-            buffers.endBatch(WATER_VISIBLE_LINES);
-        }
     }
 
     private static boolean isVisibleDrownedMarker(

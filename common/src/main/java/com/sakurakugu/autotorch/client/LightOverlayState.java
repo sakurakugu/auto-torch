@@ -498,7 +498,7 @@ public final class LightOverlayState {
 
         Biome biome = level.getBiome(pos);
         boolean drownedInSpawnList = biome.getMobSettings()
-                .getMobs(MobCategory.MONSTER).unwrap().stream()
+                .getMobs(MobCategory.MONSTER).stream()
                 .anyMatch(entry -> entry.type == EntityType.DROWNED);
         return (drownedInSpawnList
                 || biome.getBiomeCategory() == Biome.BiomeCategory.OCEAN

@@ -55,3 +55,4 @@ final class ColoredButton extends Button {
         return 0xFF000000 | red << 16 | green << 8 | blue;
     }
 }
+

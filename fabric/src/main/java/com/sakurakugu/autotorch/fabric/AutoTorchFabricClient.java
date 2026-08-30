@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.fabric;
 import com.mojang.brigadier.CommandDispatcher;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -24,13 +25,9 @@ import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.phys.Vec3;
-import com.mojang.blaze3d.vertex.PoseStack;
 
 public final class AutoTorchFabricClient implements ClientModInitializer {
     private CommandDispatcher<SharedSuggestionProvider> suggestionCommands;
@@ -46,7 +43,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             AutoTorchFabric.closeServerConfig();
         });
         PlatformNetworking.installSender(payload -> {
-            FriendlyByteBuf buffer = PacketByteBufs.create();
+            var buffer = PacketByteBufs.create();
             payload.write(buffer);
             ClientPlayNetworking.send(payload.id(), buffer);
         });
@@ -64,6 +61,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         AutoTorchClient client = new AutoTorchClient();
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        KeyBindingHelper.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH);
         ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
             client.tick();
             updateCommandSuggestions(minecraft);
@@ -71,30 +69,31 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         AutoTorchClientCommands.register(ClientCommandManager.DISPATCHER);
 
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) -> {
-            if (level instanceof ClientLevel
-                    && client.onLeftClick((ClientLevel) level, player.getItemInHand(hand), pos, true)) {
+            if (level instanceof ClientLevel clientLevel
+                    && client.onLeftClick(clientLevel, player.getItemInHand(hand), pos, true)) {
                 return InteractionResult.SUCCESS;
             }
             return InteractionResult.PASS;
         });
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
-            if (level instanceof ClientLevel
-                    && client.onRightClick((ClientLevel) level, hand, player.getItemInHand(hand), hit.getBlockPos())) {
+            if (level instanceof ClientLevel clientLevel
+                    && client.onRightClick(clientLevel, hand, player.getItemInHand(hand), hit.getBlockPos())) {
                 return InteractionResult.SUCCESS;
             }
             return InteractionResult.PASS;
         });
 
         WorldRenderEvents.BEFORE_ENTITIES.register(context -> {
-            Vec3 camera = context.camera().getPosition();
+            var camera = context.camera().getPosition();
             SelectionRenderer.extract(context.camera().getBlockPosition());
             LightOverlayRenderer.extract();
-            PoseStack poseStack = context.matrixStack();
-            MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+            var poseStack = context.matrixStack();
+            var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
             SelectionRenderer.render(camera, poseStack, buffers);
             LightOverlayRenderer.render(camera, poseStack, buffers);
             // 自定义几何必须在当前相机模型视图仍有效时提交，不能留到共享缓冲区稍后冲刷。
             buffers.endBatch(RenderType.lines());
+            buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
             buffers.endBatch(SelectionRenderer.faceRenderType());
         });
     }
@@ -104,8 +103,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             suggestionCommands = null;
             return;
         }
-        // Fabric API 复制客户端命令时会把与服务端同名的根节点子命令复制到临时节点，
-        // 这里像 1.15.2 一样手动合并到连接命令树，保证客户端命令补全仍然存在。
+        // 服务端命令树会与客户端命令树共用补全调度器，连接后合并一次以保留本地子命令补全。
         CommandDispatcher<SharedSuggestionProvider> commands = minecraft.player.connection.getCommands();
         if (commands != suggestionCommands) {
             AutoTorchClientCommands.register(commands);
@@ -113,3 +111,4 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         }
     }
 }
+
