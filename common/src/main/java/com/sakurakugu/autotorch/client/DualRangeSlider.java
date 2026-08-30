@@ -6,9 +6,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 /** 可复用的双端点范围滑动条。 */
 public class DualRangeSlider extends Button {
+    private static final ResourceLocation SLIDER = ResourceLocation.withDefaultNamespace("widget/slider");
+    private static final ResourceLocation HANDLE = ResourceLocation.withDefaultNamespace("widget/slider_handle");
+    private static final ResourceLocation HANDLE_HIGHLIGHTED = ResourceLocation.withDefaultNamespace("widget/slider_handle_highlighted");
     private final int minValue;
     private final int maxValue;
     private final int maxSpan;
@@ -50,11 +54,10 @@ public class DualRangeSlider extends Button {
 
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        int trackY = getY() + getHeight() / 2 - 2;
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        graphics.fill(getX() + 4, trackY, getRight() - 4, trackY + 4, 0xFF606060);
-        graphics.fill(lowX, trackY, highX, trackY + 4, 0xFF3A5F8A);
+        graphics.blitSprite(SLIDER, getX(), getY(), getWidth(), getHeight());
+        graphics.fill(lowX, getY() + 1, highX, getBottom() - 1, 0xFF3A5F8A);
         drawThumb(graphics, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(graphics, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
         graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(),
@@ -62,9 +65,8 @@ public class DualRangeSlider extends Button {
     }
 
     private void drawThumb(GuiGraphics graphics, int x, boolean highlighted) {
-        int color = highlighted ? 0xFFFFFFFF : 0xFFD0D0D0;
-        graphics.fill(x - 3, getY(), x + 4, getBottom(), color);
-        graphics.renderOutline(x - 3, getY(), 7, getHeight(), 0xFF303030);
+        graphics.blitSprite(highlighted ? HANDLE_HIGHLIGHTED : HANDLE,
+                x - 4, getY(), 8, getHeight());
     }
 
     private boolean isThumbHovered(int mouseX, int mouseY, int x) {
