@@ -790,8 +790,11 @@ public final class LightingScreen extends Screen {
     }
 
     private Component lightOverlayModeMessage() {
-        return new TranslatableComponent(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
-                ? "screen.autotorch.light_overlay_mode_crosses" : "screen.autotorch.light_overlay_mode_numbers");
+        return new TranslatableComponent(switch (LightOverlayState.displayMode()) {
+            case CROSSES -> "screen.autotorch.light_overlay_mode_crosses";
+            case NUMBERS -> "screen.autotorch.light_overlay_mode_numbers";
+            case BOXED_NUMBERS -> "screen.autotorch.light_overlay_mode_boxed_numbers";
+        });
     }
 
     private Component swampSlimeDetectionMessage() {
