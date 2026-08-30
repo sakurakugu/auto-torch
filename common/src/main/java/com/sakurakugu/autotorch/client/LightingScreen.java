@@ -66,7 +66,12 @@ public final class LightingScreen extends Screen {
     private Component rangeMessage = new TextComponent("");
 
     public LightingScreen() {
+        this(0);
+    }
+
+    private LightingScreen(int initialScrollOffset) {
         super(new TranslatableComponent("screen.autotorch.title"));
+        scrollOffset = initialScrollOffset;
         consumeTorches = initialConsumeTorches();
         undergroundOnly = ClientConfig.isDefaultUndergroundOnly();
     }
@@ -79,7 +84,8 @@ public final class LightingScreen extends Screen {
         int left = panelLeft();
 
         Component resetMessage = new TranslatableComponent("screen.autotorch.reset");
-        resetButton = addRenderableWidget(button(left + 270, 2, 40, 16, resetMessage,
+        resetButton = addRenderableWidget(new ResetButton(resetButtonX(resetMessage), 2,
+                font.width(resetMessage.getString()), 16, resetMessage, panelLeft(), panelLeft() + 310,
                 button -> resetLightingTaskSettings()));
 
         shapeButton = addRenderableWidget(button(left, 20, 126, 20, shapeMessage(), button -> {
@@ -192,8 +198,10 @@ public final class LightingScreen extends Screen {
             LightOverlayState.toggle();
             lightOverlayButton.setMessage(lightOverlayMessage().getString());
         }));
-        addRenderableWidget(button(left + 270, 242, 40, 16,
-                new TranslatableComponent("screen.autotorch.reset"), button -> resetLightOverlaySettings()));
+        Component lightOverlayResetMessage = new TranslatableComponent("screen.autotorch.reset");
+        addRenderableWidget(new ResetButton(resetButtonX(lightOverlayResetMessage), 242,
+                font.width(lightOverlayResetMessage.getString()), 16, lightOverlayResetMessage,
+                panelLeft(), panelLeft() + 310, button -> resetLightOverlaySettings()));
         lightOverlayModeButton = addRenderableWidget(button(left + 112, 258, 88, 20,
                 lightOverlayModeMessage(), button -> {
             LightOverlayState.cycleDisplayMode();
@@ -228,8 +236,10 @@ public final class LightingScreen extends Screen {
             ClientConfig.setNearbyAutoTorchEnabled(!ClientConfig.isNearbyAutoTorchEnabled());
             nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage().getString());
         }), new TranslatableComponent("screen.autotorch.nearby_auto_torch.tooltip")));
-        addRenderableWidget(button(left + 270, 334, 40, 16,
-                new TranslatableComponent("screen.autotorch.reset"), button -> resetNearbyAutoTorchSettings()));
+        Component nearbyResetMessage = new TranslatableComponent("screen.autotorch.reset");
+        addRenderableWidget(new ResetButton(resetButtonX(nearbyResetMessage), 334,
+                font.width(nearbyResetMessage.getString()), 16, nearbyResetMessage,
+                panelLeft(), panelLeft() + 310, button -> resetNearbyAutoTorchSettings()));
         addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 350, 153, 20));
         nearbyAutoTorchSkyLightButton = addRenderableWidget(button(left, 374, 310, 20,
                 nearbyAutoTorchSkyLightMessage(), button -> {
@@ -250,18 +260,22 @@ public final class LightingScreen extends Screen {
         ClientConfig.resetLightingTaskDefaults();
         SelectionState.reloadConfig();
         PlatformNetworking.sendToServer(new SetSelectionToolPayload(ClientConfig.isWoodenAxeSelectionEnabled()));
-        minecraft.setScreen(new LightingScreen());
+        reopenAtCurrentScrollOffset();
     }
 
     private void resetLightOverlaySettings() {
         ClientConfig.resetLightOverlayDefaults();
         LightOverlayState.reloadConfig();
-        minecraft.setScreen(new LightingScreen());
+        reopenAtCurrentScrollOffset();
     }
 
     private void resetNearbyAutoTorchSettings() {
         ClientConfig.resetNearbyAutoTorchDefaults();
-        minecraft.setScreen(new LightingScreen());
+        reopenAtCurrentScrollOffset();
+    }
+
+    private void reopenAtCurrentScrollOffset() {
+        minecraft.setScreen(new LightingScreen(scrollOffset));
     }
 
     private <T extends AbstractWidget> T withTooltip(T widget, Component tooltip) {
@@ -414,6 +428,7 @@ public final class LightingScreen extends Screen {
                     : Math.abs(secondPos.getX() - firstPos.getX()) + 1));
             dimensions[1].visible = !sphere;
             dimensions[2].visible = !sphere;
+            sphereDisplayButton.visible = sphere;
             if (!sphere) {
                 dimensions[1].setValue(Integer.toString(Math.abs(secondPos.getZ() - firstPos.getZ()) + 1));
                 dimensions[2].setValue(Integer.toString(Math.abs(secondPos.getY() - firstPos.getY()) + 1));
@@ -1053,6 +1068,34 @@ public final class LightingScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    /** 标题区域内仅在悬停时显示文字的重置入口。 */
+    private int resetButtonX(Component message) {
+        return panelLeft() + 310 - font.width(message.getString());
+    }
+
+    private static final class ResetButton extends Button {
+        private final int hoverLeft;
+        private final int hoverRight;
+
+        private ResetButton(int x, int y, int width, int height, Component message,
+                int hoverLeft, int hoverRight, OnPress onPress) {
+            super(x, y, width, height, message.getString(), onPress);
+            this.hoverLeft = hoverLeft;
+            this.hoverRight = hoverRight;
+        }
+
+        @Override
+        public void renderButton(int mouseX, int mouseY, float partialTick) {
+            boolean rowHovered = mouseX >= hoverLeft && mouseX < hoverRight
+                    && mouseY >= y && mouseY < y + height;
+            if (isHovered() || isFocused() || rowHovered) {
+                drawString(Minecraft.getInstance().font, getMessage(), x + width
+                        - Minecraft.getInstance().font.width(getMessage()), y + 4,
+                        isHovered() || isFocused() ? 0xFFFFFF00 : 0xFFFFFFFF);
+            }
+        }
     }
 
     private static final class LightRangeSlider extends AbstractSliderButton {

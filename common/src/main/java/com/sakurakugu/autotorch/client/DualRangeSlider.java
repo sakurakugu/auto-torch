@@ -46,19 +46,70 @@ final class DualRangeSlider extends Button {
 
     @Override
     public void renderButton(int mouseX, int mouseY, float partialTick) {
-        Minecraft.getInstance().getTextureManager().bind(SLIDER_LOCATION);
-        GlStateManager.color4f(1, 1, 1, 1); GlStateManager.enableBlend(); GlStateManager.enableDepthTest();
-        GuiComponent.blit(x, y, 0, 0, isFocused() ? 20 : 0, width, height, 256, 256);
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        fill(lowX, y + height / 2 - 2, highX, y + height / 2 + 2, 0xFF3A5F8A);
+        Minecraft.getInstance().getTextureManager().bind(SLIDER_LOCATION);
+        GlStateManager.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableBlend();
+        GlStateManager.enableDepthTest();
+        drawNineSliced(x, y, width, height, 20, 4, 200, 20, 0, isFocused() ? 20 : 0);
+        fill(lowX, y + 1, highX, y + height - 1, 0xFF3A5F8A);
+        // fill 会改变 OpenGL 颜色状态，纹理滑块必须恢复白色避免被区间颜色染色。
+        GlStateManager.color4f(1.0F, 1.0F, 1.0F, 1.0F);
         drawThumb(lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
-        drawCenteredString(Minecraft.getInstance().font, getMessage(), x + width / 2, y + 6, 0xFFFFFFFF);
+        drawCenteredString(Minecraft.getInstance().font, getMessage(), x + width / 2, y + 5, 0xFFFFFFFF);
     }
 
     private void drawThumb(int thumbX, boolean highlighted) {
-        GuiComponent.blit(thumbX - 4, y, 0, 0, highlighted ? 60 : 40, 8, height, 256, 256);
+        drawNineSliced(thumbX - 4, y, 8, height, 20, 4, 200, 20, 0, highlighted ? 60 : 40);
+    }
+
+    private static void drawNineSliced(int x, int y, int width, int height, int cw, int ch,
+            int tw, int th, int u, int v) {
+        int l = Math.min(cw, width / 2);
+        int r = Math.min(cw, width - l);
+        int t = Math.min(ch, height / 2);
+        int b = Math.min(ch, height - t);
+        int mw = width - l - r;
+        int mh = height - t - b;
+        int sw = Math.max(1, tw - cw * 2);
+        int sh = Math.max(1, th - ch * 2);
+        blitPatch(x, y, l, t, u, v);
+        blitPatch(x + width - r, y, r, t, u + tw - r, v);
+        blitPatch(x, y + height - b, l, b, u, v + th - b);
+        blitPatch(x + width - r, y + height - b, r, b, u + tw - r, v + th - b);
+        if (mw > 0) {
+            blitRepeat(x + l, y, mw, t, u + cw, v, sw, t);
+            blitRepeat(x + l, y + height - b, mw, b, u + cw, v + th - b, sw, b);
+        }
+        if (mh > 0) {
+            blitRepeat(x, y + t, l, mh, u, v + ch, l, sh);
+            blitRepeat(x + width - r, y + t, r, mh, u + tw - r, v + ch, r, sh);
+        }
+        if (mw > 0 && mh > 0) {
+            blitRepeat(x + l, y + t, mw, mh, u + cw, v + ch, sw, sh);
+        }
+    }
+
+    private static void blitPatch(int x, int y, int width, int height, int u, int v) {
+        if (width > 0 && height > 0) {
+            GuiComponent.blit(x, y, 0, (float) u, (float) v, width, height, 256, 256);
+        }
+    }
+
+    private static void blitRepeat(int x, int y, int width, int height, int u, int v,
+            int sourceWidth, int sourceHeight) {
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        for (int oy = 0; oy < height; oy += sourceHeight) {
+            for (int ox = 0; ox < width; ox += sourceWidth) {
+                int patchWidth = Math.min(sourceWidth, width - ox);
+                int patchHeight = Math.min(sourceHeight, height - oy);
+                blitPatch(x + ox, y + oy, patchWidth, patchHeight, u, v);
+            }
+        }
     }
 
     private boolean isThumbHovered(int mouseX, int mouseY, int thumbX) {
