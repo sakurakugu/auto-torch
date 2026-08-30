@@ -31,10 +31,9 @@ public final class LightOverlayState {
     private static final int VERIFICATION_INTERVAL_TICKS = 100;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
-    private static boolean swampSlimeDetectionEnabled = false;
-    private static boolean drownedDetectionEnabled = false;
-    private static DisplayMode displayMode = ClientConfig.showsLightOverlayNumbers()
-            ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
+    private static boolean swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
+    private static boolean drownedDetectionEnabled = ClientConfig.detectsDrowned();
+    private static DisplayMode displayMode = modeFromConfig();
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static World level;
     private static BlockPos scanCenter;
@@ -54,9 +53,9 @@ public final class LightOverlayState {
     /** 配置整体替换后同步运行时缓存。 */
     public static void reloadConfig() {
         enabled = ClientConfig.isLightOverlayEnabled();
-        swampSlimeDetectionEnabled = false;
-        drownedDetectionEnabled = false;
-        displayMode = ClientConfig.showsLightOverlayNumbers() ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
+        swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
+        drownedDetectionEnabled = ClientConfig.detectsDrowned();
+        displayMode = modeFromConfig();
         horizontalRange = ClientConfig.lightOverlayRange();
         clearScan();
     }
@@ -86,7 +85,7 @@ public final class LightOverlayState {
     }
 
     public static DisplayMode cycleDisplayMode() {
-        setDisplayMode(displayMode == DisplayMode.CROSSES ? DisplayMode.NUMBERS : DisplayMode.CROSSES);
+        setDisplayMode(DisplayMode.values()[(displayMode.ordinal() + 1) % DisplayMode.values().length]);
         return displayMode;
     }
 
@@ -95,7 +94,8 @@ public final class LightOverlayState {
             return;
         }
         displayMode = value;
-        ClientConfig.setShowsLightOverlayNumbers(value == DisplayMode.NUMBERS);
+        ClientConfig.setLightOverlayMode(value.ordinal());
+        ClientConfig.setShowsLightOverlayNumbers(value != DisplayMode.CROSSES);
     }
 
     public static boolean isSwampSlimeDetectionEnabled() {
@@ -451,7 +451,16 @@ public final class LightOverlayState {
 
     public enum DisplayMode {
         CROSSES,
-        NUMBERS
+        NUMBERS,
+        BOXED_NUMBERS
+    }
+
+    private static DisplayMode modeFromConfig() {
+        int mode = ClientConfig.lightOverlayMode();
+        if (mode == 0 && ClientConfig.showsLightOverlayNumbers()) {
+            mode = 1;
+        }
+        return DisplayMode.values()[Math.max(0, Math.min(mode, DisplayMode.values().length - 1))];
     }
 
     public enum RiskType {
