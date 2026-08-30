@@ -786,9 +786,12 @@ public final class LightingScreen extends Screen {
                 ? "screen.autotorch.light_overlay_on" : "screen.autotorch.light_overlay_off");
     }
 
-    private IChatComponent lightOverlayModeMessage() {
-        return new ChatComponentTranslation(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
-                ? "screen.autotorch.light_overlay_mode_crosses" : "screen.autotorch.light_overlay_mode_numbers");
+    private Component lightOverlayModeMessage() {
+        return Component.translatable(switch (LightOverlayState.displayMode()) {
+            case CROSSES -> "screen.autotorch.light_overlay_mode_crosses";
+            case NUMBERS -> "screen.autotorch.light_overlay_mode_numbers";
+            case BOXED_NUMBERS -> "screen.autotorch.light_overlay_mode_boxed_numbers";
+        });
     }
 
     private IChatComponent swampSlimeDetectionMessage() {

@@ -44,6 +44,8 @@ public final class ClientConfig {
     public static void setLightOverlayRange(int value) { setInt(LIGHT_OVERLAY_HORIZONTAL_RANGE, value); }
     public static boolean showsLightOverlayNumbers() { return bool(LIGHT_OVERLAY_SHOW_NUMBERS); }
     public static void setShowsLightOverlayNumbers(boolean value) { setBool(LIGHT_OVERLAY_SHOW_NUMBERS, value); }
+    public static int lightOverlayMode() { return integer(LIGHT_OVERLAY_MODE); }
+    public static void setLightOverlayMode(int value) { setInt(LIGHT_OVERLAY_MODE, value); }
     public static boolean detectsSwampSlimes() { return bool(LIGHT_OVERLAY_DETECT_SWAMP_SLIMES); }
     public static void setDetectsSwampSlimes(boolean value) { setBool(LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, value); }
     public static boolean detectsDrowned() { return bool(LIGHT_OVERLAY_DETECT_DROWNED); }
