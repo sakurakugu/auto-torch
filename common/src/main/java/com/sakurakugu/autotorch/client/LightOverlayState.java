@@ -28,14 +28,14 @@ public final class LightOverlayState {
     private static final int VERIFICATION_INTERVAL_TICKS = 100;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
-    private static boolean swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
-    private static boolean drownedDetectionEnabled = ClientConfig.detectsDrowned();
+    private static boolean swampSlimeDetectionEnabled = false;
+    private static boolean drownedDetectionEnabled = false;
     private static DisplayMode displayMode = modeFromConfig();
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static int downRange = ClientConfig.lightOverlayDownRange();
     private static int upRange = ClientConfig.lightOverlayUpRange();
-    private static @Nullable ClientLevel level;
-    private static @Nullable BlockPos scanCenter;
+    private static World level;
+    private static BlockPos scanCenter;
     private static int minY;
     private static int maxY;
     private static int ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
@@ -52,8 +52,8 @@ public final class LightOverlayState {
     /** 配置整体替换后同步运行时缓存。 */
     public static void reloadConfig() {
         enabled = ClientConfig.isLightOverlayEnabled();
-        swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
-        drownedDetectionEnabled = ClientConfig.detectsDrowned();
+        swampSlimeDetectionEnabled = false;
+        drownedDetectionEnabled = false;
         displayMode = modeFromConfig();
         horizontalRange = ClientConfig.lightOverlayRange();
         downRange = ClientConfig.lightOverlayDownRange();
@@ -173,9 +173,12 @@ public final class LightOverlayState {
     static List<MarkerColumn> markerColumns() {
         return markerColumns;
     }
+
     public static List<Marker> markers() {
         List<Marker> result = new ArrayList<>();
-        for (MarkerColumn column : markerColumns) result.addAll(column.markers());
+        for (MarkerColumn column : markerColumns) {
+            result.addAll(column.markers());
+        }
         return Collections.unmodifiableList(result);
     }
 
@@ -272,7 +275,7 @@ public final class LightOverlayState {
         }
     }
 
-    private static boolean scanQueuedColumns(ClientLevel currentLevel, Set<Long> queue, int budget) {
+    private static boolean scanQueuedColumns(World currentLevel, Set<Long> queue, int budget) {
         int columnsRemaining = Math.max(1, budget / (downRange + upRange + 1));
         boolean changed = false;
         Iterator<Long> iterator = queue.iterator();
@@ -302,7 +305,9 @@ public final class LightOverlayState {
     }
 
     private static List<Marker> scanColumn(World currentLevel, int x, int z) {
-        if (!currentLevel.isBlockLoaded(new BlockPos(x, minY, z))) return Collections.emptyList();
+        if (!currentLevel.isBlockLoaded(new BlockPos(x, minY, z))) {
+            return Collections.emptyList();
+        }
         List<Marker> columnMarkers = new ArrayList<>();
         BlockPos.MutableBlockPos floor = new BlockPos.MutableBlockPos(x, minY - 1, z);
         BlockPos.MutableBlockPos feet = new BlockPos.MutableBlockPos(x, minY, z);
@@ -457,21 +462,12 @@ public final class LightOverlayState {
         );
     }
 
-
     private static boolean isDrownedRisk(
             World level, BlockPos feet, BlockPos head,
             IBlockState floorState, IBlockState feetState, IBlockState headState
     ) {
-        // 每个连续且可生成怪物的水柱中，仅保留最高的完全有效位置。
-        return isDrownedSpawnPosition(level, feet, floorState, feetState)
-                && !isDrownedSpawnPosition(level, head, feetState, headState);
-    }
-
-    private static boolean isDrownedSpawnPosition(
-            World level, BlockPos pos, IBlockState belowState, IBlockState state
-    ) {
+        // 1.12.2 尚无溺尸实体，保留接口但不生成该类标记。
         return false;
-
     }
 
     private static Marker marker(World level, BlockPos pos, RiskType riskType) {
@@ -491,9 +487,7 @@ public final class LightOverlayState {
 
     private static DisplayMode modeFromConfig() {
         int mode = ClientConfig.lightOverlayMode();
-        if (mode == 0 && ClientConfig.showsLightOverlayNumbers()) {
-            mode = 1;
-        }
+        if (mode == 0 && ClientConfig.showsLightOverlayNumbers()) mode = 1;
         return DisplayMode.values()[Math.max(0, Math.min(mode, DisplayMode.values().length - 1))];
     }
 
@@ -503,9 +497,17 @@ public final class LightOverlayState {
     }
 
     public static final class Marker {
-        private final BlockPos pos; private final int blockLight; private final int skyLight; private final RiskType riskType;
-        public Marker(BlockPos pos, int blockLight, int skyLight, RiskType riskType) { this.pos=pos; this.blockLight=blockLight; this.skyLight=skyLight; this.riskType=riskType; }
-        public BlockPos pos() { return pos; } public int blockLight() { return blockLight; } public int skyLight() { return skyLight; } public RiskType riskType() { return riskType; }
+        private final BlockPos pos;
+        private final int blockLight;
+        private final int skyLight;
+        private final RiskType riskType;
+        public Marker(BlockPos pos, int blockLight, int skyLight, RiskType riskType) {
+            this.pos = pos; this.blockLight = blockLight; this.skyLight = skyLight; this.riskType = riskType;
+        }
+        public BlockPos pos() { return pos; }
+        public int blockLight() { return blockLight; }
+        public int skyLight() { return skyLight; }
+        public RiskType riskType() { return riskType; }
         public boolean nightOnly() {
             return blockLight == 0 && skyLight > 0;
         }
@@ -516,8 +518,14 @@ public final class LightOverlayState {
     }
 
     static final class MarkerColumn {
-        private final long key; private final int minY; private final List<Marker> markers;
-        MarkerColumn(long key, int minY, List<Marker> markers) { this.key=key; this.minY=minY; this.markers=markers; }
-        long key() { return key; } int minY() { return minY; } List<Marker> markers() { return markers; }
+        private final long key;
+        private final int minY;
+        private final List<Marker> markers;
+        MarkerColumn(long key, int minY, List<Marker> markers) {
+            this.key = key; this.minY = minY; this.markers = markers;
+        }
+        long key() { return key; }
+        int minY() { return minY; }
+        List<Marker> markers() { return markers; }
     }
 }
