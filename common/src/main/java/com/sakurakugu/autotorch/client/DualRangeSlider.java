@@ -29,20 +29,60 @@ final class DualRangeSlider extends Button {
     boolean drag(double mouseX) { if (draggingThumb == 0) return false; update(mouseX); return true; }
     boolean stopDrag() { if (draggingThumb == 0) return false; draggingThumb = 0; return true; }
     @Override protected void renderButton(int mouseX, int mouseY, float partialTicks) {
+        int lowX = position(lowerValue);
+        int highX = position(upperValue);
         Minecraft.getMinecraft().renderEngine.bindTexture(SLIDER_LOCATION);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         GL11.glEnable(GL11.GL_BLEND);
-        drawTexturedModalRect(xPosition, yPosition, 0, isFocused() ? 20 : 0, width, height);
-        fill(xPosition, yPosition + height / 2 - 1, xPosition + width, yPosition + height / 2 + 1, 0xFF8A8A8A);
-        int lowX = position(lowerValue), highX = position(upperValue);
-        fill(lowX, yPosition + height / 2 - 2, highX, yPosition + height / 2 + 2, 0xFF3A5F8A);
+        drawNineSliced(xPosition, yPosition, width, height, 20, 4, 200, 20, 0, isFocused() ? 20 : 0);
+        fill(lowX, yPosition + 1, highX, yPosition + height - 1, 0xFF3A5F8A);
+        // 填充区间会改变 OpenGL 颜色状态，绘制纹理滑块前恢复白色。
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         thumb(lowX, draggingThumb == 1 || Math.abs(mouseX - lowX) <= 6);
         thumb(highX, draggingThumb == 2 || Math.abs(mouseX - highX) <= 6);
-        drawCenteredString(Minecraft.getMinecraft().fontRenderer, getMessage(), xPosition + width / 2, yPosition + 6, 0xFFFFFFFF);
+        drawCenteredString(Minecraft.getMinecraft().fontRenderer, getMessage(), xPosition + width / 2, yPosition + 5, 0xFFFFFFFF);
     }
     private void thumb(int x, boolean hovered) {
-        fill(x - 3, yPosition + 2, x + 4, yPosition + height - 2, hovered ? 0xFFFFFFFF : 0xFFB0B0B0);
-        fill(x - 2, yPosition + 3, x + 3, yPosition + height - 3, 0xFF606060);
+        drawNineSliced(x - 4, yPosition, 8, height, 20, 4, 200, 20, 0, hovered ? 60 : 40);
+    }
+    private void drawNineSliced(int x, int y, int width, int height, int cw, int ch,
+            int tw, int th, int u, int v) {
+        int l = Math.min(cw, width / 2);
+        int r = Math.min(cw, width - l);
+        int t = Math.min(ch, height / 2);
+        int b = Math.min(ch, height - t);
+        int mw = width - l - r;
+        int mh = height - t - b;
+        int sw = Math.max(1, tw - cw * 2);
+        int sh = Math.max(1, th - ch * 2);
+        blitPatch(x, y, l, t, u, v);
+        blitPatch(x + width - r, y, r, t, u + tw - r, v);
+        blitPatch(x, y + height - b, l, b, u, v + th - b);
+        blitPatch(x + width - r, y + height - b, r, b, u + tw - r, v + th - b);
+        if (mw > 0) {
+            blitRepeat(x + l, y, mw, t, u + cw, v, sw, t);
+            blitRepeat(x + l, y + height - b, mw, b, u + cw, v + th - b, sw, b);
+        }
+        if (mh > 0) {
+            blitRepeat(x, y + t, l, mh, u, v + ch, l, sh);
+            blitRepeat(x + width - r, y + t, r, mh, u + tw - r, v + ch, r, sh);
+        }
+        if (mw > 0 && mh > 0) {
+            blitRepeat(x + l, y + t, mw, mh, u + cw, v + ch, sw, sh);
+        }
+    }
+    private void blitPatch(int x, int y, int width, int height, int u, int v) {
+        if (width > 0 && height > 0) drawTexturedModalRect(x, y, u, v, width, height);
+    }
+    private void blitRepeat(int x, int y, int width, int height, int u, int v,
+            int sourceWidth, int sourceHeight) {
+        if (width <= 0 || height <= 0) return;
+        for (int oy = 0; oy < height; oy += sourceHeight) {
+            for (int ox = 0; ox < width; ox += sourceWidth) {
+                blitPatch(x + ox, y + oy, Math.min(sourceWidth, width - ox),
+                        Math.min(sourceHeight, height - oy), u, v);
+            }
+        }
     }
     private void update(double mouseX) {
         int value = (int) Math.round((Math.max(xPosition + 4, Math.min(xPosition + width - 4, mouseX)) - (xPosition + 4))
