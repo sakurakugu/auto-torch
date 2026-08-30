@@ -1043,9 +1043,9 @@ public final class LightingScreen extends Screen {
         fill(left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
         drawCenteredString(font, new ChatComponentTranslation("screen.autotorch.light_overlay_title").getFormattedText(),
                 width / 2, 246 - offset, 0xFFFFFFFF);
-        fill(left, 310 - offset, left + 310, 311 - offset, 0xFF606060);
+        fill(left, 334 - offset, left + 310, 335 - offset, 0xFF606060);
         drawCenteredString(font, new ChatComponentTranslation("screen.autotorch.nearby_auto_torch_title").getFormattedText(),
-                width / 2, 314 - offset, 0xFFFFFFFF);
+                width / 2, 338 - offset, 0xFFFFFFFF);
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
 
         if (maxScrollOffset() > 0) {
