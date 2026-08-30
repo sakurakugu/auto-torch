@@ -97,7 +97,9 @@ public final class AutoTorchClientCommands {
                         .then(AutoTorchClientCommands.<S>literal("crosses").executes(context -> setOverlayMode(
                                 LightOverlayState.DisplayMode.CROSSES)))
                         .then(AutoTorchClientCommands.<S>literal("numbers").executes(context -> setOverlayMode(
-                                LightOverlayState.DisplayMode.NUMBERS))))
+                                LightOverlayState.DisplayMode.NUMBERS)))
+                        .then(AutoTorchClientCommands.<S>literal("boxed_numbers").executes(context -> setOverlayMode(
+                                LightOverlayState.DisplayMode.BOXED_NUMBERS))))
                 .then(AutoTorchClientCommands.<S>literal("detect")
                         .then(AutoTorchClientCommands.<S>literal("swamp_slime")
                                 .then(booleanLiteral("on", LightOverlayState::setSwampSlimeDetectionEnabled,
@@ -211,7 +213,9 @@ public final class AutoTorchClientCommands {
         LightOverlayState.setDisplayMode(mode);
         return feedback("command.autotorch.overlay_mode",
                 Component.translatable(mode == LightOverlayState.DisplayMode.CROSSES
-                        ? "command.autotorch.mode_crosses" : "command.autotorch.mode_numbers"));
+                        ? "command.autotorch.mode_crosses"
+                        : mode == LightOverlayState.DisplayMode.NUMBERS
+                        ? "command.autotorch.mode_numbers" : "command.autotorch.mode_boxed_numbers"));
     }
 
     private static <S> BlockPos position(CommandContext<S> context, String name) {
