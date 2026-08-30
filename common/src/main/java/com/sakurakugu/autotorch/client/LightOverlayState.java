@@ -28,14 +28,14 @@ public final class LightOverlayState {
     private static final int VERIFICATION_INTERVAL_TICKS = 100;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
-    private static boolean swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
-    private static boolean drownedDetectionEnabled = ClientConfig.detectsDrowned();
+    private static boolean swampSlimeDetectionEnabled = false;
+    private static boolean drownedDetectionEnabled = false;
     private static DisplayMode displayMode = modeFromConfig();
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static int downRange = ClientConfig.lightOverlayDownRange();
     private static int upRange = ClientConfig.lightOverlayUpRange();
-    private static @Nullable ClientLevel level;
-    private static @Nullable BlockPos scanCenter;
+    private static World level;
+    private static BlockPos scanCenter;
     private static int minY;
     private static int maxY;
     private static int ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
@@ -52,8 +52,8 @@ public final class LightOverlayState {
     /** 配置整体替换后同步运行时缓存。 */
     public static void reloadConfig() {
         enabled = ClientConfig.isLightOverlayEnabled();
-        swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
-        drownedDetectionEnabled = ClientConfig.detectsDrowned();
+        swampSlimeDetectionEnabled = false;
+        drownedDetectionEnabled = false;
         displayMode = modeFromConfig();
         horizontalRange = ClientConfig.lightOverlayRange();
         downRange = ClientConfig.lightOverlayDownRange();
@@ -275,7 +275,7 @@ public final class LightOverlayState {
         }
     }
 
-    private static boolean scanQueuedColumns(ClientLevel currentLevel, Set<Long> queue, int budget) {
+    private static boolean scanQueuedColumns(World currentLevel, Set<Long> queue, int budget) {
         int columnsRemaining = Math.max(1, budget / (downRange + upRange + 1));
         boolean changed = false;
         Iterator<Long> iterator = queue.iterator();
@@ -462,6 +462,14 @@ public final class LightOverlayState {
         );
     }
 
+    private static boolean isDrownedRisk(
+            World level, BlockPos feet, BlockPos head,
+            IBlockState floorState, IBlockState feetState, IBlockState headState
+    ) {
+        // 1.12.2 尚无溺尸实体，保留接口但不生成该类标记。
+        return false;
+    }
+
     private static Marker marker(World level, BlockPos pos, RiskType riskType) {
         return new Marker(
                 pos.toImmutable(),
@@ -469,14 +477,6 @@ public final class LightOverlayState {
                 level.getLightFor(EnumSkyBlock.SKY, pos),
                 riskType
         );
-    }
-
-    private static boolean isDrownedRisk(
-            World level, BlockPos feet, BlockPos head,
-            IBlockState floorState, IBlockState feetState, IBlockState headState
-    ) {
-        // 1.11.2 尚无溺尸实体，保留接口但不生成该类标记。
-        return false;
     }
 
     public enum DisplayMode {
@@ -487,9 +487,7 @@ public final class LightOverlayState {
 
     private static DisplayMode modeFromConfig() {
         int mode = ClientConfig.lightOverlayMode();
-        if (mode == 0 && ClientConfig.showsLightOverlayNumbers()) {
-            mode = 1;
-        }
+        if (mode == 0 && ClientConfig.showsLightOverlayNumbers()) mode = 1;
         return DisplayMode.values()[Math.max(0, Math.min(mode, DisplayMode.values().length - 1))];
     }
 
