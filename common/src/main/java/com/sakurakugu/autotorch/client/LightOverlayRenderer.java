@@ -210,15 +210,25 @@ public final class LightOverlayRenderer {
                 float size = quad.size();
                 float u = (quad.value() & 3) * NUMBER_TEXTURE_CELL_SIZE;
                 float v = (quad.value() >> 2) * NUMBER_TEXTURE_CELL_SIZE;
-                buffer.vertex(pose.pose(), x, y, z).uv(u, v)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF, quad.color() & 0xFF, quad.color() >>> 24).endVertex();
-                buffer.vertex(pose.pose(), x, y, z + size).uv(u, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF, quad.color() & 0xFF, quad.color() >>> 24).endVertex();
+                buffer.vertex(pose.pose(), x, y, z)
+                        .color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF,
+                                quad.color() & 0xFF, quad.color() >>> 24).uv(u, v)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
+                buffer.vertex(pose.pose(), x, y, z + size)
+                        .color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF,
+                                quad.color() & 0xFF, quad.color() >>> 24)
+                        .uv(u, v + NUMBER_TEXTURE_CELL_SIZE)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
                 buffer.vertex(pose.pose(), x + size, y, z + size)
+                        .color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF,
+                                quad.color() & 0xFF, quad.color() >>> 24)
                         .uv(u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF, quad.color() & 0xFF, quad.color() >>> 24).endVertex();
-                buffer.vertex(pose.pose(), x + size, y, z).uv(u + NUMBER_TEXTURE_CELL_SIZE, v)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF, quad.color() & 0xFF, quad.color() >>> 24).endVertex();
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
+                buffer.vertex(pose.pose(), x + size, y, z)
+                        .color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF,
+                                quad.color() & 0xFF, quad.color() >>> 24)
+                        .uv(u + NUMBER_TEXTURE_CELL_SIZE, v)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
             }
         }
     }
