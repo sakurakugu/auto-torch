@@ -37,8 +37,7 @@ public final class LightOverlayState {
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
     private static boolean swampSlimeDetectionEnabled = false;
     private static boolean drownedDetectionEnabled = ClientConfig.detectsDrowned();
-    private static DisplayMode displayMode = ClientConfig.showsLightOverlayNumbers()
-            ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
+    private static DisplayMode displayMode = modeFromConfig();
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static World level;
     private static BlockPos scanCenter;
@@ -60,7 +59,7 @@ public final class LightOverlayState {
         enabled = ClientConfig.isLightOverlayEnabled();
         swampSlimeDetectionEnabled = false;
         drownedDetectionEnabled = ClientConfig.detectsDrowned();
-        displayMode = ClientConfig.showsLightOverlayNumbers() ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
+        displayMode = modeFromConfig();
         horizontalRange = ClientConfig.lightOverlayRange();
         clearScan();
     }
@@ -90,7 +89,7 @@ public final class LightOverlayState {
     }
 
     public static DisplayMode cycleDisplayMode() {
-        setDisplayMode(displayMode == DisplayMode.CROSSES ? DisplayMode.NUMBERS : DisplayMode.CROSSES);
+        setDisplayMode(DisplayMode.values()[(displayMode.ordinal() + 1) % DisplayMode.values().length]);
         return displayMode;
     }
 
@@ -99,7 +98,8 @@ public final class LightOverlayState {
             return;
         }
         displayMode = value;
-        ClientConfig.setShowsLightOverlayNumbers(value == DisplayMode.NUMBERS);
+        ClientConfig.setLightOverlayMode(value.ordinal());
+        ClientConfig.setShowsLightOverlayNumbers(value != DisplayMode.CROSSES);
     }
 
     public static boolean isSwampSlimeDetectionEnabled() {
@@ -490,7 +490,16 @@ public final class LightOverlayState {
 
     public enum DisplayMode {
         CROSSES,
-        NUMBERS
+        NUMBERS,
+        BOXED_NUMBERS
+    }
+
+    private static DisplayMode modeFromConfig() {
+        int mode = ClientConfig.lightOverlayMode();
+        if (mode == 0 && ClientConfig.showsLightOverlayNumbers()) {
+            mode = 1;
+        }
+        return DisplayMode.values()[Math.max(0, Math.min(mode, DisplayMode.values().length - 1))];
     }
 
     public enum RiskType {
