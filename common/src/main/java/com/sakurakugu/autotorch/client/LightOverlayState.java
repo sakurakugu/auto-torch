@@ -41,8 +41,8 @@ public final class LightOverlayState {
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static int downRange = ClientConfig.lightOverlayDownRange();
     private static int upRange = ClientConfig.lightOverlayUpRange();
-    private static @Nullable ClientLevel level;
-    private static @Nullable BlockPos scanCenter;
+    private static Level level;
+    private static BlockPos scanCenter;
     private static int minY;
     private static int maxY;
     private static int ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
@@ -288,7 +288,7 @@ public final class LightOverlayState {
         }
     }
 
-    private static boolean scanQueuedColumns(ClientLevel currentLevel, Set<Long> queue, int budget) {
+    private static boolean scanQueuedColumns(Level currentLevel, Set<Long> queue, int budget) {
         int columnsRemaining = Math.max(1, budget / (downRange + upRange + 1));
         boolean changed = false;
         Iterator<Long> iterator = queue.iterator();
