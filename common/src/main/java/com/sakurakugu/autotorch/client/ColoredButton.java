@@ -2,9 +2,12 @@ package com.sakurakugu.autotorch.client;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.IChatComponent;
+import net.minecraft.util.ResourceLocation;
+import org.lwjgl.opengl.GL11;
 
 /** 使用明确语义色的普通按钮，保留原版按钮的输入、焦点和旁白行为。 */
 final class ColoredButton extends Button {
+    private static final ResourceLocation WIDGETS_LOCATION = new ResourceLocation("minecraft", "textures/gui/widgets.png");
     private final int backgroundColor;
     private final int hoveredColor;
 
@@ -17,6 +20,10 @@ final class ColoredButton extends Button {
     @Override
     public void renderButton(int mouseX, int mouseY, float partialTick) {
         boolean highlighted = isHovered() || isFocused();
+        Minecraft.getMinecraft().renderEngine.bindTexture(WIDGETS_LOCATION);
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+        GL11.glEnable(GL11.GL_BLEND);
+        drawTexturedModalRect(xPosition, yPosition, 0, !active ? 46 : highlighted ? 86 : 66, getButtonWidth(), height);
         int color = highlighted ? hoveredColor : backgroundColor;
         if (!active) {
             color = 0xCC555555;
