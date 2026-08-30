@@ -3,6 +3,9 @@ package com.sakurakugu.autotorch.client;
 import com.sakurakugu.autotorch.config.ConfigBackend;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
+
+import java.util.List;
 
 import static com.sakurakugu.autotorch.config.ConfigDefinitions.*;
 
@@ -19,7 +22,32 @@ public final class ClientConfig {
 
     /** 恢复全部客户端配置并立即持久化。 */
     public static void resetDefaults() {
-        for (var definition : CLIENT) {
+        reset(CLIENT);
+    }
+
+    public static void resetNearbyAutoTorchDefaults() {
+        reset(List.of(NEARBY_AUTO_TORCH_ENABLED, NEARBY_AUTO_TORCH_LIGHT_THRESHOLD,
+                NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT));
+    }
+
+    public static void resetLightOverlayDefaults() {
+        reset(List.of(LIGHT_OVERLAY_ENABLED, LIGHT_OVERLAY_HORIZONTAL_RANGE,
+                LIGHT_OVERLAY_DOWN_RANGE, LIGHT_OVERLAY_UP_RANGE,
+                LIGHT_OVERLAY_SHOW_NUMBERS, LIGHT_OVERLAY_MODE,
+                LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED));
+    }
+
+    public static void resetLightingTaskDefaults() {
+        reset(List.of(SELECTION_OVERLAY_ENABLED, SELECTION_OVERLAY_LINES_ONLY,
+                SELECTION_OVERLAY_SMOOTH_SPHERES, TASK_DEFAULT_MAX_TORCHES,
+                TASK_DEFAULT_MIN_SPACING, TASK_DEFAULT_LIGHT_THRESHOLD,
+                TASK_DEFAULT_UNDERGROUND_ONLY, TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES,
+                TASK_DEFAULT_SURVIVAL_CONSUMES_TORCHES,
+                TASK_DEFAULT_WOODEN_AXE_SELECTION_ENABLED));
+    }
+
+    private static void reset(List<Value> definitions) {
+        for (var definition : definitions) {
             if (definition instanceof BooleanValue value) backend.setBoolean(value.key(), value.defaultValue());
             else if (definition instanceof IntValue value) backend.setInt(value.key(), value.defaultValue());
         }
