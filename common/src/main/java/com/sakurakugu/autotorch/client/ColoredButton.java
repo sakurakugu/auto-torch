@@ -4,9 +4,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 /** 使用明确语义色的普通按钮，保留原版按钮的输入、焦点和旁白行为。 */
 final class ColoredButton extends Button {
+    private static final ResourceLocation BUTTON = new ResourceLocation("minecraft", "widget/button");
+    private static final ResourceLocation BUTTON_HIGHLIGHTED = new ResourceLocation("minecraft", "widget/button_highlighted");
+    private static final ResourceLocation BUTTON_DISABLED = new ResourceLocation("minecraft", "widget/button_disabled");
     private final int backgroundColor;
     private final int hoveredColor;
 
@@ -18,10 +22,12 @@ final class ColoredButton extends Button {
 
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        int color = !active ? 0xCC555555 : isHoveredOrFocused() ? hoveredColor : backgroundColor;
+        boolean highlighted = isHoveredOrFocused();
+        ResourceLocation sprite = !active ? BUTTON_DISABLED : highlighted ? BUTTON_HIGHLIGHTED : BUTTON;
+        graphics.blitSprite(sprite, getX(), getY(), getWidth(), getHeight());
+        int color = !active ? 0xCC555555 : highlighted ? hoveredColor : backgroundColor;
         graphics.fill(getX() + 2, getY() + 2, getRight() - 2, getBottom() - 2, color);
         drawColoredBevel(graphics, color);
-        graphics.renderOutline(getX(), getY(), getWidth(), getHeight(), isHoveredOrFocused() ? 0xFFFFFFFF : 0xFFB0B0B0);
         graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(), getX() + getWidth() / 2, getY() + 6,
                 active ? 0xFFFFFFFF : 0xFFA0A0A0);
     }
