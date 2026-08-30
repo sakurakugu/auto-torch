@@ -48,6 +48,7 @@ public final class LightingScreen extends Screen {
     private Button undergroundButton;
     private Button lightOverlayButton;
     private Button lightOverlayModeButton;
+    private Button lightOverlayRenderThroughButton;
     private Button swampSlimeDetectionButton;
     private Button drownedDetectionButton;
     private Button nearbyAutoTorchButton;
@@ -208,15 +209,20 @@ public final class LightingScreen extends Screen {
             LightOverlayState.cycleDisplayMode();
             lightOverlayModeButton.setMessage(lightOverlayModeMessage());
         }));
-        addRenderableWidget(new LightRangeSlider(left + 202, 258, 108, 20));
-        addRenderableWidget(new DualRangeSlider(left, 282, 310, 20, -64, 64, 64,
+        lightOverlayRenderThroughButton = addRenderableWidget(button(left + 204, 258, 106, 20,
+                lightOverlayRenderThroughMessage(), button -> {
+            ClientConfig.setLightOverlayRenderThrough(!ClientConfig.isLightOverlayRenderThrough());
+            lightOverlayRenderThroughButton.setMessage(lightOverlayRenderThroughMessage());
+        }));
+        // 宽度与高度滑块同一行；宽度滑块保持原有 108 像素宽度。
+        addRenderableWidget(new LightRangeSlider(left, 282, 108, 20));
+        addRenderableWidget(new DualRangeSlider(left + 112, 282, 198, 20, -64, 64, 64,
                 -LightOverlayState.downRange(), LightOverlayState.upRange(),
                 (lower, upper) -> new TranslatableComponent("screen.autotorch.light_overlay_height_value", lower, upper),
                 (lower, upper) -> {
                     LightOverlayState.setDownRange(-lower);
                     LightOverlayState.setUpRange(upper);
                 }));
-
         swampSlimeDetectionButton = addRenderableWidget(withTooltip(button(left, 306, 153, 20,
                 swampSlimeDetectionMessage(), button -> {
             LightOverlayState.toggleSwampSlimeDetection();
@@ -846,6 +852,12 @@ public final class LightingScreen extends Screen {
             case NUMBERS -> "screen.autotorch.light_overlay_mode_numbers";
             case BOXED_NUMBERS -> "screen.autotorch.light_overlay_mode_boxed_numbers";
         });
+    }
+
+    private Component lightOverlayRenderThroughMessage() {
+        return new TranslatableComponent(ClientConfig.isLightOverlayRenderThrough()
+                ? "screen.autotorch.light_overlay_render_through_on"
+                : "screen.autotorch.light_overlay_render_through_off");
     }
 
     private Component swampSlimeDetectionMessage() {
