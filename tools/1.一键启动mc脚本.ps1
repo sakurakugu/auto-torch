@@ -4,6 +4,8 @@ param(
 )
 
 $task = "all"
+$build = $false
+$showHelp = $false
 $mode = "debug"
 $releasePath = $null
 $javaPath = $null
@@ -12,7 +14,8 @@ for ($index = 0; $index -lt $Arguments.Count; $index++) {
     switch ($Arguments[$index]) {
         "--all" { $task = "all" }
         "--all_branch" { $task = "all_branch" }
-        "--build" { $task = "build" }
+        "--build" { $build = $true }
+        "--help" { $showHelp = $true }
         "--neoforge" { $task = "neoforge" }
         "--forge" { $task = "forge" }
         "--fabric" { $task = "fabric" }
@@ -35,9 +38,40 @@ for ($index = 0; $index -lt $Arguments.Count; $index++) {
             $javaPath = $Arguments[$index]
         }
         default {
-            throw "不支持的参数 '$($Arguments[$index])'。请使用 --all、--all_branch、--build、--neoforge、--forge、--fabric、--debug、--release、--path 或 --java-path。"
+            throw "不支持的参数 '$($Arguments[$index])'。请使用 --help 查看用法。"
         }
     }
+}
+
+function Show-Help {
+    @"
+用法：
+  .\tools\1.一键启动mc脚本.ps1 [目标] [动作] [选项]
+
+目标（默认 --all）：
+  --all                 当前版本启动或构建全部加载器
+  --neoforge             当前版本仅操作 NeoForge
+  --fabric               当前版本仅操作 Fabric
+  --forge                当前版本仅操作 Forge
+  --all_branch           遍历所有 mc/<版本号> 分支
+
+动作：
+  --debug                启动开发客户端（默认）
+  --build                执行构建，不启动客户端（可与任意目标组合）
+  --release              构建 release、部署到生产测试端并启动（可与任意目标组合）
+
+选项：
+  --path <路径>          指定生产测试端目录（仅 --release）
+  --java-path <路径>     指定 Java 安装目录
+  --help                 显示此帮助
+
+未提供参数时显示此帮助。
+"@ | Write-Host
+}
+
+if ($Arguments.Count -eq 0 -or $showHelp) {
+    Show-Help
+    exit 0
 }
 
 $projectRoot = [System.IO.Path]::GetFullPath("$PSScriptRoot\..")
@@ -249,7 +283,7 @@ function Get-ReleaseArtifacts {
     $modVersion = Get-GradleProperty $projectRoot "mod_version"
     $archiveRoot = Join-Path $projectRoot "build\v$modVersion"
 
-    if ($task -eq "all") {
+    if ($task -ne "all_branch") {
         $minecraftVersion = Get-GradleProperty $projectRoot "minecraft_version"
         return @(Invoke-ReleaseBuild $projectRoot $minecraftVersion)
     }
@@ -283,7 +317,8 @@ function Get-ReleaseArtifacts {
 function Get-ReleaseTargets {
     param(
         [System.IO.FileInfo[]]$Artifacts,
-        [string]$ReleaseRoot
+        [string]$ReleaseRoot,
+        [string]$LoaderFilter
     )
 
     $versionsRoot = Join-Path $ReleaseRoot ".minecraft\versions"
@@ -300,6 +335,9 @@ function Get-ReleaseTargets {
 
         $minecraftVersion = $Matches.version
         $loader = $Matches.loader.ToLowerInvariant()
+        if (-not [string]::IsNullOrWhiteSpace($LoaderFilter) -and $loader -ne $LoaderFilter) {
+            continue
+        }
         $instancePattern = "^$([regex]::Escape($minecraftVersion))-$([regex]::Escape($loader))(?:[_ ].*)?$"
         $instances = @(
             Get-ChildItem -LiteralPath $versionsRoot -Directory |
@@ -540,10 +578,6 @@ function Start-ReleaseClient {
 Set-JavaEnvironment $javaPath
 
 if ($mode -eq "release") {
-    if ($task -notin @("all", "all_branch")) {
-        throw "--release 只支持与 --all 或 --all_branch 一起使用。"
-    }
-
     $releaseRoot = if ([string]::IsNullOrWhiteSpace($releasePath)) {
         $defaultReleaseRoot
     } else {
@@ -557,7 +591,8 @@ if ($mode -eq "release") {
     }
 
     $artifacts = @(Get-ReleaseArtifacts)
-    $targets = @(Get-ReleaseTargets $artifacts $releaseRoot)
+    $loaderFilter = if ($task -in @("forge", "fabric", "neoforge")) { $task } else { $null }
+    $targets = @(Get-ReleaseTargets $artifacts $releaseRoot $loaderFilter)
     if ($targets.Count -eq 0) {
         throw "没有可部署的 release 产物。"
     }
@@ -575,10 +610,36 @@ if (-not [string]::IsNullOrWhiteSpace($releasePath)) {
     Write-Warning "--path 仅在 --release 模式下生效，当前将忽略该参数。"
 }
 
-if ($task -eq "build") {
+if ($build) {
+    if ($task -eq "all_branch") {
+        $versions = Get-MinecraftBranches
+        if ($versions.Count -eq 0) {
+            throw "未找到 mc/<版本号> 形式的本地分支。"
+        }
+
+        foreach ($version in $versions) {
+            $versionRoot = Get-VersionWorktree $version.Branch $version.Version
+            Write-Host "`n========== 构建 Minecraft $($version.Version) =========="
+            Push-Location $versionRoot
+            try {
+                & .\gradlew.bat clean build
+                if ($LASTEXITCODE -ne 0) {
+                    throw "[$($version.Version)] 构建失败，退出码：$LASTEXITCODE。"
+                }
+            } finally {
+                Pop-Location
+            }
+        }
+        exit 0
+    }
+
     Set-Location $projectRoot
     git config core.hooksPath .githooks
-    .\gradlew.bat clean build
+    if ($task -eq "all") {
+        .\gradlew.bat clean build
+    } else {
+        .\gradlew.bat clean ":${task}:build"
+    }
     exit $LASTEXITCODE
 }
 
