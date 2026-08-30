@@ -10,6 +10,7 @@ import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
@@ -62,7 +63,12 @@ public final class LightingScreen extends Screen {
     private ITextComponent rangeMessage = new TextComponentString("");
 
     public LightingScreen() {
+        this(0);
+    }
+
+    private LightingScreen(int initialScrollOffset) {
         super(new TextComponentTranslation("screen.autotorch.title"));
+        scrollOffset = initialScrollOffset;
         consumeTorches = initialConsumeTorches();
         undergroundOnly = ClientConfig.isDefaultUndergroundOnly();
     }
@@ -74,8 +80,10 @@ public final class LightingScreen extends Screen {
                 ? BlockPos.ORIGIN : minecraft.player.getPosition();
         int left = panelLeft();
 
-        resetButton = addRenderableWidget(button(left + 270, 2, 40, 16,
-                new TextComponentTranslation("screen.autotorch.reset"), button -> resetLightingTaskSettings()));
+        ITextComponent resetMessage = new TextComponentTranslation("screen.autotorch.reset");
+        resetButton = addRenderableWidget(new ResetButton(resetButtonX(resetMessage), 2,
+                font.getStringWidth(resetMessage.getFormattedText()), 16, resetMessage, panelLeft(), panelLeft() + 310,
+                button -> resetLightingTaskSettings()));
 
         shapeButton = addRenderableWidget(button(left, 20, 126, 20, shapeMessage(), button -> {
             SelectionState.setShape(SelectionState.shape() == AreaShape.BOX ? AreaShape.SPHERE : AreaShape.BOX);
@@ -187,8 +195,10 @@ public final class LightingScreen extends Screen {
             LightOverlayState.toggle();
             lightOverlayButton.setMessage(lightOverlayMessage().getFormattedText());
         }));
-        addRenderableWidget(button(left + 270, 242, 40, 16,
-                new TextComponentTranslation("screen.autotorch.reset"), button -> resetLightOverlaySettings()));
+        ITextComponent lightOverlayResetMessage = new TextComponentTranslation("screen.autotorch.reset");
+        addRenderableWidget(new ResetButton(resetButtonX(lightOverlayResetMessage), 242,
+                font.getStringWidth(lightOverlayResetMessage.getFormattedText()), 16, lightOverlayResetMessage,
+                panelLeft(), panelLeft() + 310, button -> resetLightOverlaySettings()));
         lightOverlayModeButton = addRenderableWidget(button(left + 112, 258, 88, 20,
                 lightOverlayModeMessage(), button -> {
             LightOverlayState.cycleDisplayMode();
@@ -225,8 +235,10 @@ public final class LightingScreen extends Screen {
             ClientConfig.setNearbyAutoTorchEnabled(!ClientConfig.isNearbyAutoTorchEnabled());
             nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage().getFormattedText());
         }), new TextComponentTranslation("screen.autotorch.nearby_auto_torch.tooltip")));
-        addRenderableWidget(button(left + 270, 334, 40, 16,
-                new TextComponentTranslation("screen.autotorch.reset"), button -> resetNearbyAutoTorchSettings()));
+        ITextComponent nearbyResetMessage = new TextComponentTranslation("screen.autotorch.reset");
+        addRenderableWidget(new ResetButton(resetButtonX(nearbyResetMessage), 334,
+                font.getStringWidth(nearbyResetMessage.getFormattedText()), 16, nearbyResetMessage,
+                panelLeft(), panelLeft() + 310, button -> resetNearbyAutoTorchSettings()));
         addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 350, 153, 20));
         nearbyAutoTorchSkyLightButton = addRenderableWidget(button(left, 374, 310, 20,
                 nearbyAutoTorchSkyLightMessage(), button -> {
@@ -247,18 +259,22 @@ public final class LightingScreen extends Screen {
         ClientConfig.resetLightingTaskDefaults();
         SelectionState.reloadConfig();
         PlatformNetworking.sendToServer(new SetSelectionToolPayload(ClientConfig.isWoodenAxeSelectionEnabled()));
-        minecraft.displayGuiScreen(new LightingScreen());
+        reopenAtCurrentScrollOffset();
     }
 
     private void resetLightOverlaySettings() {
         ClientConfig.resetLightOverlayDefaults();
         LightOverlayState.reloadConfig();
-        minecraft.displayGuiScreen(new LightingScreen());
+        reopenAtCurrentScrollOffset();
     }
 
     private void resetNearbyAutoTorchSettings() {
         ClientConfig.resetNearbyAutoTorchDefaults();
-        minecraft.displayGuiScreen(new LightingScreen());
+        reopenAtCurrentScrollOffset();
+    }
+
+    private void reopenAtCurrentScrollOffset() {
+        minecraft.displayGuiScreen(new LightingScreen(scrollOffset));
     }
 
     private <T extends Button> T withTooltip(T widget, ITextComponent tooltip) {
@@ -411,6 +427,7 @@ public final class LightingScreen extends Screen {
                     : Math.abs(secondPos.getX() - firstPos.getX()) + 1));
             dimensions[1].visible = !sphere;
             dimensions[2].visible = !sphere;
+            sphereDisplayButton.visible = sphere;
             if (!sphere) {
                 dimensions[1].setValue(Integer.toString(Math.abs(secondPos.getZ() - firstPos.getZ()) + 1));
                 dimensions[2].setValue(Integer.toString(Math.abs(secondPos.getY() - firstPos.getY()) + 1));
@@ -1064,6 +1081,34 @@ public final class LightingScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    /** 标题区域内仅在悬停时显示文字的重置入口。 */
+    private int resetButtonX(ITextComponent message) {
+        return panelLeft() + 310 - font.getStringWidth(message.getFormattedText());
+    }
+
+    private static final class ResetButton extends Button {
+        private final int hoverLeft;
+        private final int hoverRight;
+
+        private ResetButton(int x, int y, int width, int height, ITextComponent message,
+                int hoverLeft, int hoverRight, OnPress onPress) {
+            super(x, y, width, height, message.getFormattedText(), onPress);
+            this.hoverLeft = hoverLeft;
+            this.hoverRight = hoverRight;
+        }
+
+        @Override
+        protected void renderButton(int mouseX, int mouseY, float partialTicks) {
+            boolean rowHovered = mouseX >= hoverLeft && mouseX < hoverRight
+                    && mouseY >= yPosition && mouseY < yPosition + height;
+            if (isHovered() || isFocused() || rowHovered) {
+                FontRenderer fontRenderer = Minecraft.getMinecraft().fontRendererObj;
+                drawString(fontRenderer, getMessage(), xPosition + width - fontRenderer.getStringWidth(getMessage()),
+                        yPosition + 4, isHovered() || isFocused() ? 0xFFFFFF00 : 0xFFFFFFFF);
+            }
+        }
     }
 
     private static final class LightRangeSlider extends AbstractSliderButton {
