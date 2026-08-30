@@ -2,13 +2,17 @@ package com.sakurakugu.autotorch.client;
 
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 /** 可复用的双端点范围滑动条。 */
 public class DualRangeSlider extends Button {
+    private static final ResourceLocation SLIDER_LOCATION = ResourceLocation.tryBuild("minecraft", "textures/gui/slider.png");
     private final int minValue;
     private final int maxValue;
     private final int maxSpan;
@@ -50,11 +54,17 @@ public class DualRangeSlider extends Button {
 
     @Override
     public void renderWidget(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-        int trackY = getY() + getHeight() / 2 - 2;
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        fill(poseStack, getX() + 4, trackY, getX() + getWidth() - 4, trackY + 4, 0xFF606060);
-        fill(poseStack, lowX, trackY, highX, trackY + 4, 0xFF3A5F8A);
+        RenderSystem.setShader(GameRenderer::getPositionTexShader);
+        RenderSystem.setShaderTexture(0, SLIDER_LOCATION);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
+        blitNineSliced(poseStack, getX(), getY(), getWidth(), getHeight(),
+                20, 4, 200, 20, 0, isFocused() ? 20 : 0);
+        fill(poseStack, lowX, getY() + 1, highX, getY() + getHeight() - 1, 0xFF3A5F8A);
         drawThumb(poseStack, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(poseStack, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
         drawCenteredString(poseStack, Minecraft.getInstance().font, getMessage(),
@@ -62,9 +72,8 @@ public class DualRangeSlider extends Button {
     }
 
     private void drawThumb(PoseStack poseStack, int x, boolean highlighted) {
-        int color = highlighted ? 0xFFFFFFFF : 0xFFD0D0D0;
-        fill(poseStack, x - 3, getY(), x + 4, getY() + getHeight(), color);
-        renderOutline(poseStack, x - 3, getY(), 7, getHeight(), 0xFF303030);
+        blitNineSliced(poseStack, x - 4, getY(), 8, getHeight(),
+                20, 4, 200, 20, 0, highlighted ? 60 : 40);
     }
 
     private boolean isThumbHovered(int mouseX, int mouseY, int x) {
