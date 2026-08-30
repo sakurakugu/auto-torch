@@ -153,9 +153,9 @@ public final class AutoTorchClientCommands {
                         .then(positionArguments("first", context -> setBox(context),
                                 positionArguments("second", context -> setBox(context), null))))
                 .then(AutoTorchClientCommands.<S>literal("sphere")
-                        .then(positionArguments("center", context -> setSphere(context),
-                                RequiredArgumentBuilder.<S, Integer>argument("radius",
-                                        IntegerArgumentType.integer(1, AreaZone.MAX_SPHERE_RADIUS))
+                        .then(AutoTorchClientCommands.<S>positionArgument("center")
+                                .then(RequiredArgumentBuilder.<S, Integer>argument("radius",
+                                        IntegerArgumentType.integer(0, AreaZone.MAX_SPHERE_RADIUS))
                                         .executes(context -> setSphere(context)))))
                 .then(toolCommand("tool"))
                 .then(toolCommand("wooden_axe"))
@@ -443,7 +443,7 @@ public final class AutoTorchClientCommands {
     private static boolean validDraftZone(AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
             long maximum = ServerConfigState.maxSphereRadius();
-            return zone.radiusSquared() > 0L && zone.radiusSquared() <= maximum * maximum;
+            return zone.radiusSquared() <= maximum * maximum;
         }
         BlockPos min = zone.min();
         BlockPos max = zone.max();
