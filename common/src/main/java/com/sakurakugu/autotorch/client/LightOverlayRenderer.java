@@ -1,38 +1,32 @@
 package com.sakurakugu.autotorch.client;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.function.Predicate;
+import java.util.Map;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.resources.Identifier;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.opengl.GL11;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或纹理数字。 */
 public final class LightOverlayRenderer {
-    private static final Identifier NUMBER_TEXTURE =
-            Identifier.fromNamespaceAndPath("autotorch", "textures/misc/light_level_numbers_large.png");
-    private static final Identifier MEDIUM_NUMBER_TEXTURE =
-            Identifier.fromNamespaceAndPath("autotorch", "textures/misc/light_level_numbers_medium.png");
+    private static final ResourceLocation NUMBER_TEXTURE =
+            new ResourceLocation("autotorch", "textures/misc/light_level_numbers_large.png");
+    private static final ResourceLocation MEDIUM_NUMBER_TEXTURE =
+            new ResourceLocation("autotorch", "textures/misc/light_level_numbers_medium.png");
     private static final int FULL_BRIGHT_LIGHT = 0xF0;
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
     private static final int SAFE_COLOR = 0xE050E060;
+    private static final int SWAMP_SLIME_RISK_COLOR = 0xE0E050E0;
     private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
-    private static final float CROSS_LINE_WIDTH = 2.5F;
-    private static final float LINE_WIDTH_REFERENCE_DISTANCE = 8.0F;
-    private static final double LINE_WIDTH_REFERENCE_DISTANCE_SQUARED =
-            LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE;
-    private static final float MIN_LINE_WIDTH = 0.75F;
     private static final double SURFACE_OFFSET = 0.0125D;
     private static final double CROSS_MARGIN = 0.14D;
     // 图集中的字形已在 64x64 单元格内居中。
@@ -42,49 +36,53 @@ public final class LightOverlayRenderer {
     private static final double NUMBER_MARGIN = 0.1D;
     private static final double NUMBER_SIZE = 1.0D;
     private static final float NUMBER_TEXTURE_CELL_SIZE = 0.25F;
-    private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
-    private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
+    private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = Collections.emptyList();
+    private static Map<Long, ColumnRenderData> columnGeometry = Collections.emptyMap();
     private static volatile RenderData renderData;
+    private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
     }
 
     public static void extract() {
-        List<LightOverlayState.Marker> markers = LightOverlayState.isEnabled()
-                ? LightOverlayState.markers() : NO_MARKERS;
+        List<LightOverlayState.MarkerColumn> columns = LightOverlayState.isEnabled()
+                ? LightOverlayState.markerColumns() : NO_COLUMNS;
         LightOverlayState.DisplayMode displayMode = LightOverlayState.displayMode();
         RenderData current = renderData;
-        // 扫描完成时状态会发布新的不可变列表，因此列表身份就是无需遍历的版本标记。
-        if (current != null && current.sourceMarkers() == markers && current.displayMode() == displayMode) {
+        // 状态发布新的不可变列列表，因此列表身份就是无需遍历的版本标记。
+        if (current != null && current.sourceColumns() == columns && current.displayMode() == displayMode) {
             return;
         }
-        renderData = buildRenderData(markers, displayMode);
+        renderData = buildRenderData(columns, displayMode);
     }
 
-    public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
+    public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource buffers) {
         RenderData data = renderData;
         if (data == null) {
             return;
         }
         if (data.displayMode() != LightOverlayState.DisplayMode.CROSSES) {
             // 方框数字样式：数字平面置于方框内部，方框单独使用线段渲染以保持清晰边界。
-            Identifier numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
+            ResourceLocation numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
-            renderGeometry(camera, poseStack, collector, RenderTypes.text(numberTexture),
+            RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
+                    ? RenderType.textSeeThrough(numberTexture) : RenderType.text(numberTexture);
+            renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                renderGeometry(camera, poseStack, collector, RenderTypes.linesTranslucent(),
+                renderGeometry(camera, poseStack, buffers.getBuffer(
+                        ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                         (pose, buffer) -> submitLines(pose, buffer, data, camera));
             }
         } else {
-            renderGeometry(camera, poseStack, collector, RenderTypes.linesTranslucent(),
+            renderGeometry(camera, poseStack, buffers.getBuffer(
+                    ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                     (pose, buffer) -> submitLines(pose, buffer, data, camera));
         }
     }
 
     private static void renderGeometry(
-            Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector,
-            RenderType renderType, GeometryRenderer renderer
+            Vec3 camera, PoseStack poseStack, VertexConsumer buffer, GeometryRenderer renderer
     ) {
         RenderData data = renderData;
         if (data == null || data.renderableCount() == 0 || Minecraft.getInstance().level == null) {
@@ -93,7 +91,7 @@ public final class LightOverlayRenderer {
 
         poseStack.pushPose();
         // 顶点在提交时先转换为相机相对坐标，避免大世界坐标分别转 float 后再相减造成精度损失。
-        collector.submitCustomGeometry(poseStack, renderType, renderer::render);
+        renderer.render(poseStack.last(), buffer);
         poseStack.popPose();
     }
 
@@ -117,24 +115,15 @@ public final class LightOverlayRenderer {
             totalQuads += geometry.numberQuads().size();
         }
         columnGeometry = nextGeometry;
-        return new RenderData(columns, displayMode, List.copyOf(visibleGeometry), totalLines, totalQuads);
+        return new RenderData(columns, displayMode,
+                Collections.unmodifiableList(new ArrayList<ColumnRenderData>(visibleGeometry)), totalLines, totalQuads);
     }
 
     private static ColumnRenderData buildColumnRenderData(
             List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
     ) {
-        return buildRenderData(markers, displayMode, marker -> true, markers.size());
-    }
-
-    private static RenderData buildRenderData(
-            List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode,
-            Predicate<LightOverlayState.Marker> filter, int expectedMarkerCount
-    ) {
-        GeometryBuilder geometry = new GeometryBuilder(expectedMarkerCount);
+        GeometryBuilder geometry = new GeometryBuilder(markers.size());
         for (LightOverlayState.Marker marker : markers) {
-            if (!filter.test(marker)) {
-                continue;
-            }
             if (displayMode == LightOverlayState.DisplayMode.NUMBERS) {
                 addNumber(geometry, marker, false);
                 continue;
@@ -183,11 +172,15 @@ public final class LightOverlayRenderer {
     }
 
     private static int markerColor(LightOverlayState.Marker marker) {
-        if (marker.riskType() == LightOverlayState.RiskType.DROWNED) {
-            return DROWNED_RISK_COLOR;
+        switch (marker.riskType()) {
+            case SWAMP_SLIME:
+                return SWAMP_SLIME_RISK_COLOR;
+            case DROWNED:
+                return DROWNED_RISK_COLOR;
+            default:
+                return marker.blockLight() > 0 ? SAFE_COLOR
+                        : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
         }
-        return marker.blockLight() > 0 ? SAFE_COLOR
-                : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
     }
 
     private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
@@ -201,26 +194,9 @@ public final class LightOverlayRenderer {
                 double x2 = coordinates[offset + 3] - camera.x();
                 double y2 = coordinates[offset + 4] - camera.y();
                 double z2 = coordinates[offset + 5] - camera.z();
-                line(pose, buffer,
-                        x1, y1, z1, x2, y2, z2,
-                        colors[line], scaledLineWidth(CROSS_LINE_WIDTH, x1, y1, z1, x2, y2, z2));
+                line(pose, buffer, x1, y1, z1, x2, y2, z2, colors[line]);
             }
         }
-    }
-
-    private static float scaledLineWidth(float baseWidth,
-                                         double x1, double y1, double z1,
-                                         double x2, double y2, double z2) {
-        double x = (x1 + x2) * 0.5D;
-        double y = (y1 + y2) * 0.5D;
-        double z = (z1 + z2) * 0.5D;
-        double distanceSquared = x * x + y * y + z * z;
-        if (distanceSquared <= LINE_WIDTH_REFERENCE_DISTANCE_SQUARED) {
-            return baseWidth;
-        }
-        double distance = Math.sqrt(distanceSquared);
-        return Math.max(MIN_LINE_WIDTH,
-                (float) (baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / distance));
     }
 
     private static void submitNumbers(
@@ -234,17 +210,15 @@ public final class LightOverlayRenderer {
                 float size = quad.size();
                 float u = (quad.value() & 3) * NUMBER_TEXTURE_CELL_SIZE;
                 float v = (quad.value() >> 2) * NUMBER_TEXTURE_CELL_SIZE;
-                buffer.addVertex(pose, x, y, z)
-                        .setUv(u, v).setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
-                buffer.addVertex(pose, x, y, z + size)
-                        .setUv(u, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
-                buffer.addVertex(pose, x + size, y, z + size)
-                        .setUv(u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
-                buffer.addVertex(pose, x + size, y, z)
-                        .setUv(u + NUMBER_TEXTURE_CELL_SIZE, v)
-                        .setUv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).setColor(quad.color());
+                buffer.vertex(pose.pose(), x, y, z).uv(u, v)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF, quad.color() & 0xFF, quad.color() >>> 24).endVertex();
+                buffer.vertex(pose.pose(), x, y, z + size).uv(u, v + NUMBER_TEXTURE_CELL_SIZE)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF, quad.color() & 0xFF, quad.color() >>> 24).endVertex();
+                buffer.vertex(pose.pose(), x + size, y, z + size)
+                        .uv(u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF, quad.color() & 0xFF, quad.color() >>> 24).endVertex();
+                buffer.vertex(pose.pose(), x + size, y, z).uv(u + NUMBER_TEXTURE_CELL_SIZE, v)
+                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).color((quad.color() >> 16) & 0xFF, (quad.color() >> 8) & 0xFF, quad.color() & 0xFF, quad.color() >>> 24).endVertex();
             }
         }
     }
@@ -252,33 +226,93 @@ public final class LightOverlayRenderer {
     private static void line(
             PoseStack.Pose pose, VertexConsumer buffer,
             double x1, double y1, double z1, double x2, double y2, double z2,
-            int color, float lineWidth
+            int color
     ) {
         float nx = (float) (x2 - x1);
         float ny = (float) (y2 - y1);
         float nz = (float) (z2 - z1);
-        buffer.addVertex(pose, (float) x1, (float) y1, (float) z1)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
-        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
+        buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1)
+                .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).normal(pose.normal(), nx, ny, nz).endVertex();
+        buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2)
+                .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).normal(pose.normal(), nx, ny, nz).endVertex();
     }
 
-    private record RenderData(
-            List<LightOverlayState.MarkerColumn> sourceColumns, LightOverlayState.DisplayMode displayMode,
-            List<ColumnRenderData> columns, int lineCount, int quadCount
-    ) {
+    private static final class RenderData {
+        private final List<LightOverlayState.MarkerColumn> sourceColumns;
+        private final LightOverlayState.DisplayMode displayMode;
+        private final List<ColumnRenderData> columns;
+        private final int lineCount;
+        private final int quadCount;
+
+        private RenderData(List<LightOverlayState.MarkerColumn> sourceColumns,
+                           LightOverlayState.DisplayMode displayMode, List<ColumnRenderData> columns,
+                           int lineCount, int quadCount) {
+            this.sourceColumns = sourceColumns;
+            this.displayMode = displayMode;
+            this.columns = columns;
+            this.lineCount = lineCount;
+            this.quadCount = quadCount;
+        }
+
+        private List<LightOverlayState.MarkerColumn> sourceColumns() { return sourceColumns; }
+        private LightOverlayState.DisplayMode displayMode() { return displayMode; }
+        private List<ColumnRenderData> columns() { return columns; }
+
         private int renderableCount() {
             return lineCount + quadCount;
         }
     }
 
-    private record ColumnRenderData(
-            List<LightOverlayState.Marker> sourceMarkers, LightOverlayState.DisplayMode displayMode,
-            double[] coordinates, int[] colors, int lineCount, List<NumberQuad> numberQuads
-    ) {
+    private static final class ColumnRenderData {
+        private final List<LightOverlayState.Marker> sourceMarkers;
+        private final LightOverlayState.DisplayMode displayMode;
+        private final double[] coordinates;
+        private final int[] colors;
+        private final int lineCount;
+        private final List<NumberQuad> numberQuads;
+
+        private ColumnRenderData(List<LightOverlayState.Marker> sourceMarkers,
+                                 LightOverlayState.DisplayMode displayMode, double[] coordinates,
+                                 int[] colors, int lineCount, List<NumberQuad> numberQuads) {
+            this.sourceMarkers = sourceMarkers;
+            this.displayMode = displayMode;
+            this.coordinates = coordinates;
+            this.colors = colors;
+            this.lineCount = lineCount;
+            this.numberQuads = numberQuads;
+        }
+
+        private List<LightOverlayState.Marker> sourceMarkers() { return sourceMarkers; }
+        private LightOverlayState.DisplayMode displayMode() { return displayMode; }
+        private double[] coordinates() { return coordinates; }
+        private int[] colors() { return colors; }
+        private int lineCount() { return lineCount; }
+        private List<NumberQuad> numberQuads() { return numberQuads; }
     }
 
-    private record NumberQuad(double x, double y, double z, int value, int color, float size) {
+    private static final class NumberQuad {
+        private final double x;
+        private final double y;
+        private final double z;
+        private final int value;
+        private final int color;
+        private final float size;
+
+        private NumberQuad(double x, double y, double z, int value, int color, float size) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.value = value;
+            this.color = color;
+            this.size = size;
+        }
+
+        private double x() { return x; }
+        private double y() { return y; }
+        private double z() { return z; }
+        private int value() { return value; }
+        private int color() { return color; }
+        private float size() { return size; }
     }
 
     private static final class GeometryBuilder {
@@ -319,16 +353,16 @@ public final class LightOverlayRenderer {
             colors = Arrays.copyOf(colors, newLength);
         }
 
-        private RenderData build(
+        private ColumnRenderData build(
                 List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
         ) {
-            return new RenderData(
+            return new ColumnRenderData(
                     markers,
                     displayMode,
                     Arrays.copyOf(coordinates, lineCount * 6),
                     Arrays.copyOf(colors, lineCount),
                     lineCount,
-                    List.copyOf(numberQuads)
+                    Collections.unmodifiableList(new ArrayList<NumberQuad>(numberQuads))
             );
         }
     }
