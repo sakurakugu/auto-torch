@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -44,6 +45,7 @@ public final class LightOverlayRenderer {
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
+    private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
     }
@@ -69,20 +71,23 @@ public final class LightOverlayRenderer {
             // 方框数字样式：数字平面置于方框内部，方框单独使用线段渲染以保持清晰边界。
             Identifier numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
+            RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
+                    ? RenderTypes.textSeeThrough(numberTexture) : RenderTypes.text(numberTexture);
             renderGeometry(camera, poseStack,
-                    (stack, geometry) -> collector.submitCustomGeometry(
-                            stack, RenderTypes.text(numberTexture), geometry::render),
+                    (stack, geometry) -> collector.submitCustomGeometry(stack, numberRenderType, geometry::render),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
+                RenderType lineRenderType = ClientConfig.isLightOverlayRenderThrough()
+                        ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent();
                 renderGeometry(camera, poseStack,
-                        (stack, geometry) -> collector.submitCustomGeometry(
-                                stack, RenderTypes.linesTranslucent(), geometry::render),
+                        (stack, geometry) -> collector.submitCustomGeometry(stack, lineRenderType, geometry::render),
                         (pose, buffer) -> submitLines(pose, buffer, data, camera));
             }
         } else {
+            RenderType lineRenderType = ClientConfig.isLightOverlayRenderThrough()
+                    ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent();
             renderGeometry(camera, poseStack,
-                    (stack, geometry) -> collector.submitCustomGeometry(
-                            stack, RenderTypes.linesTranslucent(), geometry::render),
+                    (stack, geometry) -> collector.submitCustomGeometry(stack, lineRenderType, geometry::render),
                     (pose, buffer) -> submitLines(pose, buffer, data, camera));
         }
     }
@@ -95,23 +100,28 @@ public final class LightOverlayRenderer {
         if (data.displayMode() != LightOverlayState.DisplayMode.CROSSES) {
             Identifier numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
+            RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
+                    ? RenderTypes.textSeeThrough(numberTexture) : RenderTypes.text(numberTexture);
             renderGeometry(camera, poseStack,
                     (stack, geometry) -> geometry.render(
-                            stack.last(), buffers.getBuffer(RenderTypes.text(numberTexture))),
+                            stack.last(), buffers.getBuffer(numberRenderType)),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
+                RenderType lineRenderType = ClientConfig.isLightOverlayRenderThrough()
+                        ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent();
                 renderGeometry(camera, poseStack,
                         (stack, geometry) -> geometry.render(
-                                stack.last(), buffers.getBuffer(RenderTypes.linesTranslucent())),
+                                stack.last(), buffers.getBuffer(lineRenderType)),
                         (pose, buffer) -> submitLines(pose, buffer, data, camera));
             }
         } else {
+            RenderType lineRenderType = ClientConfig.isLightOverlayRenderThrough()
+                    ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent();
             renderGeometry(camera, poseStack,
                     (stack, geometry) -> geometry.render(
-                            stack.last(), buffers.getBuffer(RenderTypes.linesTranslucent())),
+                            stack.last(), buffers.getBuffer(lineRenderType)),
                     (pose, buffer) -> submitLines(pose, buffer, data, camera));
         }
-    }
     }
 
     private static void renderGeometry(
@@ -353,6 +363,11 @@ public final class LightOverlayRenderer {
                     List.copyOf(numberQuads)
             );
         }
+    }
+
+    @FunctionalInterface
+    private interface GeometrySink {
+        void submit(PoseStack poseStack, GeometryRenderer renderer);
     }
 
     @FunctionalInterface
