@@ -42,6 +42,7 @@ public final class LightingScreen extends Screen {
     private Button undergroundButton;
     private Button lightOverlayButton;
     private Button lightOverlayModeButton;
+    private Button lightOverlayRenderThroughButton;
     private Button swampSlimeDetectionButton;
     private Button drownedDetectionButton;
     private Button nearbyAutoTorchButton;
@@ -190,7 +191,7 @@ public final class LightingScreen extends Screen {
         lightOverlayButton = addRenderableWidget(Button.builder(lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
             lightOverlayButton.setMessage(lightOverlayMessage());
-        }).bounds(left, 258, 106, 20).build());
+        }).bounds(left, 258, 108, 20).build());
         Component lightOverlayResetMessage = Component.translatable("screen.autotorch.reset");
         addRenderableWidget(new ResetButton(resetButtonX(lightOverlayResetMessage), 242,
                 font.width(lightOverlayResetMessage), 16, lightOverlayResetMessage, panelLeft(), panelLeft() + 310,
@@ -198,16 +199,20 @@ public final class LightingScreen extends Screen {
         lightOverlayModeButton = addRenderableWidget(Button.builder(lightOverlayModeMessage(), button -> {
             LightOverlayState.cycleDisplayMode();
             lightOverlayModeButton.setMessage(lightOverlayModeMessage());
-        }).bounds(left + 110, 258, 88, 20).build());
-        addRenderableWidget(new LightRangeSlider(left + 202, 258, 108, 20));
-        addRenderableWidget(new DualRangeSlider(left, 282, 310, 20, -64, 64, 64,
+        }).bounds(left + 112, 258, 88, 20).build());
+        lightOverlayRenderThroughButton = addRenderableWidget(Button.builder(lightOverlayRenderThroughMessage(), button -> {
+            ClientConfig.setLightOverlayRenderThrough(!ClientConfig.isLightOverlayRenderThrough());
+            lightOverlayRenderThroughButton.setMessage(lightOverlayRenderThroughMessage());
+        }).bounds(left + 204, 258, 106, 20).build());
+        // 宽度与高度滑块同一行；宽度滑块保持原有 108 像素宽度。
+        addRenderableWidget(new LightRangeSlider(left, 282, 108, 20));
+        addRenderableWidget(new DualRangeSlider(left + 112, 282, 198, 20, -64, 64, 64,
                 -LightOverlayState.downRange(), LightOverlayState.upRange(),
                 (lower, upper) -> Component.translatable("screen.autotorch.light_overlay_height_value", lower, upper),
                 (lower, upper) -> {
                     LightOverlayState.setDownRange(-lower);
                     LightOverlayState.setUpRange(upper);
                 }));
-
         swampSlimeDetectionButton = addRenderableWidget(Button.builder(swampSlimeDetectionMessage(), button -> {
             LightOverlayState.toggleSwampSlimeDetection();
             swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
@@ -273,7 +278,7 @@ public final class LightingScreen extends Screen {
     }
 
     private void reopenAtCurrentScrollOffset() {
-        minecraft.gui.setScreen(new LightingScreen(scrollOffset));
+        minecraft.setScreen(new LightingScreen(scrollOffset));
     }
 
     private void createCoordinateRow(EditBox[] boxes, int left, int y, BlockPos initial) {
@@ -831,6 +836,12 @@ public final class LightingScreen extends Screen {
         });
     }
 
+    private Component lightOverlayRenderThroughMessage() {
+        return Component.translatable(ClientConfig.isLightOverlayRenderThrough()
+                ? "screen.autotorch.light_overlay_render_through_on"
+                : "screen.autotorch.light_overlay_render_through_off");
+    }
+
     private Component swampSlimeDetectionMessage() {
         return Component.translatable(LightOverlayState.isSwampSlimeDetectionEnabled()
                 ? "screen.autotorch.swamp_slime_detection_on"
@@ -1032,11 +1043,11 @@ public final class LightingScreen extends Screen {
         }
 
         @Override
-        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             boolean rowHovered = mouseX >= hoverLeft && mouseX < hoverRight
                     && mouseY >= getY() && mouseY < getBottom();
             if (isHoveredOrFocused() || rowHovered) {
-                graphics.text(Minecraft.getInstance().font, getMessage(), getRight() -
+                graphics.drawString(Minecraft.getInstance().font, getMessage(), getRight() -
                         Minecraft.getInstance().font.width(getMessage()), getY() + 4,
                         isHoveredOrFocused() ? 0xFFFFFF00 : 0xFFFFFFFF);
             }

@@ -7,18 +7,19 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或纹理数字。 */
 public final class LightOverlayRenderer {
-    private static final Identifier NUMBER_TEXTURE =
-            Identifier.fromNamespaceAndPath("autotorch", "textures/misc/light_level_numbers_large.png");
-    private static final Identifier MEDIUM_NUMBER_TEXTURE =
-            Identifier.fromNamespaceAndPath("autotorch", "textures/misc/light_level_numbers_medium.png");
+    private static final ResourceLocation NUMBER_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath("autotorch", "textures/misc/light_level_numbers_large.png");
+    private static final ResourceLocation MEDIUM_NUMBER_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath("autotorch", "textures/misc/light_level_numbers_medium.png");
     private static final int FULL_BRIGHT_LIGHT = 0xF0;
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
@@ -42,6 +43,7 @@ public final class LightOverlayRenderer {
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
+    private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
     }
@@ -65,16 +67,20 @@ public final class LightOverlayRenderer {
         }
         if (data.displayMode() != LightOverlayState.DisplayMode.CROSSES) {
             // 方框数字样式：数字平面置于方框内部，方框单独使用线段渲染以保持清晰边界。
-            Identifier numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
+            ResourceLocation numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
-            renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.text(numberTexture)),
+            RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
+                    ? RenderType.textSeeThrough(numberTexture) : RenderType.text(numberTexture);
+            renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.lines()),
+                renderGeometry(camera, poseStack, buffers.getBuffer(
+                        ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                         (pose, buffer) -> submitLines(pose, buffer, data, camera));
             }
         } else {
-            renderGeometry(camera, poseStack, buffers.getBuffer(RenderType.lines()),
+            renderGeometry(camera, poseStack, buffers.getBuffer(
+                    ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                     (pose, buffer) -> submitLines(pose, buffer, data, camera));
         }
     }
@@ -245,9 +251,9 @@ public final class LightOverlayRenderer {
         float ny = (float) (y2 - y1);
         float nz = (float) (z2 - z1);
         buffer.addVertex(pose, (float) x1, (float) y1, (float) z1)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
+                .setColor(color).setNormal(pose, nx, ny, nz);
         buffer.addVertex(pose, (float) x2, (float) y2, (float) z2)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
+                .setColor(color).setNormal(pose, nx, ny, nz);
     }
 
     private record RenderData(

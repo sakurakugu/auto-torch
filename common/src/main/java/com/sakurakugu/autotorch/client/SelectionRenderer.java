@@ -165,8 +165,6 @@ public final class SelectionRenderer {
             }
         } else {
             renderBoxFaces(pose, buffer,
-                    AABB.encapsulatingFullBlocks(zone.min(), zone.max()).inflate(FACE_OFFSET), faceColor);
-            renderBoxFaces(pose, buffer,
                     AABB.encapsulatingFullBlocks(zone.min(), zone.max()).inflate(FACE_OFFSET), faceColor, camera);
         }
     }
@@ -500,9 +498,9 @@ public final class SelectionRenderer {
         }
         float lineWidth = scaledLineWidth(width, x1, y1, z1, x2, y2, z2);
         buffer.addVertex(pose, (float) x1, (float) y1, (float) z1)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
+                .setColor(color).setNormal(pose, nx, ny, nz);
         buffer.addVertex(pose, (float) x2, (float) y2, (float) z2)
-                .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
+                .setColor(color).setNormal(pose, nx, ny, nz);
     }
 
     private static float scaledLineWidth(float baseWidth,

@@ -3,19 +3,12 @@ package com.sakurakugu.autotorch.client;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 
 /** 可复用的双端点范围滑动条。 */
 public class DualRangeSlider extends Button {
-    private static final Identifier SLIDER = Identifier.withDefaultNamespace("widget/slider");
-    private static final Identifier HANDLE = Identifier.withDefaultNamespace("widget/slider_handle");
-    private static final Identifier HANDLE_HIGHLIGHTED = Identifier.withDefaultNamespace("widget/slider_handle_highlighted");
-
     private final int minValue;
     private final int maxValue;
     private final int maxSpan;
@@ -56,20 +49,22 @@ public class DualRangeSlider extends Button {
     }
 
     @Override
-    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SLIDER, getX(), getY(), getWidth(), getHeight());
+    protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        int trackY = getY() + getHeight() / 2 - 2;
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        graphics.fill(lowX, getY() + 1, highX, getBottom() - 1, 0xFF3A5F8A);
+        graphics.fill(getX() + 4, trackY, getRight() - 4, trackY + 4, 0xFF606060);
+        graphics.fill(lowX, trackY, highX, trackY + 4, 0xFF3A5F8A);
         drawThumb(graphics, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(graphics, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
-        graphics.centeredText(Minecraft.getInstance().font, getMessage(),
+        graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(),
                 getX() + getWidth() / 2, getY() + 5, 0xFFFFFFFF);
     }
 
-    private void drawThumb(GuiGraphicsExtractor graphics, int x, boolean highlighted) {
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, highlighted ? HANDLE_HIGHLIGHTED : HANDLE,
-                x - 4, getY(), 8, getHeight());
+    private void drawThumb(GuiGraphics graphics, int x, boolean highlighted) {
+        int color = highlighted ? 0xFFFFFFFF : 0xFFD0D0D0;
+        graphics.fill(x - 3, getY(), x + 4, getBottom(), color);
+        graphics.renderOutline(x - 3, getY(), 7, getHeight(), 0xFF303030);
     }
 
     private boolean isThumbHovered(int mouseX, int mouseY, int x) {
@@ -77,22 +72,22 @@ public class DualRangeSlider extends Button {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() != 0 || !isMouseOver(event.x(), event.y())) return false;
-        draggingThumb = Math.abs(event.x() - position(lowerValue)) <= Math.abs(event.x() - position(upperValue)) ? 1 : 2;
-        update(event.x());
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button != 0 || !isMouseOver(mouseX, mouseY)) return false;
+        draggingThumb = Math.abs(mouseX - position(lowerValue)) <= Math.abs(mouseX - position(upperValue)) ? 1 : 2;
+        update(mouseX);
         return true;
     }
 
     @Override
-    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (draggingThumb == 0) return false;
-        update(event.x());
+        update(mouseX);
         return true;
     }
 
     @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
         draggingThumb = 0;
         return true;
     }
