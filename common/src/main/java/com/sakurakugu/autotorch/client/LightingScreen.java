@@ -1,31 +1,27 @@
 package com.sakurakugu.autotorch.client;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
-import net.minecraft.network.chat.TranslatableComponent;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 
 /** 自动照明的参数界面，负责选区管理、客户端校验和任务提交。 */
 public final class LightingScreen extends Screen {
-    private static final int CONTENT_HEIGHT = 374;
+    private static final int CONTENT_HEIGHT = 398;
     private static final int VIEWPORT_MARGIN = 4;
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int MIN_SCROLLBAR_HEIGHT = 20;
@@ -33,7 +29,6 @@ public final class LightingScreen extends Screen {
     private final EditBox[] first = new EditBox[3];
     private final EditBox[] second = new EditBox[3];
     private final EditBox[] dimensions = new EditBox[3];
-    private final Map<AbstractWidget, Component> tooltips = new LinkedHashMap<>();
     private EditBox maxTorches;
     private Button shapeButton;
     private Button convertShapeButton;
@@ -61,53 +56,52 @@ public final class LightingScreen extends Screen {
     private int scrollOffset;
     private boolean draggingScrollbar;
     private boolean selectionInRange = true;
-    private Component error = TextComponent.EMPTY;
-    private Component rangeMessage = TextComponent.EMPTY;
+    private Component error = Component.empty();
+    private Component rangeMessage = Component.empty();
 
     public LightingScreen() {
-        super(new TranslatableComponent("screen.autotorch.title"));
+        super(Component.translatable("screen.autotorch.title"));
         consumeTorches = initialConsumeTorches();
         undergroundOnly = ClientConfig.isDefaultUndergroundOnly();
     }
 
     @Override
     protected void init() {
-        tooltips.clear();
         BlockPos playerPos = minecraft.player == null ? BlockPos.ZERO : minecraft.player.blockPosition();
         int left = panelLeft();
 
-        shapeButton = addRenderableWidget(button(left, 20, 126, 20, shapeMessage(), button -> {
+        shapeButton = addRenderableWidget(Button.builder(shapeMessage(), button -> {
             SelectionState.setShape(SelectionState.shape() == AreaShape.BOX ? AreaShape.SPHERE : AreaShape.BOX);
             shapeButton.setMessage(shapeMessage());
             convertShapeButton.setMessage(convertShapeMessage());
             updatePointButtonMessages();
             refreshDimensionInputs();
-        }));
-        sphereDisplayButton = addRenderableWidget(button(left + 216, 88, 94, 20, sphereDisplayMessage(), button -> {
+        }).bounds(left, 20, 126, 20).build());
+        sphereDisplayButton = addRenderableWidget(Button.builder(sphereDisplayMessage(), button -> {
             SelectionState.SphereDisplayMode next =
                     SelectionState.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY
                             ? SelectionState.SphereDisplayMode.SMOOTH : SelectionState.SphereDisplayMode.BLOCKY;
             SelectionState.setSphereDisplayMode(next);
             sphereDisplayButton.setMessage(sphereDisplayMessage());
-        }));
-        displayButton = addRenderableWidget(button(left + 130, 20, 90, 20, displayMessage(), button -> {
+        }).bounds(left + 216, 88, 94, 20).build());
+        displayButton = addRenderableWidget(Button.builder(displayMessage(), button -> {
             cycleSelectionDisplay();
             displayButton.setMessage(displayMessage());
-        }));
-        moreSettingsButton = addRenderableWidget(button(left + 224, 20, 86, 20,
-                new TranslatableComponent("screen.autotorch.more_settings"), button -> {
+        }).bounds(left + 130, 20, 90, 20).build());
+        moreSettingsButton = addRenderableWidget(Button.builder(
+                Component.translatable("screen.autotorch.more_settings"), button -> {
                     // 更多设置入口暂不包含具体选项。
-                }));
+                }).bounds(left + 224, 20, 86, 20).build());
 
         createCoordinateRow(first, left, 44, SelectionState.first(playerPos));
-        useCurrentFirstButton = addRenderableWidget(button(left + 190, 44, 120, 20, firstPointMessage(), button -> {
+        useCurrentFirstButton = addRenderableWidget(Button.builder(firstPointMessage(), button -> {
             setCoordinatePosition(first, currentPosition());
-        }));
+        }).bounds(left + 190, 44, 120, 20).build());
 
         createCoordinateRow(second, left, 66, SelectionState.second(playerPos));
-        useCurrentSecondButton = addRenderableWidget(button(left + 190, 66, 120, 20, secondPointMessage(), button -> {
+        useCurrentSecondButton = addRenderableWidget(Button.builder(secondPointMessage(), button -> {
             setCoordinatePosition(second, currentPosition());
-        }));
+        }).bounds(left + 190, 66, 120, 20).build());
 
         int[] dimensionOffsets = {18, 120, 222};
         int[] dimensionWidths = {82, 82, 88};
@@ -123,40 +117,38 @@ public final class LightingScreen extends Screen {
         }
         refreshDimensionInputs();
 
-        convertShapeButton = addRenderableWidget(button(left, 112, 126, 20,
-                convertShapeMessage(), button -> convertSelectionShape()));
-        addRenderableWidget(button(left + 130, 112, 82, 20,
-                new TranslatableComponent("screen.autotorch.swap_points"), button -> swapPoints()));
-        woodenAxeSelectionButton = addRenderableWidget(withTooltip(button(left + 216, 112, 94, 20,
-                woodenAxeSelectionMessage(), button -> {
+        convertShapeButton = addRenderableWidget(Button.builder(convertShapeMessage(), button -> convertSelectionShape())
+                .bounds(left, 112, 126, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.swap_points"), button -> swapPoints())
+                .bounds(left + 130, 112, 82, 20).build());
+        woodenAxeSelectionButton = addRenderableWidget(Button.builder(woodenAxeSelectionMessage(), button -> {
             boolean enabled = !ClientConfig.isWoodenAxeSelectionEnabled();
             ClientConfig.setWoodenAxeSelectionEnabled(enabled);
             PlatformNetworking.sendToServer(new SetSelectionToolPayload(enabled));
             woodenAxeSelectionButton.setMessage(woodenAxeSelectionMessage());
-        }), new TranslatableComponent("screen.autotorch.wooden_axe_selection.tooltip")));
+        }).bounds(left + 216, 112, 94, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.wooden_axe_selection.tooltip")))
+                .build());
 
         setLightingButton = addRenderableWidget(new ColoredButton(left, 136, 120, 20,
-                new TranslatableComponent("screen.autotorch.set_lighting"), button -> setLightingZone(),
+                Component.translatable("screen.autotorch.set_lighting"), button -> setLightingZone(),
                 0xDD176B35, 0xEE218A47));
         exclusionButton = addRenderableWidget(new ColoredButton(left + 124, 136, 120, 20,
                 exclusionMessage(), button -> addExclusion(), 0xDDA52B2B, 0xEEC83C3C));
         updateZoneButtonAvailability();
-        addRenderableWidget(button(left + 248, 136, 62, 20,
-                new TranslatableComponent("screen.autotorch.manage_exclusions"), button -> {
+        addRenderableWidget(Button.builder(Component.translatable("screen.autotorch.manage_exclusions"), button -> {
             saveSelection();
             saveTaskDefaults();
-            minecraft.setScreen(new ExclusionListScreen());
-        }));
+            minecraft.gui.setScreen(new ExclusionListScreen());
+        }).bounds(left + 248, 136, 62, 20).build());
 
         int configuredMaxTorches = effectiveDefaultMaxTorches();
         maxTorches = limitBox(left + 70, 160, 42,
                 configuredMaxTorches == 0 ? "∞" : Integer.toString(configuredMaxTorches));
-        addRenderableWidget(withTooltip(new MinSpacingSlider(left + 120, 160, 100, 20),
-                new TranslatableComponent("screen.autotorch.min_spacing.tooltip")));
-        addRenderableWidget(withTooltip(new AreaLightThresholdSlider(left + 224, 160, 86, 20),
-                new TranslatableComponent("screen.autotorch.area_light_threshold.tooltip")));
+        addRenderableWidget(new MinSpacingSlider(left + 120, 160, 100, 20));
+        addRenderableWidget(new AreaLightThresholdSlider(left + 224, 160, 86, 20));
 
-        consumeButton = addRenderableWidget(button(left, 184, 153, 20, consumeMessage(), button -> {
+        consumeButton = addRenderableWidget(Button.builder(consumeMessage(), button -> {
             consumeTorches = !consumeTorches;
             if (isCreativePlayer()) {
                 ClientConfig.setCreativeConsumesTorches(consumeTorches);
@@ -164,70 +156,71 @@ public final class LightingScreen extends Screen {
                 ClientConfig.setSurvivalConsumesTorches(consumeTorches);
             }
             consumeButton.setMessage(consumeMessage());
-        }));
+        }).bounds(left, 184, 153, 20).build());
         consumeButton.active = canChooseConsumeTorches();
         if (!consumeButton.active) {
-            withTooltip(consumeButton, new TranslatableComponent("screen.autotorch.consume.survival_server"));
+            consumeButton.setTooltip(Tooltip.create(Component.translatable("screen.autotorch.consume.survival_server")));
         }
-        undergroundButton = addRenderableWidget(button(left + 157, 184, 153, 20, undergroundMessage(), button -> {
+        undergroundButton = addRenderableWidget(Button.builder(undergroundMessage(), button -> {
             undergroundOnly = !undergroundOnly;
             ClientConfig.setDefaultUndergroundOnly(undergroundOnly);
             undergroundButton.setMessage(undergroundMessage());
-        }));
+        }).bounds(left + 157, 184, 153, 20).build());
 
-        startTaskButton = addRenderableWidget(button(left, 208, 153, 20,
-                new TranslatableComponent("screen.autotorch.start"), button -> startTask()));
-        cancelTaskButton = addRenderableWidget(button(left + 157, 208, 153, 20,
-                new TranslatableComponent("screen.autotorch.cancel_task"), button -> {
+        startTaskButton = addRenderableWidget(Button.builder(
+                Component.translatable("screen.autotorch.start"), button -> startTask())
+                .bounds(left, 208, 153, 20).build());
+        cancelTaskButton = addRenderableWidget(Button.builder(
+                Component.translatable("screen.autotorch.cancel_task"), button -> {
             PlatformNetworking.sendToServer(new CancelLightingPayload());
             onClose();
-        }));
+        }).bounds(left + 157, 208, 153, 20).build());
         updateTaskButtonAvailability();
 
-        lightOverlayButton = addRenderableWidget(button(left, 258, 106, 20, lightOverlayMessage(), button -> {
+        lightOverlayButton = addRenderableWidget(Button.builder(lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
             lightOverlayButton.setMessage(lightOverlayMessage());
-        }));
-        lightOverlayModeButton = addRenderableWidget(button(left + 110, 258, 88, 20,
-                lightOverlayModeMessage(), button -> {
+        }).bounds(left, 258, 106, 20).build());
+        lightOverlayModeButton = addRenderableWidget(Button.builder(lightOverlayModeMessage(), button -> {
             LightOverlayState.cycleDisplayMode();
             lightOverlayModeButton.setMessage(lightOverlayModeMessage());
-        }));
+        }).bounds(left + 110, 258, 88, 20).build());
         addRenderableWidget(new LightRangeSlider(left + 202, 258, 108, 20));
+        addRenderableWidget(new DualRangeSlider(left, 282, 310, 20, -64, 64, 64,
+                -LightOverlayState.downRange(), LightOverlayState.upRange(),
+                (lower, upper) -> Component.translatable("screen.autotorch.light_overlay_height_value", lower, upper),
+                (lower, upper) -> {
+                    LightOverlayState.setDownRange(-lower);
+                    LightOverlayState.setUpRange(upper);
+                }));
 
-        swampSlimeDetectionButton = addRenderableWidget(button(left, 282, 153, 20,
-                swampSlimeDetectionMessage(), button -> { }));
-        swampSlimeDetectionButton.active = false;
-        drownedDetectionButton = addRenderableWidget(withTooltip(button(left + 157, 282, 153, 20,
-                drownedDetectionMessage(), button -> {
+        swampSlimeDetectionButton = addRenderableWidget(Button.builder(swampSlimeDetectionMessage(), button -> {
+            LightOverlayState.toggleSwampSlimeDetection();
+            swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
+        }).bounds(left, 306, 153, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.swamp_slime_detection.tooltip")))
+                .build());
+        drownedDetectionButton = addRenderableWidget(Button.builder(drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage());
-        }), new TranslatableComponent("screen.autotorch.drowned_detection.tooltip.1.17.1-1.13.2")));
+        }).bounds(left + 157, 306, 153, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.drowned_detection.tooltip")))
+                .build());
 
-        nearbyAutoTorchButton = addRenderableWidget(withTooltip(button(left, 326, 153, 20,
-                nearbyAutoTorchMessage(), button -> {
+        nearbyAutoTorchButton = addRenderableWidget(Button.builder(nearbyAutoTorchMessage(), button -> {
             ClientConfig.setNearbyAutoTorchEnabled(!ClientConfig.isNearbyAutoTorchEnabled());
             nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage());
-        }), new TranslatableComponent("screen.autotorch.nearby_auto_torch.tooltip")));
-        addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 326, 153, 20));
-        nearbyAutoTorchSkyLightButton = addRenderableWidget(button(left, 350, 310, 20,
-                nearbyAutoTorchSkyLightMessage(), button -> {
+        }).bounds(left, 350, 153, 20)
+                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.nearby_auto_torch.tooltip")))
+                .build());
+        addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 350, 153, 20));
+        nearbyAutoTorchSkyLightButton = addRenderableWidget(Button.builder(nearbyAutoTorchSkyLightMessage(), button -> {
             ClientConfig.setIncludesSkyLight(!ClientConfig.includesSkyLight());
             nearbyAutoTorchSkyLightButton.setMessage(nearbyAutoTorchSkyLightMessage());
-        }));
+        }).bounds(left, 374, 310, 20).build());
 
         scrollOffset = Math.min(scrollOffset, maxScrollOffset());
         moveWidgets(-scrollOffset);
-    }
-
-    private static Button button(int x, int y, int width, int height,
-            Component message, Button.OnPress onPress) {
-        return new Button(x, y, width, height, message, onPress);
-    }
-
-    private <T extends AbstractWidget> T withTooltip(T widget, Component tooltip) {
-        tooltips.put(widget, tooltip);
-        return widget;
     }
 
     @Override
@@ -250,21 +243,21 @@ public final class LightingScreen extends Screen {
     }
 
     private EditBox integerBox(int x, int y, int boxWidth, String value) {
-        EditBox box = new EditBox(font, x, y, boxWidth, 20, TextComponent.EMPTY);
+        EditBox box = new EditBox(font, x, y, boxWidth, 20, Component.empty());
         box.setMaxLength(9);
         box.setValue(value);
         return addRenderableWidget(box);
     }
 
     private EditBox limitBox(int x, int y, int boxWidth, String value) {
-        EditBox box = new EditBox(font, x, y, boxWidth, 20, TextComponent.EMPTY);
+        EditBox box = new EditBox(font, x, y, boxWidth, 20, Component.empty());
         box.setMaxLength(4);
         box.setValue(value);
         return addRenderableWidget(box);
     }
 
     private EditBox sizeBox(int x, int y, int boxWidth) {
-        EditBox box = new EditBox(font, x, y, boxWidth, 20, TextComponent.EMPTY);
+        EditBox box = new EditBox(font, x, y, boxWidth, 20, Component.empty());
         box.setMaxLength(9);
         return addRenderableWidget(box);
     }
@@ -279,7 +272,7 @@ public final class LightingScreen extends Screen {
             SelectionState.setFirst(firstPos);
             SelectionState.setSecond(secondPos);
             refreshDimensionInputs(firstPos, secondPos);
-            error = TextComponent.EMPTY;
+            error = Component.empty();
         } catch (IllegalArgumentException ignored) {
             // 坐标输入尚不完整时，等待用户继续输入。
         }
@@ -343,9 +336,9 @@ public final class LightingScreen extends Screen {
                 updatedSecond = offsetChecked(anchor, offsets[0], offsets[1], offsets[2]);
             }
             setCoordinatePosition(second, updatedSecond);
-            error = TextComponent.EMPTY;
+            error = Component.empty();
             if (dimensionClamped) {
-                rangeMessage = new TranslatableComponent(SelectionState.shape() == AreaShape.SPHERE
+                rangeMessage = Component.translatable(SelectionState.shape() == AreaShape.SPHERE
                                 ? "screen.autotorch.sphere_radius_clamped"
                                 : "screen.autotorch.box_axis_clamped",
                         SelectionState.shape() == AreaShape.SPHERE
@@ -392,8 +385,8 @@ public final class LightingScreen extends Screen {
                     * ServerConfigState.maxSphereRadius();
             AreaZone zone = new AreaZone(AreaShape.SPHERE, firstPos, secondPos);
             selectionInRange = zone.radiusSquared() <= maxRadiusSquared;
-            rangeMessage = selectionInRange ? TextComponent.EMPTY
-                    : new TranslatableComponent("screen.autotorch.sphere_radius_too_large",
+            rangeMessage = selectionInRange ? Component.empty()
+                    : Component.translatable("screen.autotorch.sphere_radius_too_large",
                     ServerConfigState.maxSphereRadius());
         } else {
             long sizeX = Math.abs((long) secondPos.getX() - firstPos.getX()) + 1L;
@@ -402,8 +395,8 @@ public final class LightingScreen extends Screen {
             selectionInRange = sizeX <= ServerConfigState.maxBoxAxisLength()
                     && sizeY <= ServerConfigState.maxBoxAxisLength()
                     && sizeZ <= ServerConfigState.maxBoxAxisLength();
-            rangeMessage = selectionInRange ? TextComponent.EMPTY
-                    : new TranslatableComponent("screen.autotorch.box_axis_too_large",
+            rangeMessage = selectionInRange ? Component.empty()
+                    : Component.translatable("screen.autotorch.box_axis_too_large",
                     ServerConfigState.maxBoxAxisLength());
         }
         updateZoneButtonAvailability();
@@ -433,7 +426,7 @@ public final class LightingScreen extends Screen {
             SelectionState.setSecond(firstPos);
             refreshDimensionInputs(secondPos, firstPos);
         } catch (IllegalArgumentException ignored) {
-            error = new TranslatableComponent("screen.autotorch.invalid_value");
+            error = Component.translatable("screen.autotorch.invalid_value");
         }
     }
 
@@ -454,7 +447,7 @@ public final class LightingScreen extends Screen {
                         (long) max.getZ() - min.getZ());
                 int radius = (int) (shortestExtent / 2L);
                 if (radius > ServerConfigState.maxSphereRadius()) {
-                    error = new TranslatableComponent("screen.autotorch.convert_sphere_too_large");
+                    error = Component.translatable("screen.autotorch.convert_sphere_too_large");
                     return;
                 }
                 convertedFirst = midpoint(min, max);
@@ -465,7 +458,7 @@ public final class LightingScreen extends Screen {
                 validateZone(sphere);
                 int radius = sphere.radius();
                 if (radius * 2L + 1L > ServerConfigState.maxBoxAxisLength()) {
-                    error = new TranslatableComponent(
+                    error = Component.translatable(
                             "screen.autotorch.convert_box_too_large",
                             ServerConfigState.maxBoxAxisLength());
                     return;
@@ -489,9 +482,9 @@ public final class LightingScreen extends Screen {
             convertShapeButton.setMessage(convertShapeMessage());
             updatePointButtonMessages();
             refreshDimensionInputs(convertedFirst, convertedSecond);
-            error = TextComponent.EMPTY;
+            error = Component.empty();
         } catch (IllegalArgumentException exception) {
-            error = new TranslatableComponent("screen.autotorch.invalid_value");
+            error = Component.translatable("screen.autotorch.invalid_value");
         }
     }
 
@@ -532,9 +525,9 @@ public final class LightingScreen extends Screen {
             validateLightingZone(zone);
             SelectionState.setLightingZone(zone);
             exclusionButton.setMessage(exclusionMessage());
-            error = TextComponent.EMPTY;
+            error = Component.empty();
         } catch (IllegalArgumentException exception) {
-            error = new TranslatableComponent("screen.autotorch.invalid_value");
+            error = Component.translatable("screen.autotorch.invalid_value");
         }
     }
 
@@ -543,13 +536,13 @@ public final class LightingScreen extends Screen {
             AreaZone zone = readDraftZone();
             validateZone(zone);
             if (!SelectionState.addExclusion(zone)) {
-                error = new TranslatableComponent("screen.autotorch.too_many_exclusions");
+                error = Component.translatable("screen.autotorch.too_many_exclusions");
             } else {
                 exclusionButton.setMessage(exclusionMessage());
-                error = TextComponent.EMPTY;
+                error = Component.empty();
             }
         } catch (IllegalArgumentException exception) {
-            error = new TranslatableComponent("screen.autotorch.invalid_value");
+            error = Component.translatable("screen.autotorch.invalid_value");
         }
     }
 
@@ -598,13 +591,13 @@ public final class LightingScreen extends Screen {
         try {
             AreaZone selection = SelectionState.lightingZone();
             if (selection == null) {
-                error = new TranslatableComponent("screen.autotorch.no_lighting_zone");
+                error = Component.translatable("screen.autotorch.no_lighting_zone");
                 return;
             }
             if (SelectionState.drafting()
                     || !readPosition(first).equals(SelectionState.first(selection.first()))
                     || !readPosition(second).equals(SelectionState.second(selection.second()))) {
-                error = new TranslatableComponent("screen.autotorch.confirm_draft");
+                error = Component.translatable("screen.autotorch.confirm_draft");
                 return;
             }
             int max = readLimit(maxTorches);
@@ -618,7 +611,7 @@ public final class LightingScreen extends Screen {
             ));
             onClose();
         } catch (IllegalArgumentException exception) {
-            error = new TranslatableComponent("screen.autotorch.invalid_value");
+            error = Component.translatable("screen.autotorch.invalid_value");
         }
     }
 
@@ -718,28 +711,28 @@ public final class LightingScreen extends Screen {
     }
 
     private Component shapeMessage() {
-        return new TranslatableComponent(SelectionState.shape() == AreaShape.SPHERE
+        return Component.translatable(SelectionState.shape() == AreaShape.SPHERE
                 ? "screen.autotorch.shape_sphere" : "screen.autotorch.shape_box");
     }
 
     private Component convertShapeMessage() {
-        return new TranslatableComponent(SelectionState.shape() == AreaShape.SPHERE
+        return Component.translatable(SelectionState.shape() == AreaShape.SPHERE
                 ? "screen.autotorch.convert_to_circumscribed_box"
                 : "screen.autotorch.convert_to_inscribed_sphere");
     }
 
     private Component firstPointMessage() {
-        return new TranslatableComponent(SelectionState.shape() == AreaShape.SPHERE
+        return Component.translatable(SelectionState.shape() == AreaShape.SPHERE
                 ? "screen.autotorch.use_current_center" : "screen.autotorch.use_current_a");
     }
 
     private Component secondPointMessage() {
-        return new TranslatableComponent(SelectionState.shape() == AreaShape.SPHERE
+        return Component.translatable(SelectionState.shape() == AreaShape.SPHERE
                 ? "screen.autotorch.use_current_radius" : "screen.autotorch.use_current_b");
     }
 
     private Component exclusionMessage() {
-        return new TranslatableComponent(SelectionState.isEditingExclusion()
+        return Component.translatable(SelectionState.isEditingExclusion()
                 ? "screen.autotorch.save_exclusion" : "screen.autotorch.add_exclusion");
     }
 
@@ -761,36 +754,36 @@ public final class LightingScreen extends Screen {
 
     private Component displayMessage() {
         if (!SelectionState.isOverlayEnabled()) {
-            return new TranslatableComponent("screen.autotorch.display_off");
+            return Component.translatable("screen.autotorch.display_off");
         }
-        return new TranslatableComponent(SelectionState.displayMode() == SelectionState.DisplayMode.FACES
+        return Component.translatable(SelectionState.displayMode() == SelectionState.DisplayMode.FACES
                 ? "screen.autotorch.display_faces" : "screen.autotorch.display_lines");
     }
 
     private Component sphereDisplayMessage() {
-        return new TranslatableComponent(SelectionState.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY
+        return Component.translatable(SelectionState.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY
                 ? "screen.autotorch.sphere_display_blocky" : "screen.autotorch.sphere_display_smooth");
     }
 
     private Component consumeMessage() {
         if (!canChooseConsumeTorches()) {
-            return new TranslatableComponent(ServerConfigState.survivalConsumesTorches()
+            return Component.translatable(ServerConfigState.survivalConsumesTorches()
                     ? "screen.autotorch.consume_on" : "screen.autotorch.consume_off");
         }
-        return new TranslatableComponent(consumeTorches ? "screen.autotorch.consume_on" : "screen.autotorch.consume_off");
+        return Component.translatable(consumeTorches ? "screen.autotorch.consume_on" : "screen.autotorch.consume_off");
     }
 
     private Component undergroundMessage() {
-        return new TranslatableComponent(undergroundOnly ? "screen.autotorch.underground_on" : "screen.autotorch.underground_off");
+        return Component.translatable(undergroundOnly ? "screen.autotorch.underground_on" : "screen.autotorch.underground_off");
     }
 
     private Component lightOverlayMessage() {
-        return new TranslatableComponent(LightOverlayState.isEnabled()
+        return Component.translatable(LightOverlayState.isEnabled()
                 ? "screen.autotorch.light_overlay_on" : "screen.autotorch.light_overlay_off");
     }
 
     private Component lightOverlayModeMessage() {
-        return new TranslatableComponent(switch (LightOverlayState.displayMode()) {
+        return Component.translatable(switch (LightOverlayState.displayMode()) {
             case CROSSES -> "screen.autotorch.light_overlay_mode_crosses";
             case NUMBERS -> "screen.autotorch.light_overlay_mode_numbers";
             case BOXED_NUMBERS -> "screen.autotorch.light_overlay_mode_boxed_numbers";
@@ -798,29 +791,31 @@ public final class LightingScreen extends Screen {
     }
 
     private Component swampSlimeDetectionMessage() {
-        return new TranslatableComponent("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-");
+        return Component.translatable(LightOverlayState.isSwampSlimeDetectionEnabled()
+                ? "screen.autotorch.swamp_slime_detection_on"
+                : "screen.autotorch.swamp_slime_detection_off");
     }
 
     private Component drownedDetectionMessage() {
-        return new TranslatableComponent(LightOverlayState.isDrownedDetectionEnabled()
+        return Component.translatable(LightOverlayState.isDrownedDetectionEnabled()
                 ? "screen.autotorch.drowned_detection_on"
                 : "screen.autotorch.drowned_detection_off");
     }
 
     private Component nearbyAutoTorchMessage() {
-        return new TranslatableComponent(ClientConfig.isNearbyAutoTorchEnabled()
+        return Component.translatable(ClientConfig.isNearbyAutoTorchEnabled()
                 ? "screen.autotorch.nearby_auto_torch_on"
                 : "screen.autotorch.nearby_auto_torch_off");
     }
 
     private Component nearbyAutoTorchSkyLightMessage() {
-        return new TranslatableComponent(ClientConfig.includesSkyLight()
+        return Component.translatable(ClientConfig.includesSkyLight()
                 ? "screen.autotorch.nearby_auto_torch_sky_light_on"
                 : "screen.autotorch.nearby_auto_torch_sky_light_off");
     }
 
     private Component woodenAxeSelectionMessage() {
-        return new TranslatableComponent(ClientConfig.isWoodenAxeSelectionEnabled()
+        return Component.translatable(ClientConfig.isWoodenAxeSelectionEnabled()
                 ? "screen.autotorch.wooden_axe_selection_on"
                 : "screen.autotorch.wooden_axe_selection_off");
     }
@@ -863,7 +858,7 @@ public final class LightingScreen extends Screen {
     private void moveWidgets(int deltaY) {
         for (var child : children()) {
             if (child instanceof AbstractWidget widget) {
-                widget.y += deltaY;
+                widget.setY(widget.getY() + deltaY);
             }
         }
     }
@@ -879,8 +874,8 @@ public final class LightingScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
-        if (super.mouseScrolled(mouseX, mouseY, scrollY)) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
             return true;
         }
         if (maxScrollOffset() == 0 || scrollY == 0.0) {
@@ -891,33 +886,33 @@ public final class LightingScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (maxScrollOffset() > 0 && button == 0
-                && mouseX >= scrollbarX() && mouseX < scrollbarX() + SCROLLBAR_WIDTH
-                && mouseY >= VIEWPORT_MARGIN && mouseY < height - VIEWPORT_MARGIN) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (maxScrollOffset() > 0 && event.button() == 0
+                && event.x() >= scrollbarX() && event.x() < scrollbarX() + SCROLLBAR_WIDTH
+                && event.y() >= VIEWPORT_MARGIN && event.y() < height - VIEWPORT_MARGIN) {
             draggingScrollbar = true;
-            scrollToMouse(mouseY);
+            scrollToMouse(event.y());
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
         if (draggingScrollbar) {
-            scrollToMouse(mouseY);
+            scrollToMouse(event.y());
             return true;
         }
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        return super.mouseDragged(event, deltaX, deltaY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(MouseButtonEvent event) {
         if (draggingScrollbar) {
             draggingScrollbar = false;
             return true;
         }
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(event);
     }
 
     @Override
@@ -928,45 +923,40 @@ public final class LightingScreen extends Screen {
     }
 
     @Override
-    public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-        enableViewportScissor();
-        super.render(poseStack, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.enableScissor(0, VIEWPORT_MARGIN, width, height - VIEWPORT_MARGIN);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int left = panelLeft();
         int offset = scrollOffset;
-        drawCenteredString(poseStack, font, title, width / 2, 6 - offset, 0xFFFFFFFF);
+        graphics.centeredText(font, title, width / 2, 6 - offset, 0xFFFFFFFF);
         boolean sphere = SelectionState.shape() == AreaShape.SPHERE;
-        drawString(poseStack, font, sphere ? "C" : "A", left + 5, 50 - offset, 0xFF70A0FF);
-        drawString(poseStack, font, sphere ? "R" : "B", left + 5, 72 - offset, 0xFF70A0FF);
+        graphics.text(font, sphere ? "C" : "A", left + 5, 50 - offset, 0xFF70A0FF);
+        graphics.text(font, sphere ? "R" : "B", left + 5, 72 - offset, 0xFF70A0FF);
         if (sphere) {
-            drawString(poseStack, font, new TranslatableComponent("screen.autotorch.radius_label"),
-                    left + 2, 94 - offset, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.radius_label"), left + 2, 94 - offset, 0xFF70A0FF);
         } else {
-            drawString(poseStack, font, new TranslatableComponent("screen.autotorch.length_label"),
-                    left + 2, 94 - offset, 0xFF70A0FF);
-            drawString(poseStack, font, new TranslatableComponent("screen.autotorch.width_label"),
-                    left + 104, 94 - offset, 0xFF70A0FF);
-            drawString(poseStack, font, new TranslatableComponent("screen.autotorch.height_label"),
-                    left + 206, 94 - offset, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.length_label"), left + 2, 94 - offset, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.width_label"), left + 104, 94 - offset, 0xFF70A0FF);
+            graphics.text(font, Component.translatable("screen.autotorch.height_label"), left + 206, 94 - offset, 0xFF70A0FF);
         }
-        drawString(poseStack, font, new TranslatableComponent("screen.autotorch.max_torches"),
-                left, 166 - offset, 0xFFFFFFFF);
+        graphics.text(font, Component.translatable("screen.autotorch.max_torches"), left, 166 - offset, 0xFFFFFFFF);
         int informationY = 232 - offset;
         if (!error.getString().isEmpty()) {
-            drawCenteredString(poseStack, font, error, width / 2, informationY, 0xFFFF6060);
+            graphics.centeredText(font, error, width / 2, informationY, 0xFFFF6060);
         } else if (!rangeMessage.getString().isEmpty()) {
-            drawCenteredString(poseStack, font, rangeMessage, width / 2, informationY, 0xFFFFC060);
+            graphics.centeredText(font, rangeMessage, width / 2, informationY, 0xFFFFC060);
         } else {
-            drawString(poseStack, font, new TranslatableComponent("screen.autotorch.zone_summary",
+            graphics.text(font, Component.translatable("screen.autotorch.zone_summary",
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()),
                     left, informationY, 0xFFA0A0A0);
         }
-        fill(poseStack, left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
-        drawCenteredString(poseStack, font, new TranslatableComponent("screen.autotorch.light_overlay_title"),
+        graphics.fill(left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
+        graphics.centeredText(font, Component.translatable("screen.autotorch.light_overlay_title"),
                 width / 2, 246 - offset, 0xFFFFFFFF);
-        fill(poseStack, left, 310 - offset, left + 310, 311 - offset, 0xFF606060);
-        drawCenteredString(poseStack, font, new TranslatableComponent("screen.autotorch.nearby_auto_torch_title"),
-                width / 2, 314 - offset, 0xFFFFFFFF);
-        RenderSystem.disableScissor();
+        graphics.fill(left, 334 - offset, left + 310, 335 - offset, 0xFF606060);
+        graphics.centeredText(font, Component.translatable("screen.autotorch.nearby_auto_torch_title"),
+                width / 2, 338 - offset, 0xFFFFFFFF);
+        graphics.disableScissor();
 
         if (maxScrollOffset() > 0) {
             int x = scrollbarX();
@@ -974,25 +964,9 @@ public final class LightingScreen extends Screen {
             int thumbColor = mouseX >= x && mouseX < x + SCROLLBAR_WIDTH
                     && mouseY >= VIEWPORT_MARGIN && mouseY < height - VIEWPORT_MARGIN
                     ? 0xFFE0E0E0 : 0xFFB0B0B0;
-            fill(poseStack, x, VIEWPORT_MARGIN, x + SCROLLBAR_WIDTH,
-                    height - VIEWPORT_MARGIN, 0x80000000);
-            fill(poseStack, x, y, x + SCROLLBAR_WIDTH, y + scrollbarHeight(), thumbColor);
+            graphics.fill(x, VIEWPORT_MARGIN, x + SCROLLBAR_WIDTH, height - VIEWPORT_MARGIN, 0x80000000);
+            graphics.fill(x, y, x + SCROLLBAR_WIDTH, y + scrollbarHeight(), thumbColor);
         }
-        if (mouseY >= VIEWPORT_MARGIN && mouseY < height - VIEWPORT_MARGIN) {
-            for (Map.Entry<AbstractWidget, Component> entry : tooltips.entrySet()) {
-                if (entry.getKey().visible && entry.getKey().isMouseOver(mouseX, mouseY)) {
-                    renderTooltip(poseStack, entry.getValue(), mouseX, mouseY);
-                    break;
-                }
-            }
-        }
-    }
-
-    private void enableViewportScissor() {
-        double scale = minecraft.getWindow().getGuiScale();
-        int bottom = (int) Math.round(VIEWPORT_MARGIN * scale);
-        int viewportHeight = (int) Math.round((height - VIEWPORT_MARGIN * 2) * scale);
-        RenderSystem.enableScissor(0, bottom, minecraft.getWindow().getWidth(), viewportHeight);
     }
 
     @Override
@@ -1002,13 +976,13 @@ public final class LightingScreen extends Screen {
 
     private static final class LightRangeSlider extends AbstractSliderButton {
         private LightRangeSlider(int x, int y, int width, int height) {
-            super(x, y, width, height, TextComponent.EMPTY, toSliderValue(LightOverlayState.horizontalRange()));
+            super(x, y, width, height, Component.empty(), toSliderValue(LightOverlayState.horizontalRange()));
             updateMessage();
         }
 
         @Override
         protected void updateMessage() {
-            setMessage(new TranslatableComponent("screen.autotorch.light_overlay_range_value", range()));
+            setMessage(Component.translatable("screen.autotorch.light_overlay_range_value", range()));
         }
 
         @Override
@@ -1032,13 +1006,13 @@ public final class LightingScreen extends Screen {
 
     private static final class NearbyAutoTorchThresholdSlider extends AbstractSliderButton {
         private NearbyAutoTorchThresholdSlider(int x, int y, int width, int height) {
-            super(x, y, width, height, TextComponent.EMPTY, toSliderValue(ClientConfig.nearbyAutoTorchThreshold()));
+            super(x, y, width, height, Component.empty(), toSliderValue(ClientConfig.nearbyAutoTorchThreshold()));
             updateMessage();
         }
 
         @Override
         protected void updateMessage() {
-            setMessage(new TranslatableComponent(
+            setMessage(Component.translatable(
                     "screen.autotorch.nearby_auto_torch_threshold", threshold()));
         }
 
@@ -1063,13 +1037,14 @@ public final class LightingScreen extends Screen {
 
     private static final class MinSpacingSlider extends AbstractSliderButton {
         private MinSpacingSlider(int x, int y, int width, int height) {
-            super(x, y, width, height, TextComponent.EMPTY, toSliderValue(effectiveDefaultMinSpacing()));
+            super(x, y, width, height, Component.empty(), toSliderValue(effectiveDefaultMinSpacing()));
+            setTooltip(Tooltip.create(Component.translatable("screen.autotorch.min_spacing.tooltip")));
             updateMessage();
         }
 
         @Override
         protected void updateMessage() {
-            setMessage(new TranslatableComponent("screen.autotorch.min_spacing", spacing()));
+            setMessage(Component.translatable("screen.autotorch.min_spacing", spacing()));
         }
 
         @Override
@@ -1090,13 +1065,14 @@ public final class LightingScreen extends Screen {
 
     private static final class AreaLightThresholdSlider extends AbstractSliderButton {
         private AreaLightThresholdSlider(int x, int y, int width, int height) {
-            super(x, y, width, height, TextComponent.EMPTY, toSliderValue(ClientConfig.defaultTaskLightThreshold()));
+            super(x, y, width, height, Component.empty(), toSliderValue(ClientConfig.defaultTaskLightThreshold()));
+            setTooltip(Tooltip.create(Component.translatable("screen.autotorch.area_light_threshold.tooltip")));
             updateMessage();
         }
 
         @Override
         protected void updateMessage() {
-            setMessage(new TranslatableComponent("screen.autotorch.area_light_threshold", threshold()));
+            setMessage(Component.translatable("screen.autotorch.area_light_threshold", threshold()));
         }
 
         @Override
