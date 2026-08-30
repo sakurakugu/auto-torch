@@ -153,8 +153,8 @@ public final class AutoTorchClientCommands {
                         .then(positionArguments("first", context -> setBox(context),
                                 positionArguments("second", context -> setBox(context), null))))
                 .then(AutoTorchClientCommands.<S>literal("sphere")
-                        .then(AutoTorchClientCommands.<S>positionArgument("center")
-                                .then(RequiredArgumentBuilder.<S, Integer>argument("radius",
+                        .then(positionArguments("center", context -> setSphere(context),
+                                RequiredArgumentBuilder.<S, Integer>argument("radius",
                                         IntegerArgumentType.integer(0, AreaZone.MAX_SPHERE_RADIUS))
                                         .executes(context -> setSphere(context)))))
                 .then(toolCommand("tool"))
@@ -248,11 +248,10 @@ public final class AutoTorchClientCommands {
 
     private static int setOverlayMode(LightOverlayState.DisplayMode mode) {
         LightOverlayState.setDisplayMode(mode);
-        return feedback("command.autotorch.overlay_mode",
-                Component.translatable(mode == LightOverlayState.DisplayMode.CROSSES
-                        ? "command.autotorch.mode_crosses"
-                        : mode == LightOverlayState.DisplayMode.NUMBERS
-                        ? "command.autotorch.mode_numbers" : "command.autotorch.mode_boxed_numbers"));
+        return feedback("command.autotorch.overlay_mode", new ChatComponentTranslation(
+                mode == LightOverlayState.DisplayMode.CROSSES ? "command.autotorch.mode_crosses"
+                        : mode == LightOverlayState.DisplayMode.NUMBERS ? "command.autotorch.mode_numbers"
+                        : "command.autotorch.mode_boxed_numbers"));
     }
 
     private static <S> BlockPos position(CommandContext<S> context, String name) {
@@ -440,7 +439,7 @@ public final class AutoTorchClientCommands {
     private static boolean validDraftZone(AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
             long maximum = ServerConfigState.maxSphereRadius();
-            return zone.radiusSquared() <= maximum * maximum;
+            return zone.radiusSquared() > 0L && zone.radiusSquared() <= maximum * maximum;
         }
         BlockPos min = zone.min();
         BlockPos max = zone.max();

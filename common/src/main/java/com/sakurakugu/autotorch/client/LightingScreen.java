@@ -42,6 +42,7 @@ public final class LightingScreen extends Screen {
     private Button undergroundButton;
     private Button lightOverlayButton;
     private Button lightOverlayModeButton;
+    private Button lightOverlayRenderThroughButton;
     private Button swampSlimeDetectionButton;
     private Button drownedDetectionButton;
     private Button nearbyAutoTorchButton;
@@ -50,6 +51,7 @@ public final class LightingScreen extends Screen {
     private Button startTaskButton;
     private Button cancelTaskButton;
     private Button resetButton;
+    private DualRangeSlider heightRangeSlider;
     private boolean consumeTorches;
     private boolean undergroundOnly;
     private boolean syncingInputs;
@@ -60,12 +62,7 @@ public final class LightingScreen extends Screen {
     private IChatComponent rangeMessage = new ChatComponentText("");
 
     public LightingScreen() {
-        this(0);
-    }
-
-    private LightingScreen(int initialScrollOffset) {
-        super(Component.translatable("screen.autotorch.title"));
-        scrollOffset = initialScrollOffset;
+        super(new ChatComponentTranslation("screen.autotorch.title"));
         consumeTorches = initialConsumeTorches();
         undergroundOnly = ClientConfig.isDefaultUndergroundOnly();
     }
@@ -77,33 +74,29 @@ public final class LightingScreen extends Screen {
                 ? BlockPos.ORIGIN : minecraft.thePlayer.getPosition();
         int left = panelLeft();
 
-        Component resetMessage = Component.translatable("screen.autotorch.reset");
-        resetButton = addRenderableWidget(new ResetButton(resetButtonX(resetMessage), 2,
-                font.width(resetMessage), 16, resetMessage, panelLeft(), panelLeft() + 310,
-                button -> resetLightingTaskSettings()));
+        resetButton = addRenderableWidget(button(left + 270, 2, 40, 16,
+                new ChatComponentTranslation("screen.autotorch.reset"), button -> resetLightingTaskSettings()));
 
-        shapeButton = addRenderableWidget(Button.builder(shapeMessage(), button -> {
+        shapeButton = addRenderableWidget(button(left, 20, 126, 20, shapeMessage(), button -> {
             SelectionState.setShape(SelectionState.shape() == AreaShape.BOX ? AreaShape.SPHERE : AreaShape.BOX);
             shapeButton.setMessage(shapeMessage().getFormattedText());
             convertShapeButton.setMessage(convertShapeMessage().getFormattedText());
             updatePointButtonMessages();
             refreshDimensionInputs();
         }));
-        sphereDisplayButton = addRenderableWidget(button(left + 130, 20, 90, 20, sphereDisplayMessage(), button -> {
+        sphereDisplayButton = addRenderableWidget(button(left + 216, 88, 94, 20, sphereDisplayMessage(), button -> {
             SelectionState.SphereDisplayMode next =
                     SelectionState.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY
                             ? SelectionState.SphereDisplayMode.SMOOTH : SelectionState.SphereDisplayMode.BLOCKY;
             SelectionState.setSphereDisplayMode(next);
-            sphereDisplayButton.setMessage(sphereDisplayMessage());
-        }).bounds(left + 216, 88, 94, 20).build());
-        displayButton = addRenderableWidget(Button.builder(displayMessage(), button -> {
+            sphereDisplayButton.setMessage(sphereDisplayMessage().getFormattedText());
+        }));
+        displayButton = addRenderableWidget(button(left + 130, 20, 90, 20, displayMessage(), button -> {
             cycleSelectionDisplay();
-            displayButton.setMessage(displayMessage());
-        }).bounds(left + 130, 20, 90, 20).build());
-        moreSettingsButton = addRenderableWidget(Button.builder(
-                Component.translatable("screen.autotorch.more_settings"), button -> {
-                    // 更多设置入口暂不包含具体选项。
-                }).bounds(left + 224, 20, 86, 20).build());
+            displayButton.setMessage(displayMessage().getFormattedText());
+        }));
+        moreSettingsButton = addRenderableWidget(button(left + 224, 20, 86, 20,
+                new ChatComponentTranslation("screen.autotorch.more_settings"), button -> { }));
 
         createCoordinateRow(first, left, 44, SelectionState.first(playerPos));
         useCurrentFirstButton = addRenderableWidget(button(left + 190, 44, 120, 20, firstPointMessage(), button -> {
@@ -190,56 +183,52 @@ public final class LightingScreen extends Screen {
         }));
         updateTaskButtonAvailability();
 
-        lightOverlayButton = addRenderableWidget(button(left, 258, 106, 20, lightOverlayMessage(), button -> {
+        lightOverlayButton = addRenderableWidget(button(left, 258, 108, 20, lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
-            lightOverlayButton.setMessage(lightOverlayMessage());
-        }).bounds(left, 258, 106, 20).build());
-        Component lightOverlayResetMessage = Component.translatable("screen.autotorch.reset");
-        addRenderableWidget(new ResetButton(resetButtonX(lightOverlayResetMessage), 242,
-                font.width(lightOverlayResetMessage), 16, lightOverlayResetMessage, panelLeft(), panelLeft() + 310,
-                button -> resetLightOverlaySettings()));
-        lightOverlayModeButton = addRenderableWidget(Button.builder(lightOverlayModeMessage(), button -> {
+            lightOverlayButton.setMessage(lightOverlayMessage().getFormattedText());
+        }));
+        addRenderableWidget(button(left + 270, 242, 40, 16,
+                new ChatComponentTranslation("screen.autotorch.reset"), button -> resetLightOverlaySettings()));
+        lightOverlayModeButton = addRenderableWidget(button(left + 112, 258, 88, 20,
+                lightOverlayModeMessage(), button -> {
             LightOverlayState.cycleDisplayMode();
             lightOverlayModeButton.setMessage(lightOverlayModeMessage().getFormattedText());
         }));
-        addRenderableWidget(new LightRangeSlider(left + 202, 258, 108, 20));
-        addRenderableWidget(new DualRangeSlider(left, 282, 310, 20, -64, 64, 64,
-                -LightOverlayState.downRange(), LightOverlayState.upRange(),
-                (lower, upper) -> Component.translatable("screen.autotorch.light_overlay_height_value", lower, upper),
-                (lower, upper) -> {
-                    LightOverlayState.setDownRange(-lower);
-                    LightOverlayState.setUpRange(upper);
+        lightOverlayRenderThroughButton = addRenderableWidget(button(left + 204, 258, 106, 20,
+                lightOverlayRenderThroughMessage(), button -> {
+                    ClientConfig.setLightOverlayRenderThrough(!ClientConfig.isLightOverlayRenderThrough());
+                    lightOverlayRenderThroughButton.setMessage(lightOverlayRenderThroughMessage().getFormattedText());
                 }));
+        addRenderableWidget(new LightRangeSlider(left, 282, 108, 20));
+        heightRangeSlider = addRenderableWidget(new DualRangeSlider(left + 112, 282, 198, 20, -64, 64, 64,
+                -LightOverlayState.downRange(), LightOverlayState.upRange(),
+                (lower, upper) -> new ChatComponentTranslation("screen.autotorch.light_overlay_height_value", lower, upper),
+                (lower, upper) -> { LightOverlayState.setDownRange(-lower); LightOverlayState.setUpRange(upper); }));
 
-        swampSlimeDetectionButton = addRenderableWidget(Button.builder(swampSlimeDetectionMessage(), button -> {
-            LightOverlayState.toggleSwampSlimeDetection();
-            swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
-        }).bounds(left, 306, 153, 20)
-                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.swamp_slime_detection.tooltip")))
-                .build());
-        drownedDetectionButton = addRenderableWidget(Button.builder(drownedDetectionMessage(), button -> {
+        swampSlimeDetectionButton = addRenderableWidget(button(left, 306, 153, 20,
+                swampSlimeDetectionMessage(), button -> { }));
+        swampSlimeDetectionButton.active = false;
+        drownedDetectionButton = addRenderableWidget(withTooltip(button(left + 157, 306, 153, 20,
+                drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
-            drownedDetectionButton.setMessage(drownedDetectionMessage());
-        }).bounds(left + 157, 306, 153, 20)
-                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.drowned_detection.tooltip")))
-                .build());
+            drownedDetectionButton.setMessage(drownedDetectionMessage().getFormattedText());
+        }), new ChatComponentTranslation("screen.autotorch.drowned_detection.tooltip.1.12.2")));
+        // Minecraft 1.8.9 尚未加入溺尸，保留控件位置但禁止修改无效配置。
+        drownedDetectionButton.active = false;
 
-        nearbyAutoTorchButton = addRenderableWidget(withTooltip(button(left, 326, 153, 20,
+        nearbyAutoTorchButton = addRenderableWidget(withTooltip(button(left, 350, 153, 20,
                 nearbyAutoTorchMessage(), button -> {
             ClientConfig.setNearbyAutoTorchEnabled(!ClientConfig.isNearbyAutoTorchEnabled());
-            nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage());
-        }).bounds(left, 350, 153, 20)
-                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.nearby_auto_torch.tooltip")))
-                .build());
-        Component nearbyResetMessage = Component.translatable("screen.autotorch.reset");
-        addRenderableWidget(new ResetButton(resetButtonX(nearbyResetMessage), 334,
-                font.width(nearbyResetMessage), 16, nearbyResetMessage, panelLeft(), panelLeft() + 310,
-                button -> resetNearbyAutoTorchSettings()));
+            nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage().getFormattedText());
+        }), new ChatComponentTranslation("screen.autotorch.nearby_auto_torch.tooltip")));
+        addRenderableWidget(button(left + 270, 334, 40, 16,
+                new ChatComponentTranslation("screen.autotorch.reset"), button -> resetNearbyAutoTorchSettings()));
         addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 350, 153, 20));
-        nearbyAutoTorchSkyLightButton = addRenderableWidget(Button.builder(nearbyAutoTorchSkyLightMessage(), button -> {
+        nearbyAutoTorchSkyLightButton = addRenderableWidget(button(left, 374, 310, 20,
+                nearbyAutoTorchSkyLightMessage(), button -> {
             ClientConfig.setIncludesSkyLight(!ClientConfig.includesSkyLight());
-            nearbyAutoTorchSkyLightButton.setMessage(nearbyAutoTorchSkyLightMessage());
-        }).bounds(left, 374, 310, 20).build());
+            nearbyAutoTorchSkyLightButton.setMessage(nearbyAutoTorchSkyLightMessage().getFormattedText());
+        }));
 
         scrollOffset = Math.min(scrollOffset, maxScrollOffset());
         moveWidgets(-scrollOffset);
@@ -265,29 +254,6 @@ public final class LightingScreen extends Screen {
         boolean enabled = ServerConfigState.lightingTaskEnabled();
         if (startTaskButton != null) startTaskButton.active = enabled;
         if (cancelTaskButton != null) cancelTaskButton.active = enabled;
-    }
-
-    private void resetLightingTaskSettings() {
-        ClientConfig.resetLightingTaskDefaults();
-        SelectionState.reloadConfig();
-        PlatformNetworking.sendToServer(new SetSelectionToolPayload(
-                ClientConfig.isWoodenAxeSelectionEnabled()));
-        reopenAtCurrentScrollOffset();
-    }
-
-    private void resetLightOverlaySettings() {
-        ClientConfig.resetLightOverlayDefaults();
-        LightOverlayState.reloadConfig();
-        reopenAtCurrentScrollOffset();
-    }
-
-    private void resetNearbyAutoTorchSettings() {
-        ClientConfig.resetNearbyAutoTorchDefaults();
-        reopenAtCurrentScrollOffset();
-    }
-
-    private void reopenAtCurrentScrollOffset() {
-        minecraft.gui.setScreen(new LightingScreen(scrollOffset));
     }
 
     private void createCoordinateRow(EditBox[] boxes, int left, int y, BlockPos initial) {
@@ -354,7 +320,7 @@ public final class LightingScreen extends Screen {
                         syncingInputs = false;
                     }
                     dimensionClamped = true;
-                } else if (radius < 0) {
+                } else if (radius < 1) {
                     throw new IllegalArgumentException("Out of range");
                 }
                 updatedSecond = offsetChecked(anchor, radius, 0, 0);
@@ -423,7 +389,6 @@ public final class LightingScreen extends Screen {
                     : Math.abs(secondPos.getX() - firstPos.getX()) + 1));
             dimensions[1].visible = !sphere;
             dimensions[2].visible = !sphere;
-            sphereDisplayButton.visible = sphere;
             if (!sphere) {
                 dimensions[1].setValue(Integer.toString(Math.abs(secondPos.getZ() - firstPos.getZ()) + 1));
                 dimensions[2].setValue(Integer.toString(Math.abs(secondPos.getY() - firstPos.getY()) + 1));
@@ -501,6 +466,10 @@ public final class LightingScreen extends Screen {
                         Math.min((long) max.getX() - min.getX(), (long) max.getY() - min.getY()),
                         (long) max.getZ() - min.getZ());
                 int radius = (int) (shortestExtent / 2L);
+                if (radius < 1) {
+                    error = new ChatComponentTranslation("screen.autotorch.convert_box_too_small");
+                    return;
+                }
                 if (radius > ServerConfigState.maxSphereRadius()) {
                     error = new ChatComponentTranslation("screen.autotorch.convert_sphere_too_large");
                     return;
@@ -613,7 +582,7 @@ public final class LightingScreen extends Screen {
         if (zone.shape() == AreaShape.SPHERE) {
             long maxRadiusSquared = (long) ServerConfigState.maxSphereRadius()
                     * ServerConfigState.maxSphereRadius();
-            if (zone.radiusSquared() > maxRadiusSquared) {
+            if (zone.radiusSquared() <= 0L || zone.radiusSquared() > maxRadiusSquared) {
                 throw new IllegalArgumentException("Sphere radius out of range");
             }
             return;
@@ -839,12 +808,41 @@ public final class LightingScreen extends Screen {
                 ? "screen.autotorch.light_overlay_on" : "screen.autotorch.light_overlay_off");
     }
 
-    private Component lightOverlayModeMessage() {
-        return Component.translatable(switch (LightOverlayState.displayMode()) {
-            case CROSSES -> "screen.autotorch.light_overlay_mode_crosses";
-            case NUMBERS -> "screen.autotorch.light_overlay_mode_numbers";
-            case BOXED_NUMBERS -> "screen.autotorch.light_overlay_mode_boxed_numbers";
-        });
+    private IChatComponent lightOverlayModeMessage() {
+        LightOverlayState.DisplayMode mode = LightOverlayState.displayMode();
+        return new ChatComponentTranslation(mode == LightOverlayState.DisplayMode.CROSSES
+                ? "screen.autotorch.light_overlay_mode_crosses"
+                : mode == LightOverlayState.DisplayMode.NUMBERS
+                        ? "screen.autotorch.light_overlay_mode_numbers"
+                        : "screen.autotorch.light_overlay_mode_boxed_numbers");
+    }
+
+    private IChatComponent lightOverlayRenderThroughMessage() {
+        return new ChatComponentTranslation(ClientConfig.isLightOverlayRenderThrough()
+                ? "screen.autotorch.light_overlay_render_through_on"
+                : "screen.autotorch.light_overlay_render_through_off");
+    }
+
+    private void resetLightingTaskSettings() {
+        ClientConfig.resetLightingTaskDefaults();
+        consumeTorches = initialConsumeTorches();
+        undergroundOnly = ClientConfig.isDefaultUndergroundOnly();
+        consumeButton.setMessage(consumeMessage().getFormattedText());
+        undergroundButton.setMessage(undergroundMessage().getFormattedText());
+    }
+
+    private void resetLightOverlaySettings() {
+        ClientConfig.resetLightOverlayDefaults();
+        LightOverlayState.reloadConfig();
+        lightOverlayButton.setMessage(lightOverlayMessage().getFormattedText());
+        lightOverlayModeButton.setMessage(lightOverlayModeMessage().getFormattedText());
+        lightOverlayRenderThroughButton.setMessage(lightOverlayRenderThroughMessage().getFormattedText());
+    }
+
+    private void resetNearbyAutoTorchSettings() {
+        ClientConfig.resetNearbyAutoTorchDefaults();
+        nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage().getFormattedText());
+        nearbyAutoTorchSkyLightButton.setMessage(nearbyAutoTorchSkyLightMessage().getFormattedText());
     }
 
     private IChatComponent swampSlimeDetectionMessage() {
@@ -961,6 +959,9 @@ public final class LightingScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (heightRangeSlider != null && heightRangeSlider.drag(mouseX)) {
+            return true;
+        }
         if (draggingScrollbar) {
             scrollToMouse(mouseY);
             return true;
@@ -970,6 +971,9 @@ public final class LightingScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (heightRangeSlider != null && heightRangeSlider.stopDrag()) {
+            return true;
+        }
         if (draggingScrollbar) {
             draggingScrollbar = false;
             return true;
@@ -1026,10 +1030,10 @@ public final class LightingScreen extends Screen {
         fill(left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
         drawCenteredString(font, new ChatComponentTranslation("screen.autotorch.light_overlay_title").getFormattedText(),
                 width / 2, 246 - offset, 0xFFFFFFFF);
-        graphics.fill(left, 334 - offset, left + 310, 335 - offset, 0xFF606060);
-        graphics.centeredText(font, Component.translatable("screen.autotorch.nearby_auto_torch_title"),
-                width / 2, 338 - offset, 0xFFFFFFFF);
-        graphics.disableScissor();
+        fill(left, 310 - offset, left + 310, 311 - offset, 0xFF606060);
+        drawCenteredString(font, new ChatComponentTranslation("screen.autotorch.nearby_auto_torch_title").getFormattedText(),
+                width / 2, 314 - offset, 0xFFFFFFFF);
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
 
         if (maxScrollOffset() > 0) {
             int x = scrollbarX();
@@ -1063,34 +1067,6 @@ public final class LightingScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
-    }
-
-    /** 标题区域内仅在悬停时显示文字的重置入口。 */
-    private int resetButtonX(Component message) {
-        return panelLeft() + 310 - font.width(message);
-    }
-
-    private static final class ResetButton extends Button {
-        private final int hoverLeft;
-        private final int hoverRight;
-
-        private ResetButton(int x, int y, int width, int height, Component message,
-                            int hoverLeft, int hoverRight, OnPress onPress) {
-            super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
-            this.hoverLeft = hoverLeft;
-            this.hoverRight = hoverRight;
-        }
-
-        @Override
-        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-            boolean rowHovered = mouseX >= hoverLeft && mouseX < hoverRight
-                    && mouseY >= getY() && mouseY < getBottom();
-            if (isHoveredOrFocused() || rowHovered) {
-                graphics.text(Minecraft.getInstance().font, getMessage(), getRight() -
-                        Minecraft.getInstance().font.width(getMessage()), getY() + 4,
-                        isHoveredOrFocused() ? 0xFFFFFF00 : 0xFFFFFFFF);
-            }
-        }
     }
 
     private static final class LightRangeSlider extends AbstractSliderButton {

@@ -1,6 +1,6 @@
 package com.sakurakugu.autotorch.network;
 
-import net.minecraft.core.BlockPos;
+import net.minecraft.util.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,6 +17,6 @@ class AreaZoneTest {
         assertEquals(center, sphere.min());
         assertEquals(center, sphere.max());
         assertTrue(sphere.contains(center));
-        assertFalse(sphere.contains(center.offset(1, 0, 0)));
+        assertFalse(sphere.contains(center.add(1, 0, 0)));
     }
 }
