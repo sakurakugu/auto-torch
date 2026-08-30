@@ -15,11 +15,12 @@ import net.minecraft.world.World;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.entity.EntitySpawnPlacementRegistry;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.world.EnumLightType;
+import net.minecraft.world.WorldEntitySpawner;
 import net.minecraft.world.biome.Biome;
-import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.block.state.BlockFaceShape;
 
@@ -425,8 +426,12 @@ public final class LightOverlayState {
             return null;
         }
 
-        if (floor.getBlock() instanceof BlockLeaves
-                || floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) != BlockFaceShape.SOLID) {
+        if (floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) != BlockFaceShape.SOLID) {
+            return null;
+        }
+        if (!WorldEntitySpawner.canCreatureTypeSpawnAtLocation(
+                EntitySpawnPlacementRegistry.SpawnPlacementType.ON_GROUND,
+                level, feet, EntityType.ZOMBIE)) {
             return null;
         }
         int blockLight = level.getLightFor(EnumLightType.BLOCK, feet);
