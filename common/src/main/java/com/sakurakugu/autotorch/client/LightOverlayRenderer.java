@@ -14,6 +14,8 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或纹理数字。 */
 public final class LightOverlayRenderer {
@@ -44,6 +46,7 @@ public final class LightOverlayRenderer {
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
+    private static volatile RenderData drownedRenderData;
     private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
@@ -59,6 +62,12 @@ public final class LightOverlayRenderer {
             return;
         }
         renderData = buildRenderData(columns, displayMode);
+        drownedRenderData = buildRenderData(columns.stream()
+                .map(column -> new LightOverlayState.MarkerColumn(column.key(), column.minY(),
+                        column.markers().stream()
+                                .filter(marker -> marker.riskType() == LightOverlayState.RiskType.DROWNED)
+                                .toList()))
+                .filter(column -> !column.markers().isEmpty()).toList(), displayMode);
     }
 
     public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
@@ -72,25 +81,58 @@ public final class LightOverlayRenderer {
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
             RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
                     ? RenderTypes.textSeeThrough(numberTexture) : RenderTypes.text(numberTexture);
-            renderGeometry(camera, poseStack, collector, numberRenderType,
+            renderGeometry(data, camera, poseStack, collector, numberRenderType,
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                renderGeometry(camera, poseStack, collector,
+                renderGeometry(data, camera, poseStack, collector,
                         ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent(),
                         (pose, buffer) -> submitLines(pose, buffer, data, camera));
             }
         } else {
-            renderGeometry(camera, poseStack, collector,
+            renderGeometry(data, camera, poseStack, collector,
                     ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent(),
                     (pose, buffer) -> submitLines(pose, buffer, data, camera));
         }
+        if (!ClientConfig.isLightOverlayRenderThrough()) {
+            RenderData drowned = visibleDrownedData(camera, data.displayMode());
+            if (drowned != null && drowned.renderableCount() > 0) {
+                RenderType type = data.displayMode() == LightOverlayState.DisplayMode.CROSSES
+                        ? SEE_THROUGH_LINES : RenderTypes.textSeeThrough(
+                                data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
+                                        ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE);
+                renderGeometry(drowned, camera, poseStack, collector, type,
+                        (pose, buffer) -> {
+                            if (data.displayMode() == LightOverlayState.DisplayMode.CROSSES) {
+                                submitLines(pose, buffer, drowned, camera);
+                            } else {
+                                submitNumbers(pose, buffer, drowned, camera);
+                            }
+                        });
+                if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
+                    renderGeometry(drowned, camera, poseStack, collector, SEE_THROUGH_LINES,
+                            (pose, buffer) -> submitLines(pose, buffer, drowned, camera));
+                }
+            }
+        }
+    }
+
+    private static RenderData visibleDrownedData(Vec3 camera, LightOverlayState.DisplayMode displayMode) {
+        RenderData source = drownedRenderData;
+        Minecraft minecraft = Minecraft.getInstance();
+        if (source == null || minecraft.level == null || minecraft.player == null) return null;
+        List<LightOverlayState.MarkerColumn> columns = source.sourceColumns().stream()
+                .map(column -> new LightOverlayState.MarkerColumn(column.key(), column.minY(), column.markers().stream()
+                        .filter(marker -> minecraft.level.clip(new ClipContext(camera, Vec3.atCenterOf(marker.pos()),
+                                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, minecraft.player)).getType() == HitResult.Type.MISS)
+                        .toList()))
+                .filter(column -> !column.markers().isEmpty()).toList();
+        return buildRenderData(columns, displayMode);
     }
 
     private static void renderGeometry(
-            Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector,
+            RenderData data, Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector,
             RenderType renderType, GeometryRenderer renderer
     ) {
-        RenderData data = renderData;
         if (data == null || data.renderableCount() == 0 || Minecraft.getInstance().level == null) {
             return;
         }
@@ -146,7 +188,7 @@ public final class LightOverlayRenderer {
             }
             double x0 = marker.pos().getX() + CROSS_MARGIN;
             double x1 = marker.pos().getX() + 1.0D - CROSS_MARGIN;
-            double y = marker.pos().getY() + SURFACE_OFFSET;
+            double y = marker.pos().getY() + surfaceOffset(marker);
             double z0 = marker.pos().getZ() + CROSS_MARGIN;
             double z1 = marker.pos().getZ() + 1.0D - CROSS_MARGIN;
             int color = markerColor(marker);
@@ -158,7 +200,7 @@ public final class LightOverlayRenderer {
 
     private static void addNumber(GeometryBuilder geometry, LightOverlayState.Marker marker, boolean boxed) {
         geometry.addNumber(marker.pos().getX() + NUMBER_OFFSET_X,
-                marker.pos().getY() + SURFACE_OFFSET,
+                marker.pos().getY() + surfaceOffset(marker),
                 marker.pos().getZ() + (boxed ? BOXED_NUMBER_OFFSET_Z : NUMBER_OFFSET_Z),
                 marker.blockLight(), markerColor(marker), boxed ? (float) NUMBER_SIZE : 1.0F);
     }
@@ -166,7 +208,7 @@ public final class LightOverlayRenderer {
     private static void addNumberBox(GeometryBuilder geometry, LightOverlayState.Marker marker) {
         double x0 = marker.pos().getX() + NUMBER_MARGIN;
         double x1 = marker.pos().getX() + 1.0D - NUMBER_MARGIN;
-        double y = marker.pos().getY() + SURFACE_OFFSET;
+        double y = marker.pos().getY() + surfaceOffset(marker);
         double z0 = marker.pos().getZ() + NUMBER_MARGIN;
         double z1 = marker.pos().getZ() + 1.0D - NUMBER_MARGIN;
         int color = markerColor(marker);
@@ -183,6 +225,10 @@ public final class LightOverlayRenderer {
             case NORMAL -> marker.blockLight() > 0 ? SAFE_COLOR
                     : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
         };
+    }
+
+    private static double surfaceOffset(LightOverlayState.Marker marker) {
+        return SURFACE_OFFSET;
     }
 
     private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
