@@ -9,8 +9,7 @@ final class EditBox extends GuiTextField implements Widget {
     public boolean visible = true;
     private Consumer<String> responder = value -> {};
     EditBox(FontRenderer font, int x, int y, int width, int height, String ignored) {
-        // 输入框上下各收缩一像素，与同一行按钮的可见高度一致。
-        super(0, font, x, y + 1, width, height - 2);
+        super(0, font, x, y, width, height);
     }
 
     void setMaxLength(int length) { setMaxStringLength(length); }
