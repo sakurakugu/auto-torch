@@ -24,6 +24,8 @@ import org.lwjgl.opengl.GL11;
 
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
 public final class SelectionRenderer {
+    private static final double LINE_WIDTH_REFERENCE_DISTANCE = 8.0D;
+    private static final double MIN_LINE_WIDTH = 0.75D;
     private static final int DEPTH_LEQUAL = 0x0203;
     private static final RenderType FACE_RENDER_TYPE = new RenderType(
             "autotorch_selection_faces",
@@ -145,8 +147,20 @@ public final class SelectionRenderer {
         poseStack.translate(-camera.x(), -camera.y(), -camera.z());
         RenderType renderType = data.displayMode() == SelectionState.DisplayMode.LINES
                 ? RenderType.lines() : FACE_RENDER_TYPE;
+        if (data.displayMode() == SelectionState.DisplayMode.LINES) {
+            RenderSystem.lineWidth(scaledLineWidth(3.0F, camera, data));
+        }
         sink.submit(poseStack, renderType, (pose, buffer) -> renderZones(pose, buffer, data));
         poseStack.popPose();
+    }
+
+    private static float scaledLineWidth(float baseWidth, Vec3 camera, RenderData data) {
+        double distance = Double.POSITIVE_INFINITY;
+        if (data.draft() != null) distance = Math.min(distance, camera.distanceToSqr(Vec3.atCenterOf(data.draft().first())));
+        if (data.lightingZone() != null) distance = Math.min(distance, camera.distanceToSqr(Vec3.atCenterOf(data.lightingZone().first())));
+        for (AreaZone zone : data.exclusions()) distance = Math.min(distance, camera.distanceToSqr(Vec3.atCenterOf(zone.first())));
+        if (distance <= LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE) return baseWidth;
+        return (float) Math.max(MIN_LINE_WIDTH, baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / Math.sqrt(distance));
     }
 
     private static void renderZones(PoseStack.Pose pose, VertexConsumer buffer, RenderData data) {
