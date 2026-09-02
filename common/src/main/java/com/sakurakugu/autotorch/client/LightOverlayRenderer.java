@@ -5,9 +5,10 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -28,8 +29,6 @@ public final class LightOverlayRenderer {
     private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
     private static final float CROSS_LINE_WIDTH = 2.5F;
     private static final float LINE_WIDTH_REFERENCE_DISTANCE = 8.0F;
-    private static final double LINE_WIDTH_REFERENCE_DISTANCE_SQUARED =
-            LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE;
     private static final float MIN_LINE_WIDTH = 0.75F;
     private static final double SURFACE_OFFSET = 0.0125D;
     private static final double CROSS_MARGIN = 0.14D;
@@ -43,7 +42,6 @@ public final class LightOverlayRenderer {
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
-    private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
     }
@@ -74,21 +72,15 @@ public final class LightOverlayRenderer {
             renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                renderGeometry(camera, poseStack, buffers.getBuffer(
-                        ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
-                        (pose, buffer) -> submitLines(pose, buffer, data, camera));
+                renderLines(camera, poseStack, buffers, data);
             }
         } else {
-            renderGeometry(camera, poseStack, buffers.getBuffer(
-                    ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
-                    (pose, buffer) -> submitLines(pose, buffer, data, camera));
+            renderLines(camera, poseStack, buffers, data);
         }
     }
 
-    /**
-     * 在 Fabric 世界渲染阶段结束覆盖层批次，确保数字和透视线框使用当前相机矩阵绘制。
-     */
-    public static void endBatches(MultiBufferSource.BufferSource buffers) {
+    /** 在世界渲染阶段结束覆盖层批次。 */
+    public static void endBatches(MultiBufferSource.BufferSource buffers, Vec3 camera) {
         RenderData data = renderData;
         if (data == null) {
             return;
@@ -101,9 +93,26 @@ public final class LightOverlayRenderer {
         }
         if (data.displayMode() == LightOverlayState.DisplayMode.CROSSES
                 || data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-            buffers.endBatch(ClientConfig.isLightOverlayRenderThrough()
-                    ? SEE_THROUGH_LINES : RenderType.lines());
+            boolean seeThrough = ClientConfig.isLightOverlayRenderThrough();
+            for (RenderType renderType : lineRenderTypes(data, camera, seeThrough)) {
+                buffers.endBatch(renderType);
+            }
         }
+    }
+
+    private static Set<RenderType> lineRenderTypes(RenderData data, Vec3 camera, boolean seeThrough) {
+        Set<RenderType> renderTypes = new HashSet<>();
+        for (ColumnRenderData column : data.columns()) {
+            double[] coordinates = column.coordinates();
+            for (int offset = 0; offset < coordinates.length; offset += 6) {
+                double x = (coordinates[offset] + coordinates[offset + 3]) * 0.5D - camera.x();
+                double y = (coordinates[offset + 1] + coordinates[offset + 4]) * 0.5D - camera.y();
+                double z = (coordinates[offset + 2] + coordinates[offset + 5]) * 0.5D - camera.z();
+                renderTypes.add(AutoTorchRenderTypes.lines(
+                        scaledLineWidth(CROSS_LINE_WIDTH, Math.sqrt(x * x + y * y + z * z)), seeThrough));
+            }
+        }
+        return renderTypes;
     }
 
     private static void renderGeometry(
@@ -204,7 +213,23 @@ public final class LightOverlayRenderer {
         };
     }
 
-    private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
+    private static float scaledLineWidth(float baseWidth, double distance) {
+        if (distance <= LINE_WIDTH_REFERENCE_DISTANCE) {
+            return baseWidth;
+        }
+        return Math.max(MIN_LINE_WIDTH,
+                (float) (baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / distance));
+    }
+
+    private static void renderLines(
+            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderData data
+    ) {
+        if (data.renderableCount() == 0 || Minecraft.getInstance().level == null) {
+            return;
+        }
+        boolean seeThrough = ClientConfig.isLightOverlayRenderThrough();
+        poseStack.pushPose();
+        PoseStack.Pose pose = poseStack.last();
         for (ColumnRenderData column : data.columns()) {
             double[] coordinates = column.coordinates();
             int[] colors = column.colors();
@@ -215,26 +240,15 @@ public final class LightOverlayRenderer {
                 double x2 = coordinates[offset + 3] - camera.x();
                 double y2 = coordinates[offset + 4] - camera.y();
                 double z2 = coordinates[offset + 5] - camera.z();
-                line(pose, buffer,
-                        x1, y1, z1, x2, y2, z2,
-                        colors[line], scaledLineWidth(CROSS_LINE_WIDTH, x1, y1, z1, x2, y2, z2));
+                double x = (x1 + x2) * 0.5D;
+                double y = (y1 + y2) * 0.5D;
+                double z = (z1 + z2) * 0.5D;
+                float width = scaledLineWidth(CROSS_LINE_WIDTH, Math.sqrt(x * x + y * y + z * z));
+                VertexConsumer buffer = buffers.getBuffer(AutoTorchRenderTypes.lines(width, seeThrough));
+                line(pose, buffer, x1, y1, z1, x2, y2, z2, colors[line]);
             }
         }
-    }
-
-    private static float scaledLineWidth(float baseWidth,
-                                         double x1, double y1, double z1,
-                                         double x2, double y2, double z2) {
-        double x = (x1 + x2) * 0.5D;
-        double y = (y1 + y2) * 0.5D;
-        double z = (z1 + z2) * 0.5D;
-        double distanceSquared = x * x + y * y + z * z;
-        if (distanceSquared <= LINE_WIDTH_REFERENCE_DISTANCE_SQUARED) {
-            return baseWidth;
-        }
-        double distance = Math.sqrt(distanceSquared);
-        return Math.max(MIN_LINE_WIDTH,
-                (float) (baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / distance));
+        poseStack.popPose();
     }
 
     private static void submitNumbers(
@@ -266,7 +280,7 @@ public final class LightOverlayRenderer {
     private static void line(
             PoseStack.Pose pose, VertexConsumer buffer,
             double x1, double y1, double z1, double x2, double y2, double z2,
-            int color, float lineWidth
+            int color
     ) {
         float nx = (float) (x2 - x1);
         float ny = (float) (y2 - y1);
