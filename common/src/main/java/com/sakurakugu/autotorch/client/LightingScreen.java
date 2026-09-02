@@ -222,13 +222,14 @@ public final class LightingScreen extends Screen {
             LightOverlayState.toggleSwampSlimeDetection();
             swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage().getString());
         }).bounds(left, 306, 153, 20)
-                .tooltip(new TranslatableComponent("screen.autotorch.swamp_slime_detection.tooltip"))
+                .tooltip(new TranslatableComponent("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-"))
                 .build());
+        swampSlimeDetectionButton.active = false;
         drownedDetectionButton = addButton(button(drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage().getString());
         }).bounds(left + 157, 306, 153, 20)
-                .tooltip(new TranslatableComponent("screen.autotorch.drowned_detection.tooltip"))
+                .tooltip(new TranslatableComponent("screen.autotorch.drowned_detection.tooltip.1.17.1-1.13.2"))
                 .build());
 
         nearbyAutoTorchButton = addButton(button(nearbyAutoTorchMessage(), button -> {
