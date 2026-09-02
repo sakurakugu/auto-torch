@@ -40,9 +40,9 @@ public final class SelectionState {
     public static void updateLevel(World currentLevel, BlockPos currentPosition) {
         if (level != currentLevel) {
             level = currentLevel;
-            // 世界刚进入时玩家坐标可能仍是出生点，延迟到界面打开或明确使用选区时再绑定。
-            first = null;
-            second = null;
+            // 进入世界时以玩家当前位置初始化选区，之后保持坐标不随玩家移动。
+            first = currentPosition.toImmutable();
+            second = currentPosition.toImmutable();
             lightingZone = null;
             shape = AreaShape.BOX;
             displayMode = ClientConfig.usesSelectionLines() ? DisplayMode.LINES : DisplayMode.FACES;
