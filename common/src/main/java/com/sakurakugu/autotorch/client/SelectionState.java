@@ -40,8 +40,9 @@ public final class SelectionState {
     public static void updateLevel(World currentLevel, BlockPos currentPosition) {
         if (level != currentLevel) {
             level = currentLevel;
-            first = currentPosition.toImmutable();
-            second = currentPosition.toImmutable();
+            // 世界刚进入时玩家坐标可能仍是出生点，延迟到界面打开或明确使用选区时再绑定。
+            first = null;
+            second = null;
             lightingZone = null;
             shape = AreaShape.BOX;
             displayMode = ClientConfig.usesSelectionLines() ? DisplayMode.LINES : DisplayMode.FACES;
@@ -146,7 +147,12 @@ public final class SelectionState {
     }
 
     public static AreaZone draft(BlockPos fallback) {
-        return new AreaZone(shape, first(fallback), second(fallback));
+        // 尚未绑定坐标时只使用当前渲染位置，避免在世界加载早期把出生点写入选区状态。
+        return new AreaZone(shape, first == null ? fallback : first, second == null ? fallback : second);
+    }
+
+    static boolean hasPoints() {
+        return first != null && second != null;
     }
 
     public static AreaZone lightingZone() {
