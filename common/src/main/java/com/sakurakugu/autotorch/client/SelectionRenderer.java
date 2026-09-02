@@ -24,6 +24,8 @@ import org.lwjgl.opengl.GL11;
 
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
 public final class SelectionRenderer {
+    private static final double LINE_WIDTH_REFERENCE_DISTANCE = 8.0D;
+    private static final double MIN_LINE_WIDTH = 0.75D;
     private static final int DEPTH_LEQUAL = 0x0203;
     private static final RenderType FACE_RENDER_TYPE = new RenderType(
             "autotorch_selection_faces",
@@ -61,6 +63,9 @@ public final class SelectionRenderer {
     private static final int SELECTION_FACE_COLOR = 0x2850FF70;
     private static final int EXCLUSION_FACE_COLOR = 0x30FF5050;
     private static final int SPHERE_LONGITUDE_SEGMENTS = 24;
+    /** 平滑球体线框中相邻圆环的目标间距（方块）。 */
+    private static final double SMOOTH_SPHERE_LINE_SPACING = 8.0D;
+    private static final int MAX_SMOOTH_SPHERE_RINGS = 41;
     private static final int SPHERE_LATITUDE_SEGMENTS = 12;
     private static final double[] SPHERE_LONGITUDE_COS = new double[SPHERE_LONGITUDE_SEGMENTS + 1];
     private static final double[] SPHERE_LONGITUDE_SIN = new double[SPHERE_LONGITUDE_SEGMENTS + 1];
@@ -142,8 +147,27 @@ public final class SelectionRenderer {
         poseStack.translate(-camera.x(), -camera.y(), -camera.z());
         RenderType renderType = data.displayMode() == SelectionState.DisplayMode.LINES
                 ? RenderType.lines() : FACE_RENDER_TYPE;
+        if (data.displayMode() == SelectionState.DisplayMode.LINES) {
+            RenderSystem.lineWidth(scaledLineWidth(3.0F, camera, data));
+        }
         sink.submit(poseStack, renderType, (pose, buffer) -> renderZones(pose, buffer, data));
         poseStack.popPose();
+    }
+
+    private static float scaledLineWidth(float baseWidth, Vec3 camera, RenderData data) {
+        double distance = Double.POSITIVE_INFINITY;
+        if (data.draft() != null) distance = Math.min(distance, distanceSquared(data.draft().first(), camera));
+        if (data.lightingZone() != null) distance = Math.min(distance, distanceSquared(data.lightingZone().first(), camera));
+        for (AreaZone zone : data.exclusions()) distance = Math.min(distance, distanceSquared(zone.first(), camera));
+        if (distance <= LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE) return baseWidth;
+        return (float) Math.max(MIN_LINE_WIDTH, baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / Math.sqrt(distance));
+    }
+
+    private static double distanceSquared(BlockPos pos, Vec3 camera) {
+        double dx = pos.getX() + 0.5D - camera.x;
+        double dy = pos.getY() + 0.5D - camera.y;
+        double dz = pos.getZ() + 0.5D - camera.z;
+        return dx * dx + dy * dy + dz * dz;
     }
 
     private static void renderZones(PoseStack.Pose pose, VertexConsumer buffer, RenderData data) {
@@ -239,21 +263,36 @@ public final class SelectionRenderer {
         double cy = zone.first().getY() + 0.5;
         double cz = zone.first().getZ() + 0.5;
         double radius = Math.sqrt(zone.radiusSquared()) + 0.5;
+        int rings = smoothSphereRingCount(radius);
+        double ringStep = radius / (rings / 2 + 1.0D);
+        int middle = rings / 2;
         for (int plane = 0; plane < 3; plane++) {
-            for (int segment = 0; segment < SPHERE_LONGITUDE_SEGMENTS; segment++) {
-                double a1 = SPHERE_LONGITUDE_COS[segment] * radius;
-                double b1 = SPHERE_LONGITUDE_SIN[segment] * radius;
-                double a2 = SPHERE_LONGITUDE_COS[segment + 1] * radius;
-                double b2 = SPHERE_LONGITUDE_SIN[segment + 1] * radius;
-                if (plane == 0) {
-                    line(pose, buffer, cx + a1, cy + b1, cz, cx + a2, cy + b2, cz, color, width);
-                } else if (plane == 1) {
-                    line(pose, buffer, cx + a1, cy, cz + b1, cx + a2, cy, cz + b2, color, width);
-                } else {
-                    line(pose, buffer, cx, cy + a1, cz + b1, cx, cy + a2, cz + b2, color, width);
+            for (int ring = 0; ring < rings; ring++) {
+                double offset = (ring - middle) * ringStep;
+                double circleRadius = Math.sqrt(Math.max(0.0D, radius * radius - offset * offset));
+                for (int segment = 0; segment < SPHERE_LONGITUDE_SEGMENTS; segment++) {
+                    double a1 = SPHERE_LONGITUDE_COS[segment] * circleRadius;
+                    double b1 = SPHERE_LONGITUDE_SIN[segment] * circleRadius;
+                    double a2 = SPHERE_LONGITUDE_COS[segment + 1] * circleRadius;
+                    double b2 = SPHERE_LONGITUDE_SIN[segment + 1] * circleRadius;
+                    if (plane == 0) {
+                        line(pose, buffer, cx + a1, cy + b1, cz + offset,
+                                cx + a2, cy + b2, cz + offset, color, width);
+                    } else if (plane == 1) {
+                        line(pose, buffer, cx + a1, cy + offset, cz + b1,
+                                cx + a2, cy + offset, cz + b2, color, width);
+                    } else {
+                        line(pose, buffer, cx + offset, cy + a1, cz + b1,
+                                cx + offset, cy + a2, cz + b2, color, width);
+                    }
                 }
             }
         }
+    }
+
+    private static int smoothSphereRingCount(double radius) {
+        int additionalRings = (int) (radius / SMOOTH_SPHERE_LINE_SPACING);
+        return Math.min(MAX_SMOOTH_SPHERE_RINGS, additionalRings * 2 + 1);
     }
 
     private static void renderSphereFaces(PoseStack.Pose pose, VertexConsumer buffer, AreaZone zone, int color) {
