@@ -44,7 +44,9 @@ public final class AutoTorchRenderTypes {
         private static Method findCreateMethod() throws NoSuchMethodException {
             for (Method method : RenderType.class.getDeclaredMethods()) {
                 Class<?>[] parameters = method.getParameterTypes();
-                if (Modifier.isStatic(method.getModifiers()) && method.getReturnType() == RenderType.class
+                // 1.21.1 中工厂方法的声明返回类型为 RenderType 的子类 CompositeRenderType。
+                if (Modifier.isStatic(method.getModifiers())
+                        && RenderType.class.isAssignableFrom(method.getReturnType())
                         && parameters.length == 7 && parameters[0] == String.class
                         && parameters[1] == VertexFormat.class && parameters[2] == VertexFormat.Mode.class
                         && parameters[3] == int.class && parameters[4] == boolean.class

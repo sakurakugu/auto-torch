@@ -78,6 +78,7 @@ public final class AutoTorchNeoForgeClient {
         var buffers = minecraft.renderBuffers().bufferSource();
         SelectionRenderer.render(camera, event.getPoseStack(), buffers);
         LightOverlayRenderer.render(camera, event.getPoseStack(), buffers);
+        LightOverlayRenderer.endBatches(buffers);
         buffers.endBatch(RenderType.lines());
         buffers.endBatch(RenderType.debugStructureQuads());
     }
