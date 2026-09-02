@@ -20,6 +20,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.NaturalSpawner;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -506,7 +507,9 @@ public final class LightOverlayState {
                 .getMobs(MobCategory.MONSTER).unwrap().stream()
                 .anyMatch(entry -> entry.type == EntityType.DROWNED);
         return drownedInSpawnList
-                && pos.getY() < level.getSeaLevel() - 5;
+                && (level.getBiome(pos).is(Biomes.RIVER)
+                || level.getBiome(pos).is(Biomes.FROZEN_RIVER)
+                || pos.getY() < level.getSeaLevel() - 5);
     }
 
     private static Marker marker(ClientLevel level, BlockPos pos, RiskType riskType) {
