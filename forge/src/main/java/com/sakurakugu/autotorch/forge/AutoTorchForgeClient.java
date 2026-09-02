@@ -64,7 +64,8 @@ final class AutoTorchForgeClient {
         Vec3d origin = new Vec3d(view.lastTickPosX + (view.posX - view.lastTickPosX) * partial, view.lastTickPosY + (view.posY - view.lastTickPosY) * partial, view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partial);
         Vec3d camera = ActiveRenderInfo.projectViewFromEntity(view, partial);
         BlockPos cameraPos = new BlockPos(camera);
-        SelectionRenderer.extract(cameraPos); LightOverlayRenderer.extract();
+        BlockPos selectionFallback = minecraft.player == null ? cameraPos : minecraft.player.getPosition();
+        SelectionRenderer.extract(selectionFallback); LightOverlayRenderer.extract();
         SelectionRenderer.render(origin); LightOverlayRenderer.render(origin);
     }
 }
