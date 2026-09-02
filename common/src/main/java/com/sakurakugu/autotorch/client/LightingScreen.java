@@ -299,21 +299,21 @@ public final class LightingScreen extends Screen {
     }
 
     private EditBox integerBox(int x, int y, int boxWidth, String value) {
-        EditBox box = new EditBox(font, x, y, boxWidth, 20, "");
+        EditBox box = new EditBox(font, x, y, boxWidth, 18, "");
         box.setMaxLength(9);
         box.setValue(value);
         return addRenderableWidget(box);
     }
 
     private EditBox limitBox(int x, int y, int boxWidth, String value) {
-        EditBox box = new EditBox(font, x, y, boxWidth, 20, "");
+        EditBox box = new EditBox(font, x, y, boxWidth, 18, "");
         box.setMaxLength(4);
         box.setValue(value);
         return addRenderableWidget(box);
     }
 
     private EditBox sizeBox(int x, int y, int boxWidth) {
-        EditBox box = new EditBox(font, x, y, boxWidth, 20, "");
+        EditBox box = new EditBox(font, x, y, boxWidth, 18, "");
         box.setMaxLength(9);
         return addRenderableWidget(box);
     }
