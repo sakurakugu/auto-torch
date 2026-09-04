@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.fabric;
 import com.mojang.brigadier.CommandDispatcher;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -92,7 +93,9 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             SelectionRenderer.render(camera, poseStack, buffers);
             LightOverlayRenderer.render(camera, poseStack, buffers);
             // 自定义几何必须在当前相机模型视图仍有效时提交，不能留到共享缓冲区稍后冲刷。
+            LightOverlayRenderer.endBatches(buffers);
             buffers.endBatch(RenderType.lines());
+            buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
             buffers.endBatch(SelectionRenderer.faceRenderType());
         });
     }

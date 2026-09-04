@@ -2,6 +2,7 @@ package com.sakurakugu.autotorch.forge;
 
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.LightOverlayState;
@@ -98,7 +99,9 @@ final class AutoTorchForgeClient {
         var buffers = minecraft.renderBuffers().bufferSource();
         SelectionRenderer.render(camera, poseStack, buffers);
         LightOverlayRenderer.render(camera, poseStack, buffers);
+        LightOverlayRenderer.endBatches(buffers);
         buffers.endBatch(RenderType.lines());
+        buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
         buffers.endBatch(SelectionRenderer.faceRenderType());
     }
 }
