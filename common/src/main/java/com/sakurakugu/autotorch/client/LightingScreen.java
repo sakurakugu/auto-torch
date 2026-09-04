@@ -215,8 +215,9 @@ public final class LightingScreen extends Screen {
                 (lower, upper) -> new ChatComponentTranslation("screen.autotorch.light_overlay_height_value", lower, upper),
                 (lower, upper) -> { LightOverlayState.setDownRange(-lower); LightOverlayState.setUpRange(upper); }));
 
-        swampSlimeDetectionButton = addRenderableWidget(button(left, 306, 153, 20,
-                swampSlimeDetectionMessage(), button -> { }));
+        swampSlimeDetectionButton = addRenderableWidget(withTooltip(button(left, 306, 153, 20,
+                swampSlimeDetectionMessage(), button -> { }),
+                new ChatComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-")));
         swampSlimeDetectionButton.active = false;
         drownedDetectionButton = addRenderableWidget(withTooltip(button(left + 157, 306, 153, 20,
                 drownedDetectionMessage(), button -> {
