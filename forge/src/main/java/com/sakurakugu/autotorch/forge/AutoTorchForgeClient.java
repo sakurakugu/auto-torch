@@ -120,6 +120,7 @@ final class AutoTorchForgeClient {
         var buffers = minecraft.renderBuffers().bufferSource();
         SelectionRenderer.render(camera, poseStack, buffers);
         LightOverlayRenderer.render(camera, poseStack, buffers);
+        LightOverlayRenderer.endBatches(buffers);
         buffers.endBatch(RenderType.lines());
         buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
         buffers.endBatch(SelectionRenderer.faceRenderType());
