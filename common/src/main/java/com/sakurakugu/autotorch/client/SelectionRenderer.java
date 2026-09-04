@@ -21,6 +21,8 @@ import org.lwjgl.opengl.GL11;
 
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
 public final class SelectionRenderer {
+    private static final double LINE_WIDTH_REFERENCE_DISTANCE = 8.0D;
+    private static final double MIN_LINE_WIDTH = 0.75D;
     private static final int DEPTH_LEQUAL = 0x0203;
     private static final int DRAFT_LINE_COLOR = 0xD070A0FF;
     private static final int SELECTION_LINE_COLOR = 0xD050FF70;
@@ -29,6 +31,9 @@ public final class SelectionRenderer {
     private static final int SELECTION_FACE_COLOR = 0x2850FF70;
     private static final int EXCLUSION_FACE_COLOR = 0x30FF5050;
     private static final int SPHERE_LONGITUDE_SEGMENTS = 24;
+    /** 平滑球体线框中相邻圆环的目标间距（方块）。 */
+    private static final double SMOOTH_SPHERE_LINE_SPACING = 8.0D;
+    private static final int MAX_SMOOTH_SPHERE_RINGS = 41;
     private static final int SPHERE_LATITUDE_SEGMENTS = 12;
     private static final double[] SPHERE_LONGITUDE_COS = new double[SPHERE_LONGITUDE_SEGMENTS + 1];
     private static final double[] SPHERE_LONGITUDE_SIN = new double[SPHERE_LONGITUDE_SEGMENTS + 1];
@@ -102,7 +107,7 @@ public final class SelectionRenderer {
             return;
         }
         boolean lines = data.displayMode() == SelectionState.DisplayMode.LINES;
-        setupRenderState(lines);
+        setupRenderState(lines, lines ? scaledLineWidth(3.0F, camera, data) : 1.0F);
         Tessellator tesselator = Tessellator.getInstance();
         WorldRenderer builder = tesselator.getWorldRenderer();
         builder.begin(lines ? GL11.GL_LINES : GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
@@ -113,7 +118,7 @@ public final class SelectionRenderer {
         clearRenderState(lines);
     }
 
-    private static void setupRenderState(boolean lines) {
+    private static void setupRenderState(boolean lines, float lineWidth) {
         GlStateManager.disableTexture();
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
@@ -123,7 +128,7 @@ public final class SelectionRenderer {
         GlStateManager.disableCull();
         GlStateManager.depthMask(false);
         if (lines) {
-            GlStateManager.lineWidth(3.0F);
+            GlStateManager.lineWidth(lineWidth);
         } else {
             // 将贴合方块的选区面略微拉近，避免移动时与方块表面发生深度闪烁。
             GlStateManager.polygonOffset(-1.0F, -10.0F);
@@ -237,21 +242,52 @@ public final class SelectionRenderer {
         double cy = zone.first().getY() + 0.5;
         double cz = zone.first().getZ() + 0.5;
         double radius = Math.sqrt(zone.radiusSquared()) + 0.5;
+        int rings = smoothSphereRingCount(radius);
+        double ringStep = radius / (rings / 2 + 1.0D);
+        int middle = rings / 2;
         for (int plane = 0; plane < 3; plane++) {
-            for (int segment = 0; segment < SPHERE_LONGITUDE_SEGMENTS; segment++) {
-                double a1 = SPHERE_LONGITUDE_COS[segment] * radius;
-                double b1 = SPHERE_LONGITUDE_SIN[segment] * radius;
-                double a2 = SPHERE_LONGITUDE_COS[segment + 1] * radius;
-                double b2 = SPHERE_LONGITUDE_SIN[segment + 1] * radius;
-                if (plane == 0) {
-                    line(pose, buffer, cx + a1, cy + b1, cz, cx + a2, cy + b2, cz, color, width);
-                } else if (plane == 1) {
-                    line(pose, buffer, cx + a1, cy, cz + b1, cx + a2, cy, cz + b2, color, width);
-                } else {
-                    line(pose, buffer, cx, cy + a1, cz + b1, cx, cy + a2, cz + b2, color, width);
+            for (int ring = 0; ring < rings; ring++) {
+                double offset = (ring - middle) * ringStep;
+                double circleRadius = Math.sqrt(Math.max(0.0D, radius * radius - offset * offset));
+                for (int segment = 0; segment < SPHERE_LONGITUDE_SEGMENTS; segment++) {
+                    double a1 = SPHERE_LONGITUDE_COS[segment] * circleRadius;
+                    double b1 = SPHERE_LONGITUDE_SIN[segment] * circleRadius;
+                    double a2 = SPHERE_LONGITUDE_COS[segment + 1] * circleRadius;
+                    double b2 = SPHERE_LONGITUDE_SIN[segment + 1] * circleRadius;
+                    if (plane == 0) {
+                        line(pose, buffer, cx + a1, cy + b1, cz + offset,
+                                cx + a2, cy + b2, cz + offset, color, width);
+                    } else if (plane == 1) {
+                        line(pose, buffer, cx + a1, cy + offset, cz + b1,
+                                cx + a2, cy + offset, cz + b2, color, width);
+                    } else {
+                        line(pose, buffer, cx + offset, cy + a1, cz + b1,
+                                cx + offset, cy + a2, cz + b2, color, width);
+                    }
                 }
             }
         }
+    }
+
+    private static float scaledLineWidth(float baseWidth, Vec3 camera, RenderData data) {
+        double distance = Double.POSITIVE_INFINITY;
+        if (data.draft() != null) distance = Math.min(distance, distanceSquared(data.draft().first(), camera));
+        if (data.lightingZone() != null) distance = Math.min(distance, distanceSquared(data.lightingZone().first(), camera));
+        for (AreaZone zone : data.exclusions()) distance = Math.min(distance, distanceSquared(zone.first(), camera));
+        if (distance <= LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE) return baseWidth;
+        return (float) Math.max(MIN_LINE_WIDTH, baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / Math.sqrt(distance));
+    }
+
+    private static double distanceSquared(BlockPos pos, Vec3 camera) {
+        double dx = pos.getX() + 0.5D - camera.xCoord;
+        double dy = pos.getY() + 0.5D - camera.yCoord;
+        double dz = pos.getZ() + 0.5D - camera.zCoord;
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private static int smoothSphereRingCount(double radius) {
+        int additionalRings = (int) (radius / SMOOTH_SPHERE_LINE_SPACING);
+        return Math.min(MAX_SMOOTH_SPHERE_RINGS, additionalRings * 2 + 1);
     }
 
     private static void renderSphereFaces(Pose pose, VertexConsumer buffer, AreaZone zone, int color) {
