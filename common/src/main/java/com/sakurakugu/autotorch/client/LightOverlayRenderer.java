@@ -64,8 +64,8 @@ public final class LightOverlayRenderer {
             // 方框数字样式：数字平面置于方框内部，方框单独使用线段渲染以保持清晰边界。
             ResourceLocation numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
-            RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
-                    ? RenderType.textSeeThrough(numberTexture) : RenderType.text(numberTexture);
+            RenderType numberRenderType = AutoTorchRenderTypes.numbers(
+                    numberTexture, ClientConfig.isLightOverlayRenderThrough());
             renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
@@ -78,6 +78,11 @@ public final class LightOverlayRenderer {
                     ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                     (pose, buffer) -> submitLines(pose, buffer, data, camera));
         }
+    }
+
+    /** 在当前世界渲染阶段结束数字批次，避免共享缓冲区延迟提交到错误的相机矩阵。 */
+    public static void endBatches(MultiBufferSource.BufferSource buffers) {
+        AutoTorchRenderTypes.endNumberBatches(buffers);
     }
 
     private static void renderGeometry(
