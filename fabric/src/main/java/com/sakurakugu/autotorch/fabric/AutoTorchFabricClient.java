@@ -28,6 +28,9 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 public final class AutoTorchFabricClient implements ClientModInitializer {
     private CommandDispatcher<SharedSuggestionProvider> suggestionCommands;
@@ -38,6 +41,22 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
                 FabricLoader.getInstance().getConfigDir().resolve("autotorch-client.toml"),
                 ConfigDefinitions.CLIENT);
         ClientConfig.install(clientConfig);
+        LightOverlayRenderer.setDrownedMarkerVisibility((level, camera, marker) -> {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft.player == null) {
+                return false;
+            }
+            Vec3 target = new Vec3(
+                    marker.pos().getX() + 0.5D,
+                    marker.pos().getY() + 0.0125D,
+                    marker.pos().getZ() + 0.5D
+            );
+            // 忽略流体进行射线检测，使水下标记可以穿过水面，但实体方块仍会遮挡标记。
+            return level.clip(new ClipContext(
+                    camera, target, ClipContext.Block.COLLIDER,
+                    ClipContext.Fluid.NONE, minecraft.player
+            )).getType() == HitResult.Type.MISS;
+        });
         ClientLifecycleEvents.CLIENT_STOPPING.register(minecraft -> {
             clientConfig.close();
             AutoTorchFabric.closeServerConfig();

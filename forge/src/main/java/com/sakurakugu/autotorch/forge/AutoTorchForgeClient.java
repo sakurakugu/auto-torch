@@ -54,6 +54,11 @@ final class AutoTorchForgeClient {
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
         ClientConfig.install(ForgeConfigs.CLIENT);
+        LightOverlayRenderer.setDrownedMarkerVisibility((level, camera, marker) -> {
+            Minecraft minecraft = Minecraft.getInstance();
+            return minecraft.player != null
+                    && isVisibleDrownedMarker(minecraft, camera, minecraft.player, marker);
+        });
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
 
