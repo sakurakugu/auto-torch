@@ -78,13 +78,13 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             var camera = context.camera().getPosition();
             SelectionRenderer.extract(context.camera().getBlockPosition());
             LightOverlayRenderer.extract();
-            // 1.20.6 在此阶段不提供矩阵栈，需要显式应用视图旋转并使用相机相对坐标。
+            // 顶点已经在通用渲染器中转换为相机相对坐标；此阶段不要再次乘相机矩阵。
             PoseStack poseStack = new PoseStack();
-            poseStack.mulPose(context.positionMatrix());
             var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
             SelectionRenderer.render(camera, poseStack, buffers);
             LightOverlayRenderer.render(camera, poseStack, buffers);
             // 自定义几何必须在当前相机模型视图仍有效时提交，不能留到共享缓冲区稍后冲刷。
+            AutoTorchRenderTypes.endBatches(buffers);
             buffers.endBatch(RenderType.lines());
             buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
             buffers.endBatch(SelectionRenderer.faceRenderType());

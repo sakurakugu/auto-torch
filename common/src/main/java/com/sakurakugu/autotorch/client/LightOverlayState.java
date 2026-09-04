@@ -13,6 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
 import net.minecraft.core.SectionPos;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.FluidTags;
@@ -22,6 +23,8 @@ import net.minecraft.world.entity.SpawnPlacementTypes;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
@@ -498,17 +501,26 @@ public final class LightOverlayState {
     ) {
         if (level.getBrightness(LightLayer.BLOCK, pos) != 0
                 || !state.getFluidState().is(FluidTags.WATER)
-                || !belowState.getFluidState().is(FluidTags.WATER)
-                || !SpawnPlacementTypes.IN_WATER.isSpawnPositionOk(level, pos, EntityType.DROWNED)) {
+                || !belowState.getFluidState().is(FluidTags.WATER)) {
             return false;
         }
 
-        boolean drownedInSpawnList = level.getBiome(pos).value().getMobSettings()
+        // 1.20.6 客户端扫描时水中放置规则可能误判，水体条件已在上方完整检查。
+        Holder<Biome> biome = level.getBiome(pos);
+        return biomeAllowsDrowned(biome)
+                && (biome.is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
+                || pos.getY() < level.getSeaLevel() - 5);
+    }
+
+    private static boolean biomeAllowsDrowned(Holder<Biome> biome) {
+        boolean drownedInSpawnList = biome.value().getMobSettings()
                 .getMobs(MobCategory.MONSTER).unwrap().stream()
                 .anyMatch(entry -> entry.type == EntityType.DROWNED);
+        // 客户端可能未同步生物群系怪物生成表，使用原版生物群系标签补足判定。
         return drownedInSpawnList
-                && (level.getBiome(pos).is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
-                || pos.getY() < level.getSeaLevel() - 5);
+                || biome.is(BiomeTags.IS_OCEAN)
+                || biome.is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)
+                || biome.is(Biomes.DRIPSTONE_CAVES);
     }
 
     private static Marker marker(ClientLevel level, BlockPos pos, RiskType riskType) {
