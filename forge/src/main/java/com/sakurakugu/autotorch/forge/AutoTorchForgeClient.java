@@ -19,6 +19,9 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -45,6 +48,22 @@ final class AutoTorchForgeClient {
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
         ClientConfig.install(ForgeConfigs.CLIENT);
+        LightOverlayRenderer.setDrownedMarkerVisibility((level, camera, marker) -> {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft.player == null) {
+                return false;
+            }
+            Vec3 target = new Vec3(
+                    marker.pos().getX() + 0.5D,
+                    marker.pos().getY() + 0.0125D,
+                    marker.pos().getZ() + 0.5D
+            );
+            // 忽略流体进行射线检测，使水下标记可以穿过水面，但实体方块仍会遮挡标记。
+            return level.clip(new ClipContext(
+                    camera, target, ClipContext.Block.COLLIDER,
+                    ClipContext.Fluid.NONE, minecraft.player
+            )).getType() == HitResult.Type.MISS;
+        });
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
         context.registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
 
