@@ -219,17 +219,16 @@ public final class LightingScreen extends Screen {
                     LightOverlayState.setDownRange(-lower);
                     LightOverlayState.setUpRange(upper);
                 }));
-        swampSlimeDetectionButton = addRenderableWidget(button(swampSlimeDetectionMessage(), button -> {
-            LightOverlayState.toggleSwampSlimeDetection();
-            swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
-        }).bounds(left, 306, 153, 20)
-                .tooltip(new TranslatableComponent("screen.autotorch.swamp_slime_detection.tooltip"))
+        swampSlimeDetectionButton = addRenderableWidget(button(swampSlimeDetectionMessage(), button -> { })
+                .bounds(left, 306, 153, 20)
+                .tooltip(new TranslatableComponent("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-"))
                 .build());
+        swampSlimeDetectionButton.active = false;
         drownedDetectionButton = addRenderableWidget(button(drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage());
         }).bounds(left + 157, 306, 153, 20)
-                .tooltip(new TranslatableComponent("screen.autotorch.drowned_detection.tooltip"))
+                .tooltip(new TranslatableComponent("screen.autotorch.drowned_detection.tooltip.1.17.1-1.13.2"))
                 .build());
 
         nearbyAutoTorchButton = addRenderableWidget(button(nearbyAutoTorchMessage(), button -> {
@@ -890,9 +889,7 @@ public final class LightingScreen extends Screen {
     }
 
     private Component swampSlimeDetectionMessage() {
-        return new TranslatableComponent(LightOverlayState.isSwampSlimeDetectionEnabled()
-                ? "screen.autotorch.swamp_slime_detection_on"
-                : "screen.autotorch.swamp_slime_detection_off");
+        return new TranslatableComponent("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-");
     }
 
     private Component drownedDetectionMessage() {
