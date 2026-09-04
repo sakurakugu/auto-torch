@@ -1,19 +1,21 @@
 package com.sakurakugu.autotorch.client;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.OptionalDouble;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.resources.ResourceLocation;
 
-/** 创建透视线框使用的无深度测试渲染类型。 */
+/** 创建线框渲染使用的自定义线宽和透视状态。 */
 public final class AutoTorchRenderTypes {
     private static final Map<Integer, RenderType> LINES = new HashMap<>();
     private static final Map<Integer, RenderType> SEE_THROUGH_LINES = new HashMap<>();
+    private static final Map<ResourceLocation, RenderType> NUMBERS = new HashMap<>();
+    private static final Map<ResourceLocation, RenderType> SEE_THROUGH_NUMBERS = new HashMap<>();
 
     private AutoTorchRenderTypes() {
     }
@@ -40,6 +42,50 @@ public final class AutoTorchRenderTypes {
         }
     }
 
+    /** 创建数字纹理渲染类型，显式设置深度状态以保证透视开关在各加载器上一致。 */
+    public static RenderType numbers(ResourceLocation texture, boolean seeThrough) {
+        Map<ResourceLocation, RenderType> renderTypes = seeThrough ? SEE_THROUGH_NUMBERS : NUMBERS;
+        return renderTypes.computeIfAbsent(texture, key -> createNumbers(key, seeThrough));
+    }
+
+    public static void endNumberBatches(MultiBufferSource.BufferSource buffers) {
+        for (RenderType renderType : NUMBERS.values()) {
+            buffers.endBatch(renderType);
+        }
+        for (RenderType renderType : SEE_THROUGH_NUMBERS.values()) {
+            buffers.endBatch(renderType);
+        }
+    }
+
+    private static RenderType createNumbers(ResourceLocation texture, boolean seeThrough) {
+        return new RenderType(
+                seeThrough ? "autotorch_see_through_numbers" : "autotorch_numbers",
+                DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS, 256, false, true,
+                () -> {
+                    RenderSystem.setShader(seeThrough
+                            ? GameRenderer::getRendertypeTextSeeThroughShader
+                            : GameRenderer::getRendertypeTextShader);
+                    RenderSystem.setShaderTexture(0, texture);
+                    RenderSystem.enableBlend();
+                    RenderSystem.defaultBlendFunc();
+                    if (seeThrough) {
+                        RenderSystem.disableDepthTest();
+                    } else {
+                        RenderSystem.enableDepthTest();
+                        RenderSystem.depthFunc(org.lwjgl.opengl.GL11.GL_LEQUAL);
+                    }
+                    RenderSystem.depthMask(false);
+                    RenderSystem.disableCull();
+                },
+                () -> {
+                    RenderSystem.depthMask(true);
+                    RenderSystem.enableDepthTest();
+                    RenderSystem.enableCull();
+                    RenderSystem.disableBlend();
+                }
+        ) {};
+    }
+
     /** 旧版本将复合渲染状态及其预设声明为 protected，只能经由子类访问。 */
     private static final class RenderTypeAccess extends RenderType {
         private RenderTypeAccess() {
@@ -48,46 +94,32 @@ public final class AutoTorchRenderTypes {
         }
 
         private static RenderType createLines(float width, boolean seeThrough) {
-            CompositeState.CompositeStateBuilder builder = CompositeState.builder()
-                    .setShaderState(RENDERTYPE_LINES_SHADER)
-                    .setLineState(new LineStateShard(OptionalDouble.of(width)))
-                    .setCullState(NO_CULL);
-            if (seeThrough) {
-                builder.setTransparencyState(TRANSLUCENT_TRANSPARENCY)
-                        .setDepthTestState(NO_DEPTH_TEST).setWriteMaskState(COLOR_WRITE);
-            } else {
-                // 与原版 RenderType.lines() 保持相同状态，仅替换固定线宽。
-                builder.setLayeringState(VIEW_OFFSET_Z_LAYERING)
-                        .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
-                        .setOutputState(ITEM_ENTITY_TARGET).setWriteMaskState(COLOR_DEPTH_WRITE);
-            }
-            CompositeState state = builder.createCompositeState(false);
-            try {
-                Method create = findCreateMethod();
-                return (RenderType) create.invoke(null,
-                        seeThrough ? "autotorch_see_through_lines" : "autotorch_lines",
-                        DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINES, 1536, false, false,
-                        state);
-            } catch (ReflectiveOperationException | SecurityException exception) {
-                // 某些加载器会在 RenderType 加载后才初始化 Mixin，反射失败时退回原版线框。
-                System.err.println("Auto Torch 无法创建透视渲染类型，将使用普通线框: " + exception);
-                return RenderType.lines();
-            }
-        }
-
-        private static Method findCreateMethod() throws NoSuchMethodException {
-            for (Method method : RenderType.class.getDeclaredMethods()) {
-                Class<?>[] parameters = method.getParameterTypes();
-                if (Modifier.isStatic(method.getModifiers()) && RenderType.class.isAssignableFrom(method.getReturnType())
-                        && parameters.length == 7 && parameters[0] == String.class
-                        && parameters[1] == VertexFormat.class && parameters[2] == VertexFormat.Mode.class
-                        && parameters[3] == int.class && parameters[4] == boolean.class
-                        && parameters[5] == boolean.class && parameters[6] == CompositeState.class) {
-                    method.setAccessible(true);
-                    return method;
-                }
-            }
-            throw new NoSuchMethodException("RenderType.create factory");
+            return new RenderType(
+                    seeThrough ? "autotorch_see_through_lines" : "autotorch_lines",
+                    DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINES, 1536, false, false,
+                    () -> {
+                        RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+                        RenderSystem.lineWidth(width);
+                        RenderSystem.enableBlend();
+                        RenderSystem.defaultBlendFunc();
+                        if (seeThrough) {
+                            RenderSystem.disableDepthTest();
+                            RenderSystem.depthMask(false);
+                        } else {
+                            RenderSystem.enableDepthTest();
+                            RenderSystem.depthFunc(org.lwjgl.opengl.GL11.GL_LEQUAL);
+                            RenderSystem.depthMask(true);
+                        }
+                        RenderSystem.disableCull();
+                    },
+                    () -> {
+                        RenderSystem.lineWidth(1.0F);
+                        RenderSystem.depthMask(true);
+                        RenderSystem.enableDepthTest();
+                        RenderSystem.enableCull();
+                        RenderSystem.disableBlend();
+                    }
+            ) {};
         }
     }
 }

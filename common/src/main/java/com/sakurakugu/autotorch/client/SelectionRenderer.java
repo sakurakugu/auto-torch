@@ -28,28 +28,8 @@ public final class SelectionRenderer {
     private static final double LINE_WIDTH_REFERENCE_DISTANCE_SQUARED =
             LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE;
     private static final double MIN_LINE_WIDTH = 0.75D;
-    private static final RenderType FACE_RENDER_TYPE = new RenderType(
-            "autotorch_selection_faces",
-            DefaultVertexFormat.POSITION_COLOR,
-            VertexFormat.Mode.QUADS,
-            1536,
-            false,
-            true,
-            () -> {
-                RenderSystem.setShader(GameRenderer::getPositionColorShader);
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.enableDepthTest();
-                RenderSystem.depthFunc(GL11.GL_LEQUAL);
-                RenderSystem.disableCull();
-                RenderSystem.depthMask(false);
-            },
-            () -> {
-                RenderSystem.depthMask(true);
-                RenderSystem.enableCull();
-                RenderSystem.disableBlend();
-            }
-    ) {};
+    private static final RenderType FACE_RENDER_TYPE = createFaceRenderType(false);
+    private static final RenderType SEE_THROUGH_FACE_RENDER_TYPE = createFaceRenderType(true);
     private static final int DRAFT_LINE_COLOR = 0xD070A0FF;
     private static final int SELECTION_LINE_COLOR = 0xD050FF70;
     private static final int EXCLUSION_LINE_COLOR = 0xD0FF5050;
@@ -100,6 +80,36 @@ public final class SelectionRenderer {
     private SelectionRenderer() {
     }
 
+    private static RenderType createFaceRenderType(boolean seeThrough) {
+        return new RenderType(
+                seeThrough ? "autotorch_selection_faces_see_through" : "autotorch_selection_faces",
+                DefaultVertexFormat.POSITION_COLOR,
+                VertexFormat.Mode.QUADS,
+                1536,
+                false,
+                true,
+                () -> {
+                    RenderSystem.setShader(GameRenderer::getPositionColorShader);
+                    RenderSystem.enableBlend();
+                    RenderSystem.defaultBlendFunc();
+                    if (seeThrough) {
+                        RenderSystem.disableDepthTest();
+                    } else {
+                        RenderSystem.enableDepthTest();
+                        RenderSystem.depthFunc(GL11.GL_LEQUAL);
+                    }
+                    RenderSystem.disableCull();
+                    RenderSystem.depthMask(false);
+                },
+                () -> {
+                    RenderSystem.depthMask(true);
+                    RenderSystem.enableDepthTest();
+                    RenderSystem.enableCull();
+                    RenderSystem.disableBlend();
+                }
+        ) {};
+    }
+
     public static void extract(BlockPos fallback) {
         long revision = SelectionState.renderRevision();
         if (renderData != null && renderRevision == revision) {
@@ -144,7 +154,8 @@ public final class SelectionRenderer {
         }
         poseStack.pushPose();
         // 顶点在提交时转换为相机相对坐标，避免大世界坐标分别转 float 后再相减造成精度损失。
-        RenderType renderType = FACE_RENDER_TYPE;
+        RenderType renderType = ClientConfig.isLightOverlayRenderThrough()
+                ? SEE_THROUGH_FACE_RENDER_TYPE : FACE_RENDER_TYPE;
         sink.submit(poseStack, renderType, (pose, buffer) -> renderZones(pose, buffer, data, camera));
         poseStack.popPose();
     }
@@ -182,8 +193,9 @@ public final class SelectionRenderer {
         if (zone.shape() == AreaShape.SPHERE && zone.radiusSquared() > MAX_SPHERE_RADIUS_SQUARED) {
             return;
         }
+        boolean seeThrough = ClientConfig.isLightOverlayRenderThrough();
         LineBufferProvider lineBuffers = lineWidth ->
-                buffers.getBuffer(AutoTorchRenderTypes.lines(lineWidth, false));
+                buffers.getBuffer(AutoTorchRenderTypes.lines(lineWidth, seeThrough));
         if (zone.shape() == AreaShape.SPHERE) {
             if (data.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY) {
                 renderBlockySphereLines(pose, lineBuffers, zone,
@@ -593,7 +605,7 @@ public final class SelectionRenderer {
     }
 
     public static RenderType faceRenderType() {
-        return FACE_RENDER_TYPE;
+        return ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_FACE_RENDER_TYPE : FACE_RENDER_TYPE;
     }
 
     @FunctionalInterface

@@ -69,7 +69,7 @@ public final class LightOverlayRenderer {
             ResourceLocation numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
             RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
-                    ? RenderType.textSeeThrough(numberTexture) : RenderType.text(numberTexture);
+                    ? AutoTorchRenderTypes.numbers(numberTexture, true) : RenderType.text(numberTexture);
             renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
@@ -77,6 +77,20 @@ public final class LightOverlayRenderer {
             }
         } else {
             renderLines(camera, poseStack, buffers, data);
+        }
+    }
+
+    /** 结束数字纹理批次，确保顶点在当前世界渲染矩阵仍有效时提交。 */
+    public static void endBatches(MultiBufferSource.BufferSource buffers) {
+        RenderData data = renderData;
+        if (data == null || data.displayMode() == LightOverlayState.DisplayMode.CROSSES) {
+            return;
+        }
+        if (ClientConfig.isLightOverlayRenderThrough()) {
+            AutoTorchRenderTypes.endNumberBatches(buffers);
+        } else {
+            buffers.endBatch(RenderType.text(NUMBER_TEXTURE));
+            buffers.endBatch(RenderType.text(MEDIUM_NUMBER_TEXTURE));
         }
     }
 

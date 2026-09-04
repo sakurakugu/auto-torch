@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -24,6 +25,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.world.InteractionResult;
 
@@ -76,11 +78,17 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             var camera = context.camera().getPosition();
             SelectionRenderer.extract(context.camera().getBlockPosition());
             LightOverlayRenderer.extract();
-            // AFTER_ENTITIES 已进入本帧相机模型视图矩阵，使用 Fabric 提供的矩阵栈和缓冲区。
+            // AFTER_ENTITIES 使用原版矩阵栈；相机视图旋转已经由全局模型视图矩阵应用。
             PoseStack poseStack = context.matrixStack();
-            var buffers = context.consumers();
+            var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
             SelectionRenderer.render(camera, poseStack, buffers);
             LightOverlayRenderer.render(camera, poseStack, buffers);
+            // 自定义几何必须在当前相机矩阵仍有效时提交，避免共享缓冲区延迟冲刷。
+            LightOverlayRenderer.endBatches(buffers);
+            AutoTorchRenderTypes.endBatches(buffers);
+            buffers.endBatch(RenderType.lines());
+            buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
+            buffers.endBatch(SelectionRenderer.faceRenderType());
         });
     }
 
