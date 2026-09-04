@@ -65,7 +65,7 @@ public final class LightOverlayRenderer {
             ResourceLocation numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
             RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
-                    ? RenderType.textSeeThrough(numberTexture) : RenderType.text(numberTexture);
+                    ? AutoTorchRenderTypes.seeThroughNumbers(numberTexture) : RenderType.text(numberTexture);
             renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
@@ -78,6 +78,13 @@ public final class LightOverlayRenderer {
                     ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                     (pose, buffer) -> submitLines(pose, buffer, data, camera));
         }
+    }
+
+    /** 在当前世界渲染阶段结束数字批次，避免共享缓冲区延迟提交到错误的相机矩阵。 */
+    public static void endBatches(MultiBufferSource.BufferSource buffers) {
+        buffers.endBatch(RenderType.text(NUMBER_TEXTURE));
+        buffers.endBatch(RenderType.text(MEDIUM_NUMBER_TEXTURE));
+        AutoTorchRenderTypes.endSeeThroughNumberBatches(buffers);
     }
 
     private static void renderGeometry(
