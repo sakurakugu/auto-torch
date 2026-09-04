@@ -4,7 +4,6 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
-import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -25,7 +24,6 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.world.InteractionResult;
 
@@ -74,20 +72,15 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             return InteractionResult.PASS;
         });
 
-        WorldRenderEvents.BEFORE_ENTITIES.register(context -> {
+        WorldRenderEvents.AFTER_ENTITIES.register(context -> {
             var camera = context.camera().getPosition();
             SelectionRenderer.extract(context.camera().getBlockPosition());
             LightOverlayRenderer.extract();
-            // 顶点已经在通用渲染器中转换为相机相对坐标；此阶段不要再次乘相机矩阵。
-            PoseStack poseStack = new PoseStack();
-            var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+            // AFTER_ENTITIES 已进入本帧相机模型视图矩阵，使用 Fabric 提供的矩阵栈和缓冲区。
+            PoseStack poseStack = context.matrixStack();
+            var buffers = context.consumers();
             SelectionRenderer.render(camera, poseStack, buffers);
             LightOverlayRenderer.render(camera, poseStack, buffers);
-            // 自定义几何必须在当前相机模型视图仍有效时提交，不能留到共享缓冲区稍后冲刷。
-            AutoTorchRenderTypes.endBatches(buffers);
-            buffers.endBatch(RenderType.lines());
-            buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
-            buffers.endBatch(SelectionRenderer.faceRenderType());
         });
     }
 
