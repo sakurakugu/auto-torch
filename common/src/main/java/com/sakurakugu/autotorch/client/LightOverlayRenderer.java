@@ -39,9 +39,16 @@ public final class LightOverlayRenderer {
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = Collections.emptyList();
     private static Map<Long, ColumnRenderData> columnGeometry = Collections.emptyMap();
     private static volatile RenderData renderData;
+    private static volatile RenderData drownedRenderData;
+    private static DrownedMarkerVisibility drownedMarkerVisibility = (level, camera, marker) -> false;
     private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
+    }
+
+    public static void setDrownedMarkerVisibility(DrownedMarkerVisibility visibility) {
+        drownedMarkerVisibility = visibility == null
+                ? (level, camera, marker) -> false : visibility;
     }
 
     public static void extract() {
@@ -54,6 +61,7 @@ public final class LightOverlayRenderer {
             return;
         }
         renderData = buildRenderData(columns, displayMode);
+        drownedRenderData = buildDrownedRenderData(columns, displayMode);
     }
 
     public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource buffers) {
@@ -79,6 +87,29 @@ public final class LightOverlayRenderer {
                     ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
                     (pose, buffer) -> submitLines(pose, buffer, data, camera));
         }
+
+        if (!ClientConfig.isLightOverlayRenderThrough()) {
+            RenderData drowned = visibleDrownedData(camera, data.displayMode());
+            if (drowned != null && drowned.renderableCount() > 0) {
+                RenderType type = data.displayMode() == LightOverlayState.DisplayMode.CROSSES
+                        ? SEE_THROUGH_LINES
+                        : AutoTorchRenderTypes.seeThroughNumbers(
+                                data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
+                                        ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE);
+                renderGeometry(drowned, camera, poseStack, buffers.getBuffer(type),
+                        (pose, buffer) -> {
+                            if (data.displayMode() == LightOverlayState.DisplayMode.CROSSES) {
+                                submitLines(pose, buffer, drowned, camera);
+                            } else {
+                                submitNumbers(pose, buffer, drowned, camera);
+                            }
+                        });
+                if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
+                    renderGeometry(drowned, camera, poseStack, buffers.getBuffer(SEE_THROUGH_LINES),
+                            (pose, buffer) -> submitLines(pose, buffer, drowned, camera));
+                }
+            }
+        }
     }
 
     /** 在当前世界渲染阶段结束数字批次，避免共享缓冲区延迟提交到错误的相机矩阵。 */
@@ -91,7 +122,12 @@ public final class LightOverlayRenderer {
     private static void renderGeometry(
             Vec3 camera, PoseStack poseStack, VertexConsumer buffer, GeometryRenderer renderer
     ) {
-        RenderData data = renderData;
+        renderGeometry(renderData, camera, poseStack, buffer, renderer);
+    }
+
+    private static void renderGeometry(
+            RenderData data, Vec3 camera, PoseStack poseStack, VertexConsumer buffer, GeometryRenderer renderer
+    ) {
         if (data == null || data.renderableCount() == 0 || Minecraft.getInstance().level == null) {
             return;
         }
@@ -102,10 +138,66 @@ public final class LightOverlayRenderer {
         poseStack.popPose();
     }
 
+    private static RenderData buildDrownedRenderData(
+            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
+    ) {
+        List<LightOverlayState.MarkerColumn> drownedColumns = new ArrayList<>();
+        for (LightOverlayState.MarkerColumn column : columns) {
+            List<LightOverlayState.Marker> drownedMarkers = new ArrayList<>();
+            for (LightOverlayState.Marker marker : column.markers()) {
+                if (marker.riskType() == LightOverlayState.RiskType.DROWNED) {
+                    drownedMarkers.add(marker);
+                }
+            }
+            if (!drownedMarkers.isEmpty()) {
+                drownedColumns.add(new LightOverlayState.MarkerColumn(
+                        column.key(), column.minY(),
+                        Collections.unmodifiableList(new ArrayList<LightOverlayState.Marker>(drownedMarkers))));
+            }
+        }
+        return buildRenderData(
+                Collections.unmodifiableList(new ArrayList<LightOverlayState.MarkerColumn>(drownedColumns)),
+                displayMode, false);
+    }
+
+    private static RenderData visibleDrownedData(Vec3 camera, LightOverlayState.DisplayMode displayMode) {
+        RenderData source = drownedRenderData;
+        Minecraft minecraft = Minecraft.getInstance();
+        if (source == null || minecraft.level == null || minecraft.player == null) {
+            return null;
+        }
+
+        List<LightOverlayState.MarkerColumn> columns = new ArrayList<>();
+        for (LightOverlayState.MarkerColumn column : source.sourceColumns()) {
+            List<LightOverlayState.Marker> visibleMarkers = new ArrayList<>();
+            for (LightOverlayState.Marker marker : column.markers()) {
+                // 忽略流体进行射线检测，使水下标记可以穿过水面，但实体方块仍会遮挡标记。
+                if (drownedMarkerVisibility.isVisible(minecraft.level, camera, marker)) {
+                    visibleMarkers.add(marker);
+                }
+            }
+            if (!visibleMarkers.isEmpty()) {
+                columns.add(new LightOverlayState.MarkerColumn(
+                        column.key(), column.minY(),
+                        Collections.unmodifiableList(new ArrayList<LightOverlayState.Marker>(visibleMarkers))));
+            }
+        }
+        return buildRenderData(
+                Collections.unmodifiableList(new ArrayList<LightOverlayState.MarkerColumn>(columns)), displayMode, false);
+    }
+
     private static RenderData buildRenderData(
             List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
     ) {
-        Map<Long, ColumnRenderData> previousGeometry = columnGeometry;
+        return buildRenderData(columns, displayMode, true);
+    }
+
+    private static RenderData buildRenderData(
+            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode,
+            boolean cacheGeometry
+    ) {
+        Map<Long, ColumnRenderData> previousGeometry = cacheGeometry
+                ? columnGeometry : Collections.<Long, ColumnRenderData>emptyMap();
         Map<Long, ColumnRenderData> nextGeometry = new HashMap<>(columns.size());
         List<ColumnRenderData> visibleGeometry = new ArrayList<>(columns.size());
         int totalLines = 0;
@@ -121,7 +213,9 @@ public final class LightOverlayRenderer {
             totalLines += geometry.lineCount();
             totalQuads += geometry.numberQuads().size();
         }
-        columnGeometry = nextGeometry;
+        if (cacheGeometry) {
+            columnGeometry = nextGeometry;
+        }
         return new RenderData(columns, displayMode,
                 Collections.unmodifiableList(new ArrayList<ColumnRenderData>(visibleGeometry)), totalLines, totalQuads);
     }
