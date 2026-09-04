@@ -171,7 +171,11 @@ public final class LightOverlayRenderer {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
                 GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        GlStateManager.enableDepthTest();
+        if (ClientConfig.isLightOverlayRenderThrough()) {
+            GlStateManager.disableDepthTest();
+        } else {
+            GlStateManager.enableDepthTest();
+        }
         GlStateManager.depthMask(false);
         GlStateManager.disableCull();
         GlStateManager.lineWidth(CROSS_LINE_WIDTH);
@@ -183,11 +187,7 @@ public final class LightOverlayRenderer {
         GlStateManager.depthMask(true);
         GlStateManager.disableBlend();
         GlStateManager.enableTexture();
-        if (ClientConfig.isLightOverlayRenderThrough()) {
-            GlStateManager.disableDepthTest();
-        } else {
-            GlStateManager.enableDepthTest();
-        }
+        GlStateManager.enableDepthTest();
     }
 
     private static void setupNumberRenderState(boolean waterVisible, LightOverlayState.DisplayMode displayMode) {
@@ -195,7 +195,7 @@ public final class LightOverlayRenderer {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
                 GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        if (waterVisible) {
+        if (waterVisible || ClientConfig.isLightOverlayRenderThrough()) {
             GlStateManager.disableDepthTest();
         } else {
             GlStateManager.enableDepthTest();
@@ -211,11 +211,7 @@ public final class LightOverlayRenderer {
     private static void clearNumberRenderState(boolean waterVisible) {
         GlStateManager.enableCull();
         GlStateManager.depthMask(true);
-        if (ClientConfig.isLightOverlayRenderThrough()) {
-            GlStateManager.disableDepthTest();
-        } else {
-            GlStateManager.enableDepthTest();
-        }
+        GlStateManager.enableDepthTest();
         GlStateManager.disableBlend();
         GlStateManager.enableTexture();
     }
