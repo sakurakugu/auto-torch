@@ -140,6 +140,7 @@ final class AutoTorchForgeClient {
         SelectionRenderer.render(camera, poseStack, buffers);
         LightOverlayRenderer.render(camera, poseStack, buffers);
         LightOverlayRenderer.endBatches(buffers);
+        AutoTorchRenderTypes.endBatches(buffers);
         buffers.endBatch(RenderType.lines());
         buffers.endBatch(AutoTorchRenderTypes.seeThroughLines());
         buffers.endBatch(SelectionRenderer.faceRenderType());
