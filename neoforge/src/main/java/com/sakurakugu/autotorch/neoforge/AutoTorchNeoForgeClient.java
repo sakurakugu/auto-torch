@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.neoforge;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -79,6 +80,7 @@ public final class AutoTorchNeoForgeClient {
         SelectionRenderer.render(camera, event.getPoseStack(), buffers);
         LightOverlayRenderer.render(camera, event.getPoseStack(), buffers);
         LightOverlayRenderer.endBatches(buffers, camera);
+        AutoTorchRenderTypes.endLineBatches(buffers);
         buffers.endBatch(RenderType.lines());
         buffers.endBatch(RenderType.debugStructureQuads());
     }

@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -84,6 +85,7 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
             SelectionRenderer.render(camera, poseStack, buffers);
             LightOverlayRenderer.render(camera, poseStack, buffers);
             LightOverlayRenderer.endBatches(buffers, camera);
+            AutoTorchRenderTypes.endLineBatches(buffers);
             // 在当前相机矩阵仍有效时冲刷自定义几何，避免延迟提交导致位置漂移。
             buffers.endBatch(RenderType.lines());
             buffers.endBatch(RenderType.debugStructureQuads());

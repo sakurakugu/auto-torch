@@ -8,6 +8,7 @@ import java.util.OptionalDouble;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.MultiBufferSource;
 
 /** 创建带固定线宽的覆盖层线框渲染类型。 */
 public final class AutoTorchRenderTypes {
@@ -22,6 +23,16 @@ public final class AutoTorchRenderTypes {
         Map<Integer, RenderType> renderTypes = seeThrough ? SEE_THROUGH_LINES : LINES;
         return renderTypes.computeIfAbsent(widthKey,
                 ignored -> RenderTypeAccess.createLines(widthKey / 100.0F, seeThrough));
+    }
+
+    /** 在相机矩阵仍有效时提交选区线框的全部线宽批次。 */
+    public static void endLineBatches(MultiBufferSource.BufferSource buffers) {
+        for (RenderType renderType : LINES.values()) {
+            buffers.endBatch(renderType);
+        }
+        for (RenderType renderType : SEE_THROUGH_LINES.values()) {
+            buffers.endBatch(renderType);
+        }
     }
 
     /** 旧版本将复合渲染状态及其预设声明为 protected，只能经由子类访问。 */
