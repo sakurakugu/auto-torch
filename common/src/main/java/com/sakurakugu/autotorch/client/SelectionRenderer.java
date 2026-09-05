@@ -154,9 +154,7 @@ public final class SelectionRenderer {
         }
         poseStack.pushPose();
         // 顶点在提交时转换为相机相对坐标，避免大世界坐标分别转 float 后再相减造成精度损失。
-        RenderType renderType = ClientConfig.isLightOverlayRenderThrough()
-                ? SEE_THROUGH_FACE_RENDER_TYPE : FACE_RENDER_TYPE;
-        sink.submit(poseStack, renderType, (pose, buffer) -> renderZones(pose, buffer, data, camera));
+        sink.submit(poseStack, FACE_RENDER_TYPE, (pose, buffer) -> renderZones(pose, buffer, data, camera));
         poseStack.popPose();
     }
 
@@ -193,9 +191,8 @@ public final class SelectionRenderer {
         if (zone.shape() == AreaShape.SPHERE && zone.radiusSquared() > MAX_SPHERE_RADIUS_SQUARED) {
             return;
         }
-        boolean seeThrough = ClientConfig.isLightOverlayRenderThrough();
         LineBufferProvider lineBuffers = lineWidth ->
-                buffers.getBuffer(AutoTorchRenderTypes.lines(lineWidth, seeThrough));
+                buffers.getBuffer(AutoTorchRenderTypes.lines(lineWidth, false));
         if (zone.shape() == AreaShape.SPHERE) {
             if (data.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY) {
                 renderBlockySphereLines(pose, lineBuffers, zone,
@@ -605,7 +602,7 @@ public final class SelectionRenderer {
     }
 
     public static RenderType faceRenderType() {
-        return ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_FACE_RENDER_TYPE : FACE_RENDER_TYPE;
+        return FACE_RENDER_TYPE;
     }
 
     @FunctionalInterface
