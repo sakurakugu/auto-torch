@@ -41,7 +41,6 @@ public final class LightOverlayRenderer {
     private static volatile RenderData renderData;
     private static volatile RenderData drownedRenderData;
     private static DrownedMarkerVisibility drownedMarkerVisibility = (level, camera, marker) -> false;
-    private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
     }
@@ -78,35 +77,26 @@ public final class LightOverlayRenderer {
             renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                renderGeometry(camera, poseStack, buffers.getBuffer(
-                        ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
-                        (pose, buffer) -> submitLines(pose, buffer, data, camera));
+                renderLines(camera, poseStack, buffers, data, ClientConfig.isLightOverlayRenderThrough());
             }
         } else {
-            renderGeometry(camera, poseStack, buffers.getBuffer(
-                    ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
-                    (pose, buffer) -> submitLines(pose, buffer, data, camera));
+            renderLines(camera, poseStack, buffers, data, ClientConfig.isLightOverlayRenderThrough());
         }
 
         if (!ClientConfig.isLightOverlayRenderThrough()) {
             RenderData drowned = visibleDrownedData(camera, data.displayMode());
             if (drowned != null && drowned.renderableCount() > 0) {
-                RenderType type = data.displayMode() == LightOverlayState.DisplayMode.CROSSES
-                        ? SEE_THROUGH_LINES
-                        : AutoTorchRenderTypes.seeThroughNumbers(
-                                data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
-                                        ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE);
-                renderGeometry(drowned, camera, poseStack, buffers.getBuffer(type),
-                        (pose, buffer) -> {
-                            if (data.displayMode() == LightOverlayState.DisplayMode.CROSSES) {
-                                submitLines(pose, buffer, drowned, camera);
-                            } else {
-                                submitNumbers(pose, buffer, drowned, camera);
-                            }
-                        });
-                if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                    renderGeometry(drowned, camera, poseStack, buffers.getBuffer(SEE_THROUGH_LINES),
-                            (pose, buffer) -> submitLines(pose, buffer, drowned, camera));
+                if (data.displayMode() == LightOverlayState.DisplayMode.CROSSES) {
+                    renderLines(camera, poseStack, buffers, drowned, true);
+                } else {
+                    RenderType type = AutoTorchRenderTypes.seeThroughNumbers(
+                            data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
+                                    ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE);
+                    renderGeometry(drowned, camera, poseStack, buffers.getBuffer(type),
+                            (pose, buffer) -> submitNumbers(pose, buffer, drowned, camera));
+                    if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
+                        renderLines(camera, poseStack, buffers, drowned, true);
+                    }
                 }
             }
         }
@@ -117,6 +107,19 @@ public final class LightOverlayRenderer {
         buffers.endBatch(RenderType.text(NUMBER_TEXTURE));
         buffers.endBatch(RenderType.text(MEDIUM_NUMBER_TEXTURE));
         AutoTorchRenderTypes.endSeeThroughNumberBatches(buffers);
+    }
+
+    private static void renderLines(
+            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderData data, boolean seeThrough
+    ) {
+        if (data == null || data.renderableCount() == 0 || Minecraft.getInstance().level == null) {
+            return;
+        }
+        LineBufferProvider lineBuffers = width ->
+                buffers.getBuffer(AutoTorchRenderTypes.lines(width, seeThrough));
+        poseStack.pushPose();
+        submitLines(poseStack.last(), lineBuffers, data, camera);
+        poseStack.popPose();
     }
 
     private static void renderGeometry(
@@ -282,7 +285,7 @@ public final class LightOverlayRenderer {
         };
     }
 
-    private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
+    private static void submitLines(PoseStack.Pose pose, LineBufferProvider buffers, RenderData data, Vec3 camera) {
         for (ColumnRenderData column : data.columns()) {
             double[] coordinates = column.coordinates();
             int[] colors = column.colors();
@@ -293,7 +296,7 @@ public final class LightOverlayRenderer {
                 double x2 = coordinates[offset + 3] - camera.x();
                 double y2 = coordinates[offset + 4] - camera.y();
                 double z2 = coordinates[offset + 5] - camera.z();
-                line(pose, buffer, x1, y1, z1, x2, y2, z2, colors[line]);
+                line(pose, buffers, x1, y1, z1, x2, y2, z2, colors[line]);
             }
         }
     }
@@ -333,17 +336,18 @@ public final class LightOverlayRenderer {
     }
 
     private static void line(
-            PoseStack.Pose pose, VertexConsumer buffer,
+            PoseStack.Pose pose, LineBufferProvider buffers,
             double x1, double y1, double z1, double x2, double y2, double z2,
             int color
     ) {
-        float nx = (float) (x2 - x1);
-        float ny = (float) (y2 - y1);
-        float nz = (float) (z2 - z1);
+        VertexConsumer buffer = buffers.get(LineWidthScaler.scale(1.0F,
+                x1 * x1 + y1 * y1 + z1 * z1,
+                x2 * x2 + y2 * y2 + z2 * z2,
+                x1 * x2 + y1 * y2 + z1 * z2));
         buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1)
-                .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).normal(pose.normal(), nx, ny, nz).endVertex();
+                .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).endVertex();
         buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2)
-                .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).normal(pose.normal(), nx, ny, nz).endVertex();
+                .color((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF, color >>> 24).endVertex();
     }
 
     private record RenderData(
@@ -362,6 +366,11 @@ public final class LightOverlayRenderer {
     }
 
     private record NumberQuad(double x, double y, double z, int value, int color, float size) {
+    }
+
+    @FunctionalInterface
+    private interface LineBufferProvider {
+        VertexConsumer get(float width);
     }
 
     private static final class GeometryBuilder {
