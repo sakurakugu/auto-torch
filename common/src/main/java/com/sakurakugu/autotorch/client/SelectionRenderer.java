@@ -129,8 +129,8 @@ public final class SelectionRenderer {
             return;
         }
         poseStack.pushPose();
-        boolean seeThrough = ClientConfig.isLightOverlayRenderThrough();
-        LineBufferProvider lineBuffers = width -> buffers.getBuffer(AutoTorchRenderTypes.lines(width, seeThrough));
+        // 选区始终受深度测试，不能跟随光照显示的透视设置。
+        LineBufferProvider lineBuffers = width -> buffers.getBuffer(AutoTorchRenderTypes.lines(width, false));
         renderLineZones(poseStack.last(), lineBuffers, data, camera);
         poseStack.popPose();
     }
