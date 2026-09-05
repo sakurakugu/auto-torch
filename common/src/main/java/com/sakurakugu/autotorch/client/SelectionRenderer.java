@@ -159,9 +159,8 @@ public final class SelectionRenderer {
             return;
         }
         poseStack.pushPose();
-        boolean seeThrough = ClientConfig.isLightOverlayRenderThrough();
         LineBufferProvider lineBuffers = width ->
-                buffers.getBuffer(AutoTorchRenderTypes.lines(width, seeThrough));
+                buffers.getBuffer(AutoTorchRenderTypes.lines(width, false));
         renderLineZones(poseStack.last(), lineBuffers, data, camera);
         poseStack.popPose();
     }
