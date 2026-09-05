@@ -178,6 +178,8 @@ def notify(results, errors, collected_at, previous_results):
         if name in results and name in previous_results
     ]
     title = "Auto Torch 数据统计"
+    if errors:
+        title += "（有错误）"
     if comparable_downloads:
         title += f"（下载量{sum(comparable_downloads):+d}）"
 
