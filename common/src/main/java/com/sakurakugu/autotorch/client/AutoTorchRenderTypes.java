@@ -14,15 +14,34 @@ import net.minecraft.resources.ResourceLocation;
 /** 创建线框与数字渲染使用的明确深度状态。 */
 public final class AutoTorchRenderTypes {
     private static final int DEPTH_LEQUAL = 0x0203;
+    private static final Map<Integer, RenderType> LINES = new HashMap<>();
+    private static final Map<Integer, RenderType> SEE_THROUGH_LINES = new HashMap<>();
     private static final Map<ResourceLocation, RenderType> NUMBERS = new HashMap<>();
     private static final Map<ResourceLocation, RenderType> SEE_THROUGH_NUMBERS = new HashMap<>();
-    private static final RenderType SEE_THROUGH_LINES = createLines(true);
 
     private AutoTorchRenderTypes() {
     }
 
     public static RenderType seeThroughLines() {
-        return SEE_THROUGH_LINES;
+        return lines(1.0F, true);
+    }
+
+    /** 根据线宽缓存渲染类型，使每条线段能够独立按距离缩放。 */
+    public static RenderType lines(float width, boolean seeThrough) {
+        int widthKey = Math.round(width * 100.0F);
+        Map<Integer, RenderType> renderTypes = seeThrough ? SEE_THROUGH_LINES : LINES;
+        return renderTypes.computeIfAbsent(widthKey,
+                ignored -> createLines(widthKey / 100.0F, seeThrough));
+    }
+
+    /** 在相机模型视图矩阵仍有效时结束全部线段批次。 */
+    public static void endBatches(MultiBufferSource.BufferSource buffers) {
+        for (RenderType renderType : LINES.values()) {
+            buffers.endBatch(renderType);
+        }
+        for (RenderType renderType : SEE_THROUGH_LINES.values()) {
+            buffers.endBatch(renderType);
+        }
     }
 
     /** 创建数字纹理渲染类型，显式设置深度状态以保证两个加载器行为一致。 */
@@ -78,9 +97,9 @@ public final class AutoTorchRenderTypes {
         ) { };
     }
 
-    private static RenderType createLines(boolean seeThrough) {
+    private static RenderType createLines(float width, boolean seeThrough) {
         return new RenderType(
-                "autotorch_light_overlay_see_through_lines",
+                seeThrough ? "autotorch_see_through_lines" : "autotorch_lines",
                 DefaultVertexFormat.POSITION_COLOR_NORMAL,
                 VertexFormat.Mode.LINES,
                 1536,
@@ -88,6 +107,7 @@ public final class AutoTorchRenderTypes {
                 false,
                 () -> {
                     RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+                    RenderSystem.lineWidth(width);
                     RenderSystem.enableBlend();
                     RenderSystem.defaultBlendFunc();
                     if (seeThrough) {
@@ -100,6 +120,7 @@ public final class AutoTorchRenderTypes {
                     RenderSystem.disableCull();
                 },
                 () -> {
+                    RenderSystem.lineWidth(1.0F);
                     RenderSystem.depthMask(true);
                     RenderSystem.enableDepthTest();
                     RenderSystem.enableCull();

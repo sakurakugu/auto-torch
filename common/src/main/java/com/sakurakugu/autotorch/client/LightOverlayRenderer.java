@@ -26,6 +26,11 @@ public final class LightOverlayRenderer {
     private static final int SAFE_COLOR = 0xE050E060;
     private static final int SWAMP_SLIME_RISK_COLOR = 0xE0E050E0;
     private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
+    private static final float CROSS_LINE_WIDTH = 2.5F;
+    private static final float LINE_WIDTH_REFERENCE_DISTANCE = 8.0F;
+    private static final double LINE_WIDTH_REFERENCE_DISTANCE_SQUARED =
+            LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE;
+    private static final float MIN_LINE_WIDTH = 0.75F;
     private static final double SURFACE_OFFSET = 0.0125D;
     private static final double CROSS_MARGIN = 0.14D;
     // 图集中的字形已在 64x64 单元格内居中。
@@ -38,7 +43,6 @@ public final class LightOverlayRenderer {
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
-    private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
     }
@@ -69,14 +73,10 @@ public final class LightOverlayRenderer {
             renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                renderGeometry(camera, poseStack, buffers.getBuffer(
-                        ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
-                        (pose, buffer) -> submitLines(pose, buffer, data, camera));
+                renderLines(camera, poseStack, buffers, data);
             }
         } else {
-            renderGeometry(camera, poseStack, buffers.getBuffer(
-                    ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
-                    (pose, buffer) -> submitLines(pose, buffer, data, camera));
+            renderLines(camera, poseStack, buffers, data);
         }
     }
 
@@ -183,7 +183,15 @@ public final class LightOverlayRenderer {
         };
     }
 
-    private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
+    private static void renderLines(
+            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderData data
+    ) {
+        if (data.renderableCount() == 0 || Minecraft.getInstance().level == null) {
+            return;
+        }
+        boolean seeThrough = ClientConfig.isLightOverlayRenderThrough();
+        poseStack.pushPose();
+        PoseStack.Pose pose = poseStack.last();
         for (ColumnRenderData column : data.columns()) {
             double[] coordinates = column.coordinates();
             int[] colors = column.colors();
@@ -194,9 +202,27 @@ public final class LightOverlayRenderer {
                 double x2 = coordinates[offset + 3] - camera.x();
                 double y2 = coordinates[offset + 4] - camera.y();
                 double z2 = coordinates[offset + 5] - camera.z();
+                float width = scaledLineWidth(CROSS_LINE_WIDTH, x1, y1, z1, x2, y2, z2);
+                VertexConsumer buffer = buffers.getBuffer(AutoTorchRenderTypes.lines(width, seeThrough));
                 line(pose, buffer, x1, y1, z1, x2, y2, z2, colors[line]);
             }
         }
+        poseStack.popPose();
+    }
+
+    private static float scaledLineWidth(float baseWidth,
+                                         double x1, double y1, double z1,
+                                         double x2, double y2, double z2) {
+        double x = (x1 + x2) * 0.5D;
+        double y = (y1 + y2) * 0.5D;
+        double z = (z1 + z2) * 0.5D;
+        double distanceSquared = x * x + y * y + z * z;
+        if (distanceSquared <= LINE_WIDTH_REFERENCE_DISTANCE_SQUARED) {
+            return baseWidth;
+        }
+        double distance = Math.sqrt(distanceSquared);
+        return Math.max(MIN_LINE_WIDTH,
+                (float) (baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / distance));
     }
 
     private static void submitNumbers(
