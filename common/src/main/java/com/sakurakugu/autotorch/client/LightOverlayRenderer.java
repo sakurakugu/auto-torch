@@ -38,8 +38,6 @@ public final class LightOverlayRenderer {
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
-    private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
-
     private LightOverlayRenderer() {
     }
 
@@ -69,14 +67,10 @@ public final class LightOverlayRenderer {
             renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                renderGeometry(camera, poseStack, buffers.getBuffer(
-                        ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
-                        (pose, buffer) -> submitLines(pose, buffer, data, camera));
+                renderLines(camera, poseStack, buffers, data);
             }
         } else {
-            renderGeometry(camera, poseStack, buffers.getBuffer(
-                    ClientConfig.isLightOverlayRenderThrough() ? SEE_THROUGH_LINES : RenderType.lines()),
-                    (pose, buffer) -> submitLines(pose, buffer, data, camera));
+            renderLines(camera, poseStack, buffers, data);
         }
     }
 
@@ -96,6 +90,20 @@ public final class LightOverlayRenderer {
         poseStack.pushPose();
         // 顶点在提交时先转换为相机相对坐标，避免大世界坐标分别转 float 后再相减造成精度损失。
         renderer.render(poseStack.last(), buffer);
+        poseStack.popPose();
+    }
+
+    private static void renderLines(
+            Vec3 camera, PoseStack poseStack, MultiBufferSource buffers, RenderData data
+    ) {
+        if (data.renderableCount() == 0 || Minecraft.getInstance().level == null) {
+            return;
+        }
+        boolean seeThrough = ClientConfig.isLightOverlayRenderThrough();
+        LineBufferProvider lineBuffers = width ->
+                buffers.getBuffer(AutoTorchRenderTypes.lines(width, seeThrough));
+        poseStack.pushPose();
+        submitLines(poseStack.last(), lineBuffers, data, camera);
         poseStack.popPose();
     }
 
@@ -183,18 +191,17 @@ public final class LightOverlayRenderer {
         };
     }
 
-    private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
+    private static void submitLines(
+            PoseStack.Pose pose, LineBufferProvider buffers, RenderData data, Vec3 camera
+    ) {
         for (ColumnRenderData column : data.columns()) {
             double[] coordinates = column.coordinates();
             int[] colors = column.colors();
             for (int line = 0, offset = 0; line < column.lineCount(); line++, offset += 6) {
-                double x1 = coordinates[offset] - camera.x();
-                double y1 = coordinates[offset + 1] - camera.y();
-                double z1 = coordinates[offset + 2] - camera.z();
-                double x2 = coordinates[offset + 3] - camera.x();
-                double y2 = coordinates[offset + 4] - camera.y();
-                double z2 = coordinates[offset + 5] - camera.z();
-                line(pose, buffer, x1, y1, z1, x2, y2, z2, colors[line]);
+                line(pose, buffers,
+                        coordinates[offset], coordinates[offset + 1], coordinates[offset + 2],
+                        coordinates[offset + 3], coordinates[offset + 4], coordinates[offset + 5],
+                        colors[line], camera);
             }
         }
     }
@@ -227,13 +234,23 @@ public final class LightOverlayRenderer {
     }
 
     private static void line(
-            PoseStack.Pose pose, VertexConsumer buffer,
+            PoseStack.Pose pose, LineBufferProvider buffers,
             double x1, double y1, double z1, double x2, double y2, double z2,
-            int color
+            int color, Vec3 camera
     ) {
+        x1 -= camera.x();
+        y1 -= camera.y();
+        z1 -= camera.z();
+        x2 -= camera.x();
+        y2 -= camera.y();
+        z2 -= camera.z();
         float nx = (float) (x2 - x1);
         float ny = (float) (y2 - y1);
         float nz = (float) (z2 - z1);
+        VertexConsumer buffer = buffers.get(LineWidthScaler.scale(1.0F,
+                x1 * x1 + y1 * y1 + z1 * z1,
+                x2 * x2 + y2 * y2 + z2 * z2,
+                x1 * x2 + y1 * y2 + z1 * z2));
         buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1)
                 .color(color).normal(pose.normal(), nx, ny, nz).endVertex();
         buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2)
@@ -313,5 +330,10 @@ public final class LightOverlayRenderer {
     @FunctionalInterface
     private interface GeometryRenderer {
         void render(PoseStack.Pose pose, VertexConsumer buffer);
+    }
+
+    @FunctionalInterface
+    private interface LineBufferProvider {
+        VertexConsumer get(float width);
     }
 }
