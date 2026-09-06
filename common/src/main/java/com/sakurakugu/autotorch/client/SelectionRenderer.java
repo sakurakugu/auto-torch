@@ -55,6 +55,7 @@ public final class SelectionRenderer {
     };
     private static volatile RenderData renderData;
     private static long renderRevision = Long.MIN_VALUE;
+    private static Vec3d activeLineCamera;
 
     static {
         for (int longitude = 0; longitude <= SPHERE_LONGITUDE_SEGMENTS; longitude++) {
@@ -105,16 +106,30 @@ public final class SelectionRenderer {
         if (data == null || data.draft() == null && data.lightingZone() == null && data.exclusions().isEmpty()) {
             return;
         }
-        boolean lines = data.displayMode() == SelectionState.DisplayMode.LINES;
-        setupRenderState(lines, lines ? scaledLineWidth(3.0F, camera, data) : 1.0F);
+        if (data.displayMode() == SelectionState.DisplayMode.LINES) {
+            renderLineGeometry(camera, data);
+            return;
+        }
+        setupRenderState(false, 1.0F);
         Tessellator tesselator = Tessellator.getInstance();
         BufferBuilder builder = tesselator.getBuffer();
-        builder.begin(lines ? GL11.GL_LINES : GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
+        builder.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
         builder.setTranslation(-camera.x, -camera.y, -camera.z);
         renderZones(Pose.INSTANCE, new VertexConsumer(builder), data);
         tesselator.draw();
         builder.setTranslation(0.0D, 0.0D, 0.0D);
-        clearRenderState(lines);
+        clearRenderState(false);
+    }
+
+    private static void renderLineGeometry(Vec3d camera, RenderData data) {
+        setupRenderState(true, 1.0F);
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(-camera.x, -camera.y, -camera.z);
+        activeLineCamera = camera;
+        renderZones(Pose.INSTANCE, null, data);
+        activeLineCamera = null;
+        GlStateManager.popMatrix();
+        clearRenderState(true);
     }
 
     private static void setupRenderState(boolean lines, float lineWidth) {
@@ -522,6 +537,23 @@ public final class SelectionRenderer {
             double x1, double y1, double z1, double x2, double y2, double z2,
             int color, float width
     ) {
+        if (buffer == null) {
+            Vec3d camera = activeLineCamera;
+            double rx1 = x1 - camera.x, ry1 = y1 - camera.y, rz1 = z1 - camera.z;
+            double rx2 = x2 - camera.x, ry2 = y2 - camera.y, rz2 = z2 - camera.z;
+            float scaledWidth = LineWidthScaler.scale(width,
+                    rx1 * rx1 + ry1 * ry1 + rz1 * rz1,
+                    rx2 * rx2 + ry2 * ry2 + rz2 * rz2,
+                    rx1 * rx2 + ry1 * ry2 + rz1 * rz2);
+            GlStateManager.lineWidth(scaledWidth);
+            GL11.glBegin(GL11.GL_LINES);
+            GL11.glColor4ub((byte) ((color >> 16) & 0xFF), (byte) ((color >> 8) & 0xFF),
+                    (byte) (color & 0xFF), (byte) ((color >>> 24) & 0xFF));
+            GL11.glVertex3d(x1, y1, z1);
+            GL11.glVertex3d(x2, y2, z2);
+            GL11.glEnd();
+            return;
+        }
         applyColor(buffer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1), color)
                 .endVertex();
         applyColor(buffer.vertex(pose.pose(), (float) x2, (float) y2, (float) z2), color)
@@ -610,6 +642,9 @@ public final class SelectionRenderer {
         private static void disableCull() { GL11.glDisable(GL11.GL_CULL_FACE); }
         private static void enableCull() { GL11.glEnable(GL11.GL_CULL_FACE); }
         private static void lineWidth(float width) { GL11.glLineWidth(width); }
+        private static void pushMatrix() { GL11.glPushMatrix(); }
+        private static void popMatrix() { GL11.glPopMatrix(); }
+        private static void translate(double x, double y, double z) { GL11.glTranslated(x, y, z); }
         private static void polygonOffset(float factor, float units) { GL11.glPolygonOffset(factor, units); }
         private static void enablePolygonOffset() { GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL); }
         private static void disablePolygonOffset() { GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL); }
