@@ -1,5 +1,6 @@
 package com.sakurakugu.autotorch.client;
 
+import com.sakurakugu.autotorch.AutoTorchRules;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
@@ -162,6 +163,7 @@ public final class LightingScreen extends Screen {
         int configuredMaxTorches = effectiveDefaultMaxTorches();
         maxTorches = limitBox(left + 70, 160, 42,
                 configuredMaxTorches == 0 ? "∞" : Integer.toString(configuredMaxTorches));
+        // 1.17.1 没有 Tooltip API，间距滑块的提示由滑块自身写入本界面的工具提示表。
         addRenderableWidget(new MinSpacingSlider(left + 120, 160, 100, 20));
         addRenderableWidget(new AreaLightThresholdSlider(left + 224, 160, 86, 20));
 
@@ -756,6 +758,11 @@ public final class LightingScreen extends Screen {
                 Math.min(ServerConfigState.maxSpacing(), ClientConfig.defaultMinSpacing()));
     }
 
+    private static int effectiveSecondPassSpacing() {
+        return AutoTorchRules.secondPassSpacing(effectiveDefaultMinSpacing(),
+                ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing());
+    }
+
     private static boolean isCreativePlayer() {
         return Minecraft.getInstance().player != null && Minecraft.getInstance().player.isCreative();
     }
@@ -1041,6 +1048,14 @@ public final class LightingScreen extends Screen {
             drawCenteredString(poseStack, font, error, width / 2, informationY, 0xFFFF6060);
         } else if (!rangeMessage.getString().isEmpty()) {
             drawCenteredString(poseStack, font, rangeMessage, width / 2, informationY, 0xFFFFC060);
+        } else if (!AutoTorchRules.canTorchMeetLightThreshold(ClientConfig.defaultTaskLightThreshold())) {
+            drawCenteredString(poseStack, font, new TranslatableComponent("screen.autotorch.light_threshold_unreachable",
+                    ClientConfig.defaultTaskLightThreshold()), width / 2, informationY, 0xFFFF6060);
+        } else if (ServerConfigState.minSpacing() > AutoTorchRules.maxSafeSecondPassSpacing(
+                ClientConfig.defaultTaskLightThreshold())) {
+            drawCenteredString(poseStack, font, new TranslatableComponent("screen.autotorch.second_pass_spacing_limited",
+                    effectiveSecondPassSpacing(), ClientConfig.defaultTaskLightThreshold()),
+                    width / 2, informationY, 0xFFFFC060);
         } else {
             drawString(poseStack, font, new TranslatableComponent("screen.autotorch.zone_summary",
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()),
@@ -1174,7 +1189,7 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    private static final class MinSpacingSlider extends AbstractSliderButton {
+    private final class MinSpacingSlider extends AbstractSliderButton {
         private MinSpacingSlider(int x, int y, int width, int height) {
             super(x, y, width, height, TextComponent.EMPTY, toSliderValue(effectiveDefaultMinSpacing()));
             updateMessage();
@@ -1182,7 +1197,12 @@ public final class LightingScreen extends Screen {
 
         @Override
         protected void updateMessage() {
-            setMessage(new TranslatableComponent("screen.autotorch.min_spacing", spacing()));
+            int spacing = spacing();
+            setMessage(new TranslatableComponent("screen.autotorch.min_spacing", spacing));
+            // 1.18.2 没有 Tooltip API，改用本界面的工具提示表。
+            tooltips.put(this, new TranslatableComponent("screen.autotorch.min_spacing.tooltip.dynamic",
+                    spacing, AutoTorchRules.secondPassSpacing(spacing,
+                            ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing())));
         }
 
         @Override
