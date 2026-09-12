@@ -2,6 +2,8 @@ package com.sakurakugu.autotorch;
 
 /** 可独立测试的任务与刷新策略。 */
 public final class AutoTorchRules {
+    private static final int TORCH_LIGHT_LEVEL = 14;
+
     private AutoTorchRules() {
     }
 
@@ -17,6 +19,42 @@ public final class AutoTorchRules {
             throw new IllegalArgumentException("Value must be non-negative and divisor must be positive");
         }
         return value / divisor + (value % divisor == 0 ? 0 : 1);
+    }
+
+    /**
+     * 返回第二轮补点间距的安全上限，避免尚未达到目标亮度的位置被间距规则跳过。
+     *
+     * <p>方块光每沿一个坐标轴传播一格就减一。将距离尽可能平均分配到三轴时，
+     * 可得到仍会低于或等于阈值的位置所具有的最小三维直线距离。</p>
+     */
+    public static int maxSafeSecondPassSpacing(int lightThreshold) {
+        if (lightThreshold < 0) {
+            throw new IllegalArgumentException("Light threshold must be non-negative");
+        }
+        if (lightThreshold >= TORCH_LIGHT_LEVEL) {
+            return 1;
+        }
+
+        int distance = TORCH_LIGHT_LEVEL - lightThreshold;
+        int base = distance / 3;
+        int remainder = distance % 3;
+        int minimumSquaredDistance = base * base * 3
+                + remainder * (base * 2 + 1);
+        return (int) Math.sqrt(minimumSquaredDistance);
+    }
+
+    /** 返回在服务端间距下限约束后的第二轮实际间距。 */
+    public static int secondPassSpacing(int configuredSpacing, int lightThreshold, int minimumSpacing) {
+        if (configuredSpacing < 1 || minimumSpacing < 1) {
+            throw new IllegalArgumentException("Spacing must be positive");
+        }
+        int requestedSpacing = Math.max(1, configuredSpacing / 2);
+        return Math.max(minimumSpacing, Math.min(requestedSpacing, maxSafeSecondPassSpacing(lightThreshold)));
+    }
+
+    /** 火把最高能提供 14 级方块光，因此只有更高的目标无法满足。 */
+    public static boolean canTorchMeetLightThreshold(int lightThreshold) {
+        return lightThreshold <= TORCH_LIGHT_LEVEL;
     }
 
     public static boolean boxesIntersect(

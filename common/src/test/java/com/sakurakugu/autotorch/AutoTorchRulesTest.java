@@ -31,6 +31,22 @@ final class AutoTorchRulesTest {
     }
 
     @Test
+    void limitsSecondPassSpacingForTheRequestedLightLevel() {
+        assertEquals(8, AutoTorchRules.maxSafeSecondPassSpacing(0));
+        assertEquals(4, AutoTorchRules.maxSafeSecondPassSpacing(7));
+        assertEquals(3, AutoTorchRules.maxSafeSecondPassSpacing(9));
+        assertEquals(2, AutoTorchRules.maxSafeSecondPassSpacing(10));
+        assertEquals(1, AutoTorchRules.maxSafeSecondPassSpacing(11));
+        assertEquals(1, AutoTorchRules.maxSafeSecondPassSpacing(15));
+
+        assertEquals(3, AutoTorchRules.secondPassSpacing(8, 9, 1));
+        assertEquals(1, AutoTorchRules.secondPassSpacing(8, 11, 1));
+        assertEquals(4, AutoTorchRules.secondPassSpacing(8, 11, 4));
+        assertTrue(AutoTorchRules.canTorchMeetLightThreshold(14));
+        assertFalse(AutoTorchRules.canTorchMeetLightThreshold(15));
+    }
+
+    @Test
     void identifiesDisjointExclusionBounds() {
         assertTrue(AutoTorchRules.boxesIntersect(
                 0, 0, 0, 10, 10, 10,
