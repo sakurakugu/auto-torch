@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
+import com.sakurakugu.autotorch.AutoTorchRules;
 import com.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -264,7 +265,8 @@ final class LightingTask {
     }
 
     private int currentSpacing() {
-        return pass == 0 ? configuredSpacing : Math.max(ServerConfig.minSpacing(), configuredSpacing / 2);
+        return pass == 0 ? configuredSpacing
+                : AutoTorchRules.secondPassSpacing(configuredSpacing, lightThreshold, ServerConfig.minSpacing());
     }
 
     private boolean farEnoughFromPlaced(BlockPos pos, int spacing) {
