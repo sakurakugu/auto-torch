@@ -220,15 +220,20 @@ public final class LightingScreen extends Screen {
         swampSlimeDetectionButton = addRenderableWidget(button(swampSlimeDetectionMessage(), button -> {
             LightOverlayState.toggleSwampSlimeDetection();
             swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
-        }).bounds(left, 306, 153, 20)
+        }).bounds(left, 306, 116, 20)
                 .tooltip(Component.translatable("screen.autotorch.swamp_slime_detection.tooltip"))
                 .build());
         drownedDetectionButton = addRenderableWidget(button(drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage());
-        }).bounds(left + 157, 306, 153, 20)
+        }).bounds(left + 120, 306, 102, 20)
                 .tooltip(Component.translatable("screen.autotorch.drowned_detection.tooltip"))
                 .build());
+        addRenderableWidget(button(Component.translatable("screen.autotorch.more_settings"), button -> {
+            saveSelection();
+            saveTaskDefaults();
+            minecraft.setScreen(new LightOverlaySettingsScreen(this));
+        }).bounds(left + 226, 306, 84, 20).build());
 
         nearbyAutoTorchButton = addRenderableWidget(button(nearbyAutoTorchMessage(), button -> {
             ClientConfig.setNearbyAutoTorchEnabled(!ClientConfig.isNearbyAutoTorchEnabled());
