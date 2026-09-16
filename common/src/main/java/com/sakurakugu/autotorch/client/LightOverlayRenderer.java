@@ -11,6 +11,7 @@ import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 
@@ -58,6 +59,9 @@ public final class LightOverlayRenderer {
         if (data == null) {
             return;
         }
+        Direction numberDirection = ClientConfig.rotatesLightOverlayNumbers()
+                ? Direction.fromYRot(Minecraft.getInstance().gameRenderer.getMainCamera().getYRot())
+                : Direction.NORTH;
         if (data.displayMode() != LightOverlayState.DisplayMode.CROSSES) {
             // 方框数字样式：数字平面置于方框内部，方框单独使用线段渲染以保持清晰边界。
             ResourceLocation numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
@@ -65,13 +69,14 @@ public final class LightOverlayRenderer {
             RenderType numberRenderType = AutoTorchRenderTypes.numbers(
                     numberTexture, ClientConfig.isLightOverlayRenderThrough());
             renderGeometry(camera, poseStack, buffers.getBuffer(numberRenderType),
-                    (pose, buffer) -> submitNumbers(pose, buffer, data, camera));
+                    (pose, buffer) -> submitNumbers(pose, buffer, data, camera, numberDirection));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
                 renderLines(camera, poseStack, buffers, data);
             }
         } else {
             renderLines(camera, poseStack, buffers, data);
         }
+
     }
 
     /** 在当前世界渲染阶段结束数字批次，避免共享缓冲区延迟提交到错误的相机矩阵。 */
@@ -165,8 +170,9 @@ public final class LightOverlayRenderer {
     private static void addNumber(GeometryBuilder geometry, LightOverlayState.Marker marker, boolean boxed) {
         geometry.addNumber(marker.pos().getX() + NUMBER_OFFSET_X,
                 marker.pos().getY() + SURFACE_OFFSET,
-                marker.pos().getZ() + (boxed ? BOXED_NUMBER_OFFSET_Z : NUMBER_OFFSET_Z),
-                marker.blockLight(), markerColor(marker), boxed ? (float) NUMBER_SIZE : 1.0F);
+                marker.pos().getZ() + BOXED_NUMBER_OFFSET_Z,
+                marker.blockLight(), markerColor(marker), boxed ? (float) NUMBER_SIZE : 1.0F,
+                boxed ? 0.0F : (float) NUMBER_OFFSET_Z);
     }
 
     private static void addNumberBox(GeometryBuilder geometry, LightOverlayState.Marker marker) {
@@ -207,32 +213,59 @@ public final class LightOverlayRenderer {
     }
 
     private static void submitNumbers(
-            PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera
+            PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera, Direction direction
     ) {
         for (ColumnRenderData column : data.columns()) {
             for (NumberQuad quad : column.numberQuads()) {
                 float x = (float) (quad.x() - camera.x());
                 float y = (float) (quad.y() - camera.y());
                 float z = (float) (quad.z() - camera.z());
+                float offset = quad.directionOffset();
+                switch (direction) {
+                    case SOUTH -> z -= offset;
+                    case EAST -> x -= offset;
+                    case WEST -> x += offset;
+                    default -> z += offset;
+                }
                 float size = quad.size();
                 float u = (quad.value() & 3) * NUMBER_TEXTURE_CELL_SIZE;
                 float v = (quad.value() >> 2) * NUMBER_TEXTURE_CELL_SIZE;
-                // 1.18.2 的 POSITION_COLOR_TEX_LIGHTMAP 格式要求按颜色、UV、光照 UV 的顺序提交属性。
-                buffer.vertex(pose.pose(), x, y, z).color(quad.color()).uv(u, v)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
-                buffer.vertex(pose.pose(), x, y, z + size).color(quad.color())
-                        .uv(u, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
-                buffer.vertex(pose.pose(), x + size, y, z + size).color(quad.color())
-                        .uv(u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
-                buffer.vertex(pose.pose(), x + size, y, z).color(quad.color())
-                        .uv(u + NUMBER_TEXTURE_CELL_SIZE, v)
-                        .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
+                switch (direction) {
+                    case SOUTH -> submitNumberQuad(pose, buffer, quad.color(), x + size, y, z + size,
+                            x + size, z, x, z, x, z + size, u, v);
+                    case EAST -> submitNumberQuad(pose, buffer, quad.color(), x + size, y, z,
+                            x, z, x, z + size, x + size, z + size, u, v);
+                    case WEST -> submitNumberQuad(pose, buffer, quad.color(), x, y, z + size,
+                            x + size, z + size, x + size, z, x, z, u, v);
+                    default -> submitNumberQuad(pose, buffer, quad.color(), x, y, z,
+                            x, z + size, x + size, z + size, x + size, z, u, v);
+                }
             }
         }
     }
 
+    /** 按左上、左下、右下、右上的顺序提交数字四边形。 */
+    private static void submitNumberQuad(
+            PoseStack.Pose pose, VertexConsumer buffer, int color,
+            float topLeftX, float y, float topLeftZ,
+            float bottomLeftX, float bottomLeftZ,
+            float bottomRightX, float bottomRightZ,
+            float topRightX, float topRightZ,
+            float u, float v
+    ) {
+        // 1.18.2 的 POSITION_COLOR_TEX_LIGHTMAP 格式要求按颜色、UV、光照 UV 的顺序提交属性。
+        buffer.vertex(pose.pose(), topLeftX, y, topLeftZ).color(color).uv(u, v)
+                .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
+        buffer.vertex(pose.pose(), bottomLeftX, y, bottomLeftZ).color(color)
+                .uv(u, v + NUMBER_TEXTURE_CELL_SIZE)
+                .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
+        buffer.vertex(pose.pose(), bottomRightX, y, bottomRightZ).color(color)
+                .uv(u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE)
+                .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
+        buffer.vertex(pose.pose(), topRightX, y, topRightZ).color(color)
+                .uv(u + NUMBER_TEXTURE_CELL_SIZE, v)
+                .uv2(FULL_BRIGHT_LIGHT, FULL_BRIGHT_LIGHT).endVertex();
+    }
     private static void line(
             PoseStack.Pose pose, LineBufferProvider buffers,
             double x1, double y1, double z1, double x2, double y2, double z2,
@@ -272,7 +305,9 @@ public final class LightOverlayRenderer {
     ) {
     }
 
-    private record NumberQuad(double x, double y, double z, int value, int color, float size) {
+    private record NumberQuad(
+            double x, double y, double z, int value, int color, float size, float directionOffset
+    ) {
     }
 
     private static final class GeometryBuilder {
@@ -300,8 +335,10 @@ public final class LightOverlayRenderer {
             lineCount++;
         }
 
-        private void addNumber(double x, double y, double z, int value, int color, float size) {
-            numberQuads.add(new NumberQuad(x, y, z, value, color, size));
+        private void addNumber(
+                double x, double y, double z, int value, int color, float size, float directionOffset
+        ) {
+            numberQuads.add(new NumberQuad(x, y, z, value, color, size, directionOffset));
         }
 
         private void ensureCapacity(int requiredLines) {
