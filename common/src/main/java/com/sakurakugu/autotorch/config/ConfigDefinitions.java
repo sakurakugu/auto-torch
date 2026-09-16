@@ -15,6 +15,7 @@ public final class ConfigDefinitions {
     public static final BooleanValue NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT = bool("nearbyAutoTorch.includeSkyLight", true);
     public static final BooleanValue LIGHT_OVERLAY_ENABLED = bool("lightOverlay.enabled", false);
     public static final BooleanValue LIGHT_OVERLAY_RENDER_THROUGH = bool("lightOverlay.renderThrough", false);
+    public static final BooleanValue LIGHT_OVERLAY_NUMBER_ROTATION = bool("lightOverlay.numberRotation", true);
     public static final IntValue LIGHT_OVERLAY_HORIZONTAL_RANGE = integer("lightOverlay.horizontalRange", 16, 1, 64);
     public static final IntValue LIGHT_OVERLAY_DOWN_RANGE = integer("lightOverlay.downRange", 16, 0, 64);
     public static final IntValue LIGHT_OVERLAY_UP_RANGE = integer("lightOverlay.upRange", 4, 0, 64);
@@ -52,6 +53,7 @@ public final class ConfigDefinitions {
     public static final List<Value> CLIENT = List.of(
             NEARBY_AUTO_TORCH_ENABLED, NEARBY_AUTO_TORCH_LIGHT_THRESHOLD,
             NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT, LIGHT_OVERLAY_ENABLED, LIGHT_OVERLAY_RENDER_THROUGH,
+            LIGHT_OVERLAY_NUMBER_ROTATION,
             LIGHT_OVERLAY_HORIZONTAL_RANGE, LIGHT_OVERLAY_DOWN_RANGE, LIGHT_OVERLAY_UP_RANGE,
             LIGHT_OVERLAY_SHOW_NUMBERS, LIGHT_OVERLAY_MODE,
             LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED,
