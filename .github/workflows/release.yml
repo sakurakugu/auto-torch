@@ -211,12 +211,11 @@ jobs:
           MINECRAFT_VERSION: ${{ steps.versions.outputs.minecraft_version }}
         run: |
           mkdir release
-          # 根据当前分支实际包含的加载器收集产物。
+          # 根据当前分支实际生成的加载器产物收集，允许新版本暂缺某个加载器。
           for loader in fabric forge neoforge; do
-            test -d "$loader" || continue
             source_file="$loader/build/libs/$MOD_ID-$MINECRAFT_VERSION-$loader-$MOD_VERSION.jar"
             target_file="release/$MOD_ID-v$MOD_VERSION-mc$MINECRAFT_VERSION-$loader.jar"
-            test -f "$source_file" || { echo "Missing artifact: $source_file"; exit 1; }
+            test -f "$source_file" || continue
             cp "$source_file" "$target_file"
           done
 
