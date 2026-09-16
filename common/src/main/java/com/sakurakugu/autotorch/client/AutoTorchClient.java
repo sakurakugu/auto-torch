@@ -1,7 +1,5 @@
 package com.sakurakugu.autotorch.client;
 
-import org.lwjgl.glfw.GLFW;
-
 import com.mojang.blaze3d.platform.InputConstants;
 
 import com.sakurakugu.autotorch.AutoTorch;
@@ -29,19 +27,19 @@ public final class AutoTorchClient {
     );
     public static final KeyMapping OPEN_SCREEN = new KeyMapping(
             "key.autotorch.open_screen",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_G,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_G,
             CATEGORY
     );
     public static final KeyMapping TOGGLE_LIGHT_OVERLAY = new KeyMapping(
             "key.autotorch.toggle_light_overlay",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_F7,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.KEY_F7,
             CATEGORY
     );
     public static final KeyMapping TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH = new KeyMapping(
             "key.autotorch.toggle_light_overlay_render_through",
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F8, CATEGORY
+            InputConstants.Type.KEYBOARD, InputConstants.KEY_F8, CATEGORY
     );
 
     public void tick() {

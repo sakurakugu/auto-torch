@@ -1,12 +1,14 @@
 package com.sakurakugu.autotorch.client;
 
-import java.util.Optional;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import com.mojang.blaze3d.pipeline.DepthStencilState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
-import com.mojang.blaze3d.platform.CompareOp;
+import java.util.Optional;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline.Snippet;
+import com.mojang.renderpearl.api.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -20,11 +22,13 @@ public final class AutoTorchRenderTypes {
     public static RenderType seeThroughLines() { return SEE_THROUGH_LINES; }
     private static RenderType createSeeThroughLines() {
         RenderPipeline source = RenderPipelines.LINES;
-        Snippet snippet = new Snippet(Optional.of(source.getVertexShader()), Optional.of(source.getFragmentShader()),
-                Optional.of(source.getShaderDefines()), Optional.of(source.getBindGroupLayouts()),
-                source.getColorTargetStates(), source.getColorTargetStates().length,
-                Optional.ofNullable(source.getDepthStencilState()), Optional.of(source.getPolygonMode()),
-                Optional.of(source.isCull()), source.getVertexFormatBindings(), Optional.of(source.getPrimitiveTopology()));
+        Snippet snippet = new Snippet(source.getShaders(), Optional.of(source.getShaderDefines()),
+                Optional.of(source.getBindGroupLayouts()),
+                source.getColorTargetStates().toArray(ColorTargetState[]::new),
+                source.getColorTargetStates().size(), Optional.ofNullable(source.getDepthStencilState()),
+                Optional.of(source.getPolygonMode()), Optional.of(source.isCull()),
+                source.getVertexFormatBindings().toArray(VertexFormat[]::new),
+                Optional.of(source.getPrimitiveTopology()), source.pushConstantSize());
         RenderPipeline pipeline = RenderPipeline.builder(snippet)
                 .withLocation(Identifier.fromNamespaceAndPath("autotorch", "light_overlay_see_through_lines"))
                 .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false)).build();

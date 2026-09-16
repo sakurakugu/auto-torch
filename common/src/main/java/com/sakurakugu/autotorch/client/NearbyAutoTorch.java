@@ -8,6 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
@@ -141,10 +142,11 @@ public final class NearbyAutoTorch {
         BlockPos support = target.below();
         BlockHitResult hit = new BlockHitResult(
                 Vec3.atCenterOf(support).add(0.0, 0.5, 0.0), Direction.UP, support, false);
+        SwingAnimation swingAnimation = player.getItemInHand(torch.hand()).getInteractAnimation();
         InteractionResult result = minecraft.gameMode.useItemOn(player, torch.hand(), hit);
         if (result instanceof InteractionResult.Success success
-                && success.swingSource() == InteractionResult.SwingSource.CLIENT) {
-            player.swing(torch.hand());
+                && success.swingSource() == InteractionResult.SwingSource.PREDICTED) {
+            player.swing(torch.hand(), swingAnimation, false);
         }
 
         if (torch.hotbarSlot() >= 0) {

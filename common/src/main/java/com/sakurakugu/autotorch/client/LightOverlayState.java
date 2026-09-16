@@ -18,6 +18,7 @@ import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.entity.SpawnPlacementTypes;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
@@ -504,8 +505,9 @@ public final class LightOverlayState {
             return false;
         }
 
-        boolean drownedInSpawnList = level.getBiome(pos).value().getMobSettings()
-                .getMobs(MobCategory.MONSTER).unwrap().stream()
+        boolean drownedInSpawnList = level.environmentAttributes()
+                .getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, pos)
+                .getMobsInCategory(MobCategory.MONSTER).unwrap().stream()
                 .anyMatch(entry -> entry.value().type() == EntityTypes.DROWNED);
         return drownedInSpawnList
                 && (level.getBiome(pos).is(BiomeTags.MORE_FREQUENT_DROWNED_SPAWNS)

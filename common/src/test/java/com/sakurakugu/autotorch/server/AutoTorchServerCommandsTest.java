@@ -59,8 +59,8 @@ class AutoTorchServerCommandsTest {
 
     private static CommandSourceStack source() {
         return new CommandSourceStack(
-                CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, null, PermissionSet.ALL_PERMISSIONS, "test",
-                Component.literal("test"), null, null);
+                CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, null, PermissionSet.ALL_PERMISSIONS,
+                Component.literal("test"), null);
     }
 
     private static CommandNode<CommandSourceStack> child(CommandNode<CommandSourceStack> parent, String name) {

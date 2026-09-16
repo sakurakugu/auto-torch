@@ -7,6 +7,8 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import org.joml.Quaterniond;
+import org.joml.Vector3d;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
@@ -228,10 +230,13 @@ public final class AutoTorchClientCommands {
                     world.x().get(origin.x), world.y().get(origin.y), world.z().get(origin.z));
         }
         if (coordinates instanceof LocalCoordinates local && minecraft.player != null) {
-            Vec3 offset = Vec3.applyLocalCoordinatesToRotation(
-                    minecraft.player.getRotationVector(),
-                    new Vec3(local.left(), local.up(), local.forwards()));
-            return BlockPos.containing(minecraft.player.getEyePosition().add(offset));
+            var rotation = minecraft.player.getRotationVector();
+            Quaterniond localToWorld = new Quaterniond()
+                    .rotationY(-Math.toRadians(rotation.y))
+                    .rotateX(Math.toRadians(rotation.x));
+            Vector3d offset = localToWorld.transform(
+                    local.left(), local.up(), local.forwards(), new Vector3d());
+            return BlockPos.containing(minecraft.player.getEyePosition().add(offset.x, offset.y, offset.z));
         }
         throw new IllegalArgumentException("Unsupported coordinate type");
     }
