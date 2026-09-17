@@ -1,6 +1,6 @@
 name: Release
 
-# 推送 v 开头的标签时执行完整发布，也可手动向已有版本补发单个 Minecraft 版本。
+# 推送 v 开头的标签时执行完整发布，也可手动向已有版本补发指定加载器。
 on:
   push:
     tags:
@@ -15,6 +15,16 @@ on:
         description: "需要补发的 Minecraft 版本，例如 26.3"
         required: true
         type: string
+      loader:
+        description: "需要发布的加载器"
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - fabric
+          - forge
+          - neoforge
 
 # 创建 GitHub Release 和上传附件需要仓库内容写权限。
 permissions:
@@ -209,10 +219,14 @@ jobs:
           MOD_ID: ${{ steps.versions.outputs.mod_id }}
           MOD_VERSION: ${{ steps.versions.outputs.mod_version }}
           MINECRAFT_VERSION: ${{ steps.versions.outputs.minecraft_version }}
+          REQUESTED_LOADER: ${{ inputs.loader || 'all' }}
         run: |
           mkdir release
-          # 根据当前分支实际生成的加载器产物收集，允许新版本暂缺某个加载器。
+          # 标签发布收集全部可用产物；手动补发时只收集用户指定的加载器。
           for loader in fabric forge neoforge; do
+            if test "$REQUESTED_LOADER" != "all" && test "$loader" != "$REQUESTED_LOADER"; then
+              continue
+            fi
             source_file="$loader/build/libs/$MOD_ID-$MINECRAFT_VERSION-$loader-$MOD_VERSION.jar"
             target_file="release/$MOD_ID-v$MOD_VERSION-mc$MINECRAFT_VERSION-$loader.jar"
             test -f "$source_file" || continue
