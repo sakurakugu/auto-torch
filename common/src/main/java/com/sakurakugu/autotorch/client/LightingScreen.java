@@ -219,17 +219,23 @@ public final class LightingScreen extends Screen {
                     LightOverlayState.setUpRange(upper);
                 }));
 
-        swampSlimeDetectionButton = addRenderableWidget(withTooltip(button(left, 306, 153, 20,
+        swampSlimeDetectionButton = addRenderableWidget(withTooltip(button(left, 306, 116, 20,
                 swampSlimeDetectionMessage(), button -> { }),
                 new TextComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-")));
         swampSlimeDetectionButton.active = false;
-        drownedDetectionButton = addRenderableWidget(withTooltip(button(left + 157, 306, 153, 20,
+        drownedDetectionButton = addRenderableWidget(withTooltip(button(left + 120, 306, 102, 20,
                 drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage().getFormattedText());
         }), new TextComponentTranslation("screen.autotorch.drowned_detection.tooltip.1.12.2")));
         // Minecraft 1.12.2 尚未加入溺尸，保留控件位置但禁止修改无效配置。
         drownedDetectionButton.active = false;
+        addRenderableWidget(button(left + 226, 306, 84, 20,
+                new TextComponentTranslation("screen.autotorch.more_settings"), button -> {
+            saveSelection();
+            saveTaskDefaults();
+            minecraft.displayGuiScreen(new LightOverlaySettingsScreen(this));
+        }));
 
         nearbyAutoTorchButton = addRenderableWidget(withTooltip(button(left, 350, 153, 20,
                 nearbyAutoTorchMessage(), button -> {
@@ -1208,7 +1214,7 @@ public final class LightingScreen extends Screen {
         protected void updateMessage() {
             int spacing = spacing();
             setMessage(new TextComponentTranslation("screen.autotorch.min_spacing", spacing).getFormattedText());
-            // 1.11.2 没有 Tooltip API，改用本界面的工具提示表。
+            // 1.9.4 没有 Tooltip API，改用本界面的工具提示表。
             tooltips.put(this, new TextComponentTranslation("screen.autotorch.min_spacing.tooltip.dynamic",
                     spacing, AutoTorchRules.secondPassSpacing(spacing,
                             ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing())));
