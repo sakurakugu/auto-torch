@@ -2,7 +2,7 @@ package com.sakurakugu.autotorch.client;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -26,7 +26,8 @@ abstract class Screen extends GuiScreen {
     @Override public boolean doesGuiPauseGame() { return isPauseScreen(); }
     protected List<?> children() { return children; }
     protected void renderTooltip(String text, int mouseX, int mouseY) {
-        drawHoveringText(Collections.singletonList(text), mouseX, mouseY);
+        // 1.11.2 的字符串重载不会拆分换行，先按行拆分再交给多行提示渲染。
+        drawHoveringText(Arrays.asList(text.split("\n")), mouseX, mouseY);
     }
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) { return false; }
     @Override public void handleMouseInput() throws IOException {
