@@ -96,13 +96,13 @@ final class ColoredButton extends Button {
         int right = x + getWidth() - 2;
         int bottom = y + getHeight() - 2;
         fill(poseStack, left + 1, top, right, top + 1, highlight);
-        fill(poseStack, left, top + 1, left + 1, bottom, highlight);
+        fill(poseStack, left, top + 1, left + 1, bottom - 1, highlight);
         fill(poseStack, left, top, left + 1, top + 1, highlight);
         fill(poseStack, left + 1, bottom - 1, right, bottom + 1, shadow);
         fill(poseStack, right, top + 1, right + 1, bottom, shadow);
         fill(poseStack, right, bottom, right + 1, bottom + 1, shadow);
         fill(poseStack, right, top, right + 1, top + 1, corner);
-        fill(poseStack, left, bottom, left + 1, bottom + 1, corner);
+        fill(poseStack, left, bottom - 1, left + 1, bottom + 1, corner);
     }
 
     private static int shade(int color, float factor) {
