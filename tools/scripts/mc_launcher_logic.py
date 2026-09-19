@@ -106,10 +106,10 @@ def skip_profile_auth(release):
     if not result or result.get("status") != "ok": raise RuntimeError(f"无法写入 PCL-CE 配置项 {key}：{(result or {}).get('message') or output.strip() or '无 CLI 输出'}")
     print("首次运行：已通过 PCL-CE CLI 开启 LaunchSkipProfileAuthRequirement（跳过档案正版账号要求）。")
 
-def language(root, loader):
-    v = prop(root, "minecraft_version") if (root / "gradle.properties").is_file() else ""
-    lang = "zh_CN" if re.match(r"^1\.(\d+)", v) and int(re.match(r"^1\.(\d+)", v).group(1)) <= 12 else "zh_cn"
-    p = root / loader / "run" / "options.txt"; p.parent.mkdir(parents=True, exist_ok=True)
+def set_language(p: Path, version: str):
+    match = re.match(r"^1\.(\d+)", version)
+    lang = "zh_CN" if match and int(match.group(1)) <= 10 else "zh_cn"
+    p.parent.mkdir(parents=True, exist_ok=True)
     lines = p.read_text(encoding="utf-8", errors="replace").splitlines() if p.is_file() else []
     out=[]; done=False
     for line in lines:
@@ -117,7 +117,10 @@ def language(root, loader):
             if not done: out.append(f"lang:{lang}"); done=True
         else: out.append(line)
     if not done: out.append(f"lang:{lang}")
-    p.write_text("\n".join(out) + "\n", encoding="ascii")
+    p.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+def language(root, loader):
+    set_language(root / loader / "run" / "options.txt", prop(root, "minecraft_version"))
 
 def loader_client(root, loader, version):
     if not (root / loader / "build.gradle").is_file(): print(f"[{version}] 未找到 {loader}，跳过。"); return
@@ -202,6 +205,7 @@ def process_running(pid):
 def start_client(item, release):
     v,l,_,instance=item; exe=release / "PCL2_Release.exe"
     if not exe.is_file(): raise RuntimeError(f"未找到 PCL-CE CLI 启动器：{exe}")
+    set_language(instance / "options.txt", v)
     print(f"\n[{instance.name}] 启动生产客户端；关闭游戏后继续。")
     # launch 必须是第一个用户参数，PCL-CE 的命令行解析器据此识别子命令。
     cmd=[str(exe),"launch","--instance",str(instance),"--folder",str(release/".minecraft")]
