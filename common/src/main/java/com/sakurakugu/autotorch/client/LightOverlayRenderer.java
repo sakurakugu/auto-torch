@@ -9,6 +9,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.Vec3;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
@@ -267,8 +269,9 @@ public final class LightOverlayRenderer {
     ) {
         geometry.addNumber(marker.pos().getX() + NUMBER_OFFSET_X,
                 marker.pos().getY() + SURFACE_OFFSET,
-                marker.pos().getZ() + (boxed ? BOXED_NUMBER_OFFSET_Z : NUMBER_OFFSET_Z),
-                marker.blockLight(), markerColor(marker), (float) NUMBER_SIZE);
+                marker.pos().getZ() + BOXED_NUMBER_OFFSET_Z,
+                marker.blockLight(), markerColor(marker), (float) NUMBER_SIZE,
+                boxed ? 0.0F : (float) NUMBER_OFFSET_Z);
     }
 
     private static void addBox(GeometryBuilder geometry, LightOverlayState.Marker marker, int color) {
@@ -302,7 +305,17 @@ public final class LightOverlayRenderer {
         }
     }
 
+    /** 数字平面朝向镜头时跟随视角旋转；关闭后固定朝北。 */
+    private static EnumFacing numberFacing() {
+        if (!ClientConfig.rotatesLightOverlayNumbers()) {
+            return EnumFacing.NORTH;
+        }
+        Entity view = Minecraft.getMinecraft().getRenderViewEntity();
+        return EnumFacing.fromAngle(view == null ? 180.0D : view.rotationYaw);
+    }
+
     private static void submitNumbers(Pose pose, VertexConsumer buffer, RenderData data) {
+        EnumFacing facing = numberFacing();
         for (NumberQuad quad : data.numberQuads()) {
             float u = (quad.value() & 3) * NUMBER_TEXTURE_CELL_SIZE;
             float v = (quad.value() >> 2) * NUMBER_TEXTURE_CELL_SIZE;
@@ -310,13 +323,58 @@ public final class LightOverlayRenderer {
             float y = (float) quad.y();
             float z = (float) quad.z();
             float size = quad.size();
-            texturedVertex(buffer, x, y, z, u, v, quad.color());
-            texturedVertex(buffer, x, y, z + size, u, v + NUMBER_TEXTURE_CELL_SIZE, quad.color());
-            texturedVertex(buffer, x + size, y, z + size,
-                    u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE, quad.color());
-            texturedVertex(buffer, x + size, y, z,
-                    u + NUMBER_TEXTURE_CELL_SIZE, v, quad.color());
+            float offset = quad.directionOffset();
+            // 数字平面向镜头一侧偏移，避免贴合在方块边缘被遮挡。
+            switch (facing) {
+                case SOUTH:
+                    z -= offset;
+                    break;
+                case EAST:
+                    x -= offset;
+                    break;
+                case WEST:
+                    x += offset;
+                    break;
+                default:
+                    z += offset;
+                    break;
+            }
+            switch (facing) {
+                case SOUTH:
+                    submitNumberQuad(buffer, quad.color(), x + size, y, z + size,
+                            x + size, z, x, z, x, z + size, u, v);
+                    break;
+                case EAST:
+                    submitNumberQuad(buffer, quad.color(), x + size, y, z,
+                            x, z, x, z + size, x + size, z + size, u, v);
+                    break;
+                case WEST:
+                    submitNumberQuad(buffer, quad.color(), x, y, z + size,
+                            x + size, z + size, x + size, z, x, z, u, v);
+                    break;
+                default:
+                    submitNumberQuad(buffer, quad.color(), x, y, z,
+                            x, z + size, x + size, z + size, x + size, z, u, v);
+                    break;
+            }
         }
+    }
+
+    /** 按左上、左下、右下、右上的顺序提交数字四边形。 */
+    private static void submitNumberQuad(
+            VertexConsumer buffer, int color,
+            float topLeftX, float y, float topLeftZ,
+            float bottomLeftX, float bottomLeftZ,
+            float bottomRightX, float bottomRightZ,
+            float topRightX, float topRightZ,
+            float u, float v
+    ) {
+        texturedVertex(buffer, topLeftX, y, topLeftZ, u, v, color);
+        texturedVertex(buffer, bottomLeftX, y, bottomLeftZ, u, v + NUMBER_TEXTURE_CELL_SIZE, color);
+        texturedVertex(buffer, bottomRightX, y, bottomRightZ,
+                u + NUMBER_TEXTURE_CELL_SIZE, v + NUMBER_TEXTURE_CELL_SIZE, color);
+        texturedVertex(buffer, topRightX, y, topRightZ,
+                u + NUMBER_TEXTURE_CELL_SIZE, v, color);
     }
 
     private static void texturedVertex(
@@ -398,14 +456,17 @@ public final class LightOverlayRenderer {
         private final int value;
         private final int color;
         private final float size;
+        private final float directionOffset;
 
-        private NumberQuad(double x, double y, double z, int value, int color, float size) {
+        private NumberQuad(double x, double y, double z, int value, int color, float size,
+                           float directionOffset) {
             this.x = x;
             this.y = y;
             this.z = z;
             this.value = value;
             this.color = color;
             this.size = size;
+            this.directionOffset = directionOffset;
         }
 
         private double x() { return x; }
@@ -414,6 +475,7 @@ public final class LightOverlayRenderer {
         private int value() { return value; }
         private int color() { return color; }
         private float size() { return size; }
+        private float directionOffset() { return directionOffset; }
     }
 
     private static final class GeometryBuilder {
@@ -441,8 +503,10 @@ public final class LightOverlayRenderer {
             lineCount++;
         }
 
-        private void addNumber(double x, double y, double z, int value, int color, float size) {
-            numberQuads.add(new NumberQuad(x, y, z, value, color, size));
+        private void addNumber(
+                double x, double y, double z, int value, int color, float size, float directionOffset
+        ) {
+            numberQuads.add(new NumberQuad(x, y, z, value, color, size, directionOffset));
         }
 
         private void ensureCapacity(int requiredLines) {
