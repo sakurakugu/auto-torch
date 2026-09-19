@@ -1034,9 +1034,9 @@ public final class LightingScreen extends Screen {
         drawString(font, new TextComponentTranslation("screen.autotorch.max_torches").getFormattedText(),
                 left, 166 - offset, 0xFFFFFFFF);
         int informationY = 232 - offset;
-        if (!error.getFormattedText().isEmpty()) {
+        if (hasVisibleText(error)) {
             drawCenteredString(font, error.getFormattedText(), width / 2, informationY, 0xFFFF6060);
-        } else if (!rangeMessage.getFormattedText().isEmpty()) {
+        } else if (hasVisibleText(rangeMessage)) {
             drawCenteredString(font, rangeMessage.getFormattedText(), width / 2, informationY, 0xFFFFC060);
         } else {
             drawString(font, new TextComponentTranslation("screen.autotorch.zone_summary",
@@ -1069,6 +1069,11 @@ public final class LightingScreen extends Screen {
                 }
             }
         }
+    }
+
+    static boolean hasVisibleText(ITextComponent component) {
+        // 旧版的格式化空文本仍包含格式重置码，不能用它判断是否有可见内容。
+        return !component.getUnformattedText().isEmpty();
     }
 
     private void enableViewportScissor() {
