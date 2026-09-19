@@ -3,6 +3,7 @@ package com.sakurakugu.autotorch.client;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.sakurakugu.autotorch.AutoTorchRules;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
@@ -161,8 +162,7 @@ public final class LightingScreen extends Screen {
         int configuredMaxTorches = effectiveDefaultMaxTorches();
         maxTorches = limitBox(left + 70, 160, 42,
                 configuredMaxTorches == 0 ? "∞" : Integer.toString(configuredMaxTorches));
-        addRenderableWidget(withTooltip(new MinSpacingSlider(left + 120, 160, 100, 20),
-                new TranslatableComponent("screen.autotorch.min_spacing.tooltip")));
+        addRenderableWidget(new MinSpacingSlider(left + 120, 160, 100, 20));
         addRenderableWidget(withTooltip(new AreaLightThresholdSlider(left + 224, 160, 86, 20),
                 new TranslatableComponent("screen.autotorch.area_light_threshold.tooltip")));
 
@@ -729,6 +729,11 @@ public final class LightingScreen extends Screen {
                 Math.min(ServerConfigState.maxSpacing(), ClientConfig.defaultMinSpacing()));
     }
 
+    private static int effectiveSecondPassSpacing() {
+        return AutoTorchRules.secondPassSpacing(effectiveDefaultMinSpacing(),
+                ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing());
+    }
+
     private static boolean isCreativePlayer() {
         return Minecraft.getInstance().player != null && Minecraft.getInstance().player.isCreative();
     }
@@ -1025,6 +1030,14 @@ public final class LightingScreen extends Screen {
             drawCenteredString(font, error.getString(), width / 2, informationY, 0xFFFF6060);
         } else if (!rangeMessage.getString().isEmpty()) {
             drawCenteredString(font, rangeMessage.getString(), width / 2, informationY, 0xFFFFC060);
+        } else if (!AutoTorchRules.canTorchMeetLightThreshold(ClientConfig.defaultTaskLightThreshold())) {
+            drawCenteredString(font, new TranslatableComponent("screen.autotorch.light_threshold_unreachable",
+                    ClientConfig.defaultTaskLightThreshold()).getString(), width / 2, informationY, 0xFFFF6060);
+        } else if (ServerConfigState.minSpacing() > AutoTorchRules.maxSafeSecondPassSpacing(
+                ClientConfig.defaultTaskLightThreshold())) {
+            drawCenteredString(font, new TranslatableComponent("screen.autotorch.second_pass_spacing_limited",
+                    effectiveSecondPassSpacing(), ClientConfig.defaultTaskLightThreshold()).getString(),
+                    width / 2, informationY, 0xFFFFC060);
         } else {
             drawString(font, new TranslatableComponent("screen.autotorch.zone_summary",
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()).getString(),
@@ -1161,15 +1174,25 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    private static final class MinSpacingSlider extends AbstractSliderButton {
+    private static double minSpacingToSliderValue(int spacing) {
+        int steps = ServerConfigState.maxSpacing() - ServerConfigState.minSpacing();
+        return steps == 0 ? 0.0 : (double) (spacing - ServerConfigState.minSpacing()) / steps;
+    }
+
+    private final class MinSpacingSlider extends AbstractSliderButton {
         private MinSpacingSlider(int x, int y, int width, int height) {
-            super(x, y, width, height, toSliderValue(effectiveDefaultMinSpacing()));
+            super(x, y, width, height, minSpacingToSliderValue(effectiveDefaultMinSpacing()));
             updateMessage();
         }
 
         @Override
         protected void updateMessage() {
-            setMessage(new TranslatableComponent("screen.autotorch.min_spacing", spacing()).getString());
+            int spacing = spacing();
+            setMessage(new TranslatableComponent("screen.autotorch.min_spacing", spacing).getString());
+            // 1.14.4 没有 Tooltip API，改用本界面的工具提示表。
+            tooltips.put(this, new TranslatableComponent("screen.autotorch.min_spacing.tooltip.dynamic",
+                    spacing, AutoTorchRules.secondPassSpacing(spacing,
+                            ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing())));
         }
 
         @Override
@@ -1180,11 +1203,6 @@ public final class LightingScreen extends Screen {
         private int spacing() {
             int steps = ServerConfigState.maxSpacing() - ServerConfigState.minSpacing();
             return ServerConfigState.minSpacing() + (int) Math.round(value * steps);
-        }
-
-        private static double toSliderValue(int spacing) {
-            int steps = ServerConfigState.maxSpacing() - ServerConfigState.minSpacing();
-            return steps == 0 ? 0.0 : (double) (spacing - ServerConfigState.minSpacing()) / steps;
         }
     }
 
