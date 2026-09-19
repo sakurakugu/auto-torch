@@ -33,7 +33,7 @@ public final class ClientConfig {
 
     public static void resetLightOverlayDefaults() {
         reset(Arrays.<Value>asList(LIGHT_OVERLAY_ENABLED, LIGHT_OVERLAY_HORIZONTAL_RANGE,
-                LIGHT_OVERLAY_RENDER_THROUGH,
+                LIGHT_OVERLAY_RENDER_THROUGH, LIGHT_OVERLAY_NUMBER_ROTATION,
                 LIGHT_OVERLAY_DOWN_RANGE, LIGHT_OVERLAY_UP_RANGE,
                 LIGHT_OVERLAY_SHOW_NUMBERS, LIGHT_OVERLAY_MODE,
                 LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED));
@@ -71,6 +71,8 @@ public final class ClientConfig {
     public static void setLightOverlayEnabled(boolean value) { setBool(LIGHT_OVERLAY_ENABLED, value); }
     public static boolean isLightOverlayRenderThrough() { return bool(LIGHT_OVERLAY_RENDER_THROUGH); }
     public static void setLightOverlayRenderThrough(boolean value) { setBool(LIGHT_OVERLAY_RENDER_THROUGH, value); }
+    public static boolean rotatesLightOverlayNumbers() { return bool(LIGHT_OVERLAY_NUMBER_ROTATION); }
+    public static void setRotatesLightOverlayNumbers(boolean value) { setBool(LIGHT_OVERLAY_NUMBER_ROTATION, value); }
     public static int lightOverlayRange() { return integer(LIGHT_OVERLAY_HORIZONTAL_RANGE); }
     public static void setLightOverlayRange(int value) { setInt(LIGHT_OVERLAY_HORIZONTAL_RANGE, value); }
     public static int lightOverlayDownRange() { return integer(LIGHT_OVERLAY_DOWN_RANGE); }
