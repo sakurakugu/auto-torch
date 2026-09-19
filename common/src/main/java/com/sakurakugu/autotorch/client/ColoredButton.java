@@ -40,13 +40,13 @@ final class ColoredButton extends Button {
         int right = getX() + getWidth() - 2;
         int bottom = getY() + getHeight() - 2;
         graphics.fill(left + 1, top, right, top + 1, highlight);
-        graphics.fill(left, top + 1, left + 1, bottom, highlight);
+        graphics.fill(left, top + 1, left + 1, bottom - 1, highlight);
         graphics.fill(left, top, left + 1, top + 1, highlight);
         graphics.fill(left + 1, bottom - 1, right, bottom + 1, shadow);
         graphics.fill(right, top + 1, right + 1, bottom, shadow);
         graphics.fill(right, bottom, right + 1, bottom + 1, shadow);
         graphics.fill(right, top, right + 1, top + 1, corner);
-        graphics.fill(left, bottom, left + 1, bottom + 1, corner);
+        graphics.fill(left, bottom - 1, left + 1, bottom + 1, corner);
     }
 
     private static int shade(int color, float factor) {
