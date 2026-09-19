@@ -11,6 +11,4 @@ plugins {
 }
 
 rootProject.name = 'auto-torch'
-include 'common', 'neoforge', 'fabric'
-// Forge 尚未发布 Minecraft 26.3 对应版本，发布后恢复。
-// include 'forge'
+include 'common', 'neoforge', 'forge', 'fabric'

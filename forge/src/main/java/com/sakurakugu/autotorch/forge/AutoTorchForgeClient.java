@@ -5,6 +5,7 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.resource.ResourceHandle;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
@@ -14,7 +15,6 @@ import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelTargetBundle;
 import net.minecraft.client.renderer.RenderBuffers;
@@ -33,6 +33,9 @@ import net.minecraftforge.event.GameShuttingDownEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+
+import java.util.Optional;
+import java.util.OptionalDouble;
 
 final class AutoTorchForgeClient {
     private final AutoTorchClient client = new AutoTorchClient();
@@ -110,7 +113,7 @@ final class AutoTorchForgeClient {
         private final RenderBuffers renderBuffers;
         private final FeatureRenderDispatcher featureRenderer;
         private ResourceHandle<RenderTarget> mainTarget;
-        private SubmitNodeStorage submitNodes;
+        private FeatureRenderDispatcher.PreparedFrame preparedFrame;
 
         private OverlayPass() {
             Minecraft minecraft = Minecraft.getInstance();
@@ -125,44 +128,55 @@ final class AutoTorchForgeClient {
         }
 
         @Override
-        public void extracts(LevelTargetBundle targets, FramePass pass, DeltaTracker deltaTracker) {
+        public void extracts(LevelTargetBundle targets, FramePass pass, LevelRenderState state) {
             targets.main = pass.readsAndWrites(targets.main);
             mainTarget = targets.main;
 
             Minecraft minecraft = Minecraft.getInstance();
             if (minecraft.level == null) {
-                submitNodes = null;
+                preparedFrame = null;
                 return;
             }
             // Forge 的客户端 tick 可能早于原版光照传播；在渲染阶段再次扫描以读取已完成更新的光照值。
             LightOverlayState.tick(minecraft);
-            var camera = minecraft.gameRenderer.mainCamera().position();
+            var camera = state.cameraRenderState.pos;
             SelectionRenderer.extract(BlockPos.containing(camera));
             LightOverlayRenderer.extract();
 
-            submitNodes = new SubmitNodeStorage();
+            SubmitNodeStorage submitNodes = new SubmitNodeStorage();
             PoseStack poseStack = new PoseStack();
             SelectionRenderer.submit(camera, poseStack, submitNodes);
             LightOverlayRenderer.submit(camera, poseStack, submitNodes);
+            preparedFrame = featureRenderer.prepareFrame(submitNodes);
         }
 
         @Override
         public void executes(LevelRenderState state) {
-            if (submitNodes == null || mainTarget == null) return;
-            RenderSystem.outputColorTextureOverride = mainTarget.get().getColorTextureView();
-            RenderSystem.outputDepthTextureOverride = mainTarget.get().getDepthTextureView();
-            try {
-                featureRenderer.renderAllFeatures(submitNodes);
+            if (preparedFrame == null || mainTarget == null) return;
+            RenderTarget target = mainTarget.get();
+            try (RenderPass renderPass = RenderSystem.getDevice()
+                    .createCommandEncoder()
+                    .createRenderPass(
+                            () -> "Auto Torch overlays",
+                            target.getColorTextureView(), Optional.empty(),
+                            target.getDepthTextureView(), OptionalDouble.empty())) {
+                RenderSystem.bindDefaultUniforms(renderPass);
+                FeatureRenderDispatcher.renderAllFeatures(renderPass, preparedFrame);
             } finally {
+                preparedFrame.close();
+                preparedFrame = null;
+                mainTarget = null;
                 renderBuffers.endFrame();
-                submitNodes = null;
-                RenderSystem.outputColorTextureOverride = null;
-                RenderSystem.outputDepthTextureOverride = null;
             }
         }
 
         @Override
         public void close() {
+            if (preparedFrame != null) {
+                preparedFrame.close();
+                preparedFrame = null;
+                renderBuffers.endFrame();
+            }
             featureRenderer.close();
             renderBuffers.close();
         }
