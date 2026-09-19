@@ -120,6 +120,13 @@ public final class LightingTaskManager {
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
         TASKS.put(player.getUniqueID(), task);
         sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.started", scanVolume));
+        if (!AutoTorchRules.canTorchMeetLightThreshold(lightThreshold)) {
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.light_threshold_unreachable",
+                    lightThreshold));
+        } else if (ServerConfig.minSpacing() > AutoTorchRules.maxSafeSecondPassSpacing(lightThreshold)) {
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.second_pass_spacing_limited",
+                    ServerConfig.minSpacing(), lightThreshold));
+        }
         task.showInitialProgress(player);
     }
 
