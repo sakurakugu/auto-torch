@@ -1087,7 +1087,8 @@ public final class LightingScreen extends Screen {
         if (mouseY >= VIEWPORT_MARGIN && mouseY < height - VIEWPORT_MARGIN) {
             for (Map.Entry<AbstractWidget, Component> entry : tooltips.entrySet()) {
                 if (entry.getKey().visible && entry.getKey().isMouseOver(mouseX, mouseY)) {
-                    renderTooltip(poseStack, entry.getValue(), mouseX, mouseY);
+                    renderTooltip(poseStack,
+                            TooltipRenderer.split(font, entry.getValue(), width, mouseX), mouseX, mouseY);
                     break;
                 }
             }
