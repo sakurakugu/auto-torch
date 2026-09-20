@@ -11,7 +11,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -325,7 +324,7 @@ public final class LightingScreen extends Screen {
         }
 
         private Button build() {
-            Button widget = new Button(x, y, width, height, message, onPress);
+            Button widget = new ScrollingButton(x, y, width, height, message, onPress);
             if (tooltip != null) {
                 tooltips.put(widget, tooltip);
             }
@@ -1132,7 +1131,7 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    private static final class LightRangeSlider extends AbstractSliderButton {
+    private static final class LightRangeSlider extends ScrollingSliderButton {
         private LightRangeSlider(int x, int y, int width, int height) {
             super(x, y, width, height, TextComponent.EMPTY, toSliderValue(LightOverlayState.horizontalRange()));
             updateMessage();
@@ -1162,7 +1161,7 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    private static final class NearbyAutoTorchThresholdSlider extends AbstractSliderButton {
+    private static final class NearbyAutoTorchThresholdSlider extends ScrollingSliderButton {
         private NearbyAutoTorchThresholdSlider(int x, int y, int width, int height) {
             super(x, y, width, height, TextComponent.EMPTY, toSliderValue(ClientConfig.nearbyAutoTorchThreshold()));
             updateMessage();
@@ -1193,7 +1192,7 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    private final class MinSpacingSlider extends AbstractSliderButton {
+    private final class MinSpacingSlider extends ScrollingSliderButton {
         private MinSpacingSlider(int x, int y, int width, int height) {
             super(x, y, width, height, TextComponent.EMPTY, toSliderValue(effectiveDefaultMinSpacing()));
             updateMessage();
@@ -1225,7 +1224,7 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    private static final class AreaLightThresholdSlider extends AbstractSliderButton {
+    private static final class AreaLightThresholdSlider extends ScrollingSliderButton {
         private AreaLightThresholdSlider(int x, int y, int width, int height) {
             super(x, y, width, height, TextComponent.EMPTY, toSliderValue(ClientConfig.defaultTaskLightThreshold()));
             updateMessage();
