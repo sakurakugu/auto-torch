@@ -65,8 +65,8 @@ public class DualRangeSlider extends Button {
         fill(poseStack, lowX, y + 1, highX, y + getHeight() - 1, 0xFF3A5F8A);
         drawThumb(poseStack, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(poseStack, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
-        drawCenteredString(poseStack, Minecraft.getInstance().font, getMessage(),
-                x + getWidth() / 2, y + 5, 0xFFFFFFFF);
+        ScrollingText.render(poseStack, Minecraft.getInstance().font, getMessage(),
+                x + 2, y, x + getWidth() - 2, y + getHeight(), 0xFFFFFFFF);
     }
 
     private void drawThumb(PoseStack poseStack, int thumbX, boolean highlighted) {
