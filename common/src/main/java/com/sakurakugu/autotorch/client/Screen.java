@@ -26,8 +26,8 @@ abstract class Screen extends GuiScreen {
     @Override public boolean doesGuiPauseGame() { return isPauseScreen(); }
     protected List<?> children() { return children; }
     protected void renderTooltip(String text, int mouseX, int mouseY) {
-        // 1.8.9 的字符串重载不会拆分换行，先按行拆分再交给多行提示渲染。
-        drawHoveringText(Arrays.asList(text.split("\n")), mouseX, mouseY);
+        // 旧版 .lang 无法直接保存多行值，构建时会把换行写成字面量 \n。
+        drawHoveringText(Arrays.asList(text.replace("\\n", "\n").split("\n")), mouseX, mouseY);
     }
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) { return false; }
     @Override public void handleMouseInput() throws IOException {
