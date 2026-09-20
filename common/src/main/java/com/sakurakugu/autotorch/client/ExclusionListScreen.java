@@ -121,7 +121,8 @@ public final class ExclusionListScreen extends Screen {
                 width / 2, 212, 0xFFA0A0A0);
         for (Map.Entry<AbstractWidget, Component> entry : tooltips.entrySet()) {
             if (entry.getKey().visible && entry.getKey().isMouseOver(mouseX, mouseY)) {
-                renderTooltip(poseStack, entry.getValue(), mouseX, mouseY);
+                renderTooltip(poseStack,
+                        TooltipRenderer.split(font, entry.getValue(), width, mouseX), mouseX, mouseY);
                 break;
             }
         }
