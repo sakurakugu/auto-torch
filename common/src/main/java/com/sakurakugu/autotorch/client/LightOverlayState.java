@@ -487,10 +487,11 @@ public final class LightOverlayState {
     private static boolean isDrownedSpawnPosition(
             World level, BlockPos pos, IBlockState belowState, IBlockState state
     ) {
-        if (level.getLightFor(EnumLightType.BLOCK, pos) > 7
-                || !state.getFluidState().isTagged(FluidTags.WATER)
+        // 绝大多数位置都不是水，先用方块状态快速排除，避免无意义地查询光照引擎。
+        if (!state.getFluidState().isTagged(FluidTags.WATER)
                 || !belowState.getFluidState().isTagged(FluidTags.WATER)
-                || level.getFluidState(pos.up()).isTagged(FluidTags.WATER)) {
+                || level.getFluidState(pos.up()).isTagged(FluidTags.WATER)
+                || level.getLightFor(EnumLightType.BLOCK, pos) > 7) {
             return false;
         }
 
