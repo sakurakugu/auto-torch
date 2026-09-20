@@ -66,7 +66,6 @@
   "screen.autotorch.cancel_task": "取消任务",
   "screen.autotorch.light_overlay_on": "光照显示：开",
   "screen.autotorch.light_overlay_off": "光照显示：关",
-  "screen.autotorch.light_overlay.tooltip": "启用自由视角后，可能导致区块重建，会导致游戏卡死一段时间，推荐使用灵魂出窍等mod时调小范围或提前关闭，之后再开启",
   "screen.autotorch.light_overlay_mode_crosses": "样式：X",
   "screen.autotorch.light_overlay_mode_numbers": "样式：数字",
   "screen.autotorch.light_overlay_mode_boxed_numbers": "样式：方框数字",
