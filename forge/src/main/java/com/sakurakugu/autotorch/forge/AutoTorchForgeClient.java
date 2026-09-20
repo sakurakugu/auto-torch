@@ -34,7 +34,10 @@ final class AutoTorchForgeClient {
 
     @SubscribeEvent public void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
-            client.tick();
+            Minecraft minecraft = Minecraft.getMinecraft();
+            Entity view = minecraft.getRenderViewEntity();
+            client.tick(view == null ? BlockPos.ORIGIN
+                    : new BlockPos(ActiveRenderInfo.projectViewFromEntity(view, 1.0F)));
             if (!Minecraft.getMinecraft().gameSettings.keyBindAttack.isKeyDown()) selectionClickPos = null;
         }
     }
@@ -58,12 +61,13 @@ final class AutoTorchForgeClient {
     }
     @SubscribeEvent public void onRender(RenderWorldLastEvent event) {
         Minecraft minecraft = Minecraft.getMinecraft(); if (minecraft.world == null) return;
-        LightOverlayState.tick(minecraft);
         Entity view = minecraft.getRenderViewEntity(); if (view == null) return;
         float partial = event.getPartialTicks();
         Vec3d origin = new Vec3d(view.lastTickPosX + (view.posX - view.lastTickPosX) * partial, view.lastTickPosY + (view.posY - view.lastTickPosY) * partial, view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partial);
         Vec3d camera = ActiveRenderInfo.projectViewFromEntity(view, partial);
         BlockPos cameraPos = new BlockPos(camera);
+        // Forge 客户端 tick 可能早于原版光照传播，在渲染阶段再次复核已完成的更新。
+        LightOverlayState.tick(minecraft, cameraPos);
         BlockPos selectionFallback = minecraft.player == null ? cameraPos : minecraft.player.getPosition();
         SelectionRenderer.extract(selectionFallback); LightOverlayRenderer.extract();
         SelectionRenderer.render(origin); LightOverlayRenderer.render(origin);
