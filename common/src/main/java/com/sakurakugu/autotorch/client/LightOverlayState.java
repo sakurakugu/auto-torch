@@ -490,10 +490,11 @@ public final class LightOverlayState {
     private static boolean isDrownedSpawnPosition(
             Level level, BlockPos pos, BlockState belowState, BlockState state
     ) {
-        if (level.getBrightness(LightLayer.BLOCK, pos) > 7
-                || !state.getFluidState().is(FluidTags.WATER)
+        // 绝大多数位置都不是水，先用方块状态快速排除，避免无意义地查询光照引擎。
+        if (!state.getFluidState().is(FluidTags.WATER)
                 || !belowState.getFluidState().is(FluidTags.WATER)
-                || level.getFluidState(pos.above()).is(FluidTags.WATER)) {
+                || level.getFluidState(pos.above()).is(FluidTags.WATER)
+                || level.getBrightness(LightLayer.BLOCK, pos) > 7) {
             return false;
         }
 
