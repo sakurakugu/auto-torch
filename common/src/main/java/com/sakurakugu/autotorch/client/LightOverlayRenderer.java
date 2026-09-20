@@ -51,9 +51,11 @@ public final class LightOverlayRenderer {
     private static final float NUMBER_TEXTURE_CELL_SIZE = 0.25F;
     private static final int DROWNED_VISIBILITY_CHECKS_PER_FRAME = 4;
     private static final long DROWNED_VISIBILITY_BUDGET_NANOS = 1_000_000L;
+    private static final long DROWNED_GEOMETRY_REFRESH_NANOS = 50_000_000L;
     private static final double DROWNED_VISIBILITY_REFRESH_DISTANCE_SQUARED = 16.0D;
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
+    private static Map<Long, ColumnRenderData> drownedGeometry = Map.of();
     private static volatile RenderData renderData;
     private static volatile DrownedSource drownedSource = new DrownedSource(NO_COLUMNS,
             LightOverlayState.DisplayMode.CROSSES);
@@ -64,6 +66,7 @@ public final class LightOverlayRenderer {
     private static List<LightOverlayState.MarkerColumn> visibilitySourceColumns = NO_COLUMNS;
     private static Vec3 drownedVisibilityCamera;
     private static RenderData visibleDrownedRenderData;
+    private static long lastDrownedGeometryBuildNanos;
     private static boolean drownedVisibilityDirty;
     private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
@@ -185,17 +188,20 @@ public final class LightOverlayRenderer {
             }
         }
 
-        if (drownedVisibilityQueue.isEmpty()
-                && (drownedVisibilityDirty || visibleDrownedRenderData == null
-                || visibleDrownedRenderData.displayMode() != displayMode)) {
+        long now = System.nanoTime();
+        boolean geometryExpired = now - lastDrownedGeometryBuildNanos >= DROWNED_GEOMETRY_REFRESH_NANOS;
+        if (drownedVisibilityDirty && (visibleDrownedRenderData == null
+                || visibleDrownedRenderData.displayMode() != displayMode
+                || drownedVisibilityQueue.isEmpty() || geometryExpired)) {
             List<LightOverlayState.MarkerColumn> visibleColumns = source.columns().stream()
                     .map(column -> new LightOverlayState.MarkerColumn(column.key(), column.minY(),
                             column.markers().stream()
                                     .filter(marker -> Boolean.TRUE.equals(drownedVisibility.get(marker.pos())))
                                     .toList()))
                     .filter(column -> !column.markers().isEmpty()).toList();
-            // 溺尸临时几何不能写入主覆盖层缓存，否则下一次刷新会重建所有列。
-            visibleDrownedRenderData = buildRenderData(visibleColumns, displayMode, false);
+            // 队列持续增长时也要渐进发布结果；独立缓存避免影响主覆盖层几何。
+            visibleDrownedRenderData = buildDrownedRenderData(visibleColumns, displayMode);
+            lastDrownedGeometryBuildNanos = now;
             drownedVisibilityDirty = false;
         }
         return visibleDrownedRenderData;
@@ -238,6 +244,8 @@ public final class LightOverlayRenderer {
         visibilitySourceColumns = NO_COLUMNS;
         drownedVisibilityCamera = null;
         visibleDrownedRenderData = null;
+        drownedGeometry = Map.of();
+        lastDrownedGeometryBuildNanos = 0L;
         drownedVisibilityDirty = false;
     }
 
@@ -258,21 +266,30 @@ public final class LightOverlayRenderer {
     private static RenderData buildRenderData(
             List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
     ) {
-        return buildRenderData(columns, displayMode, true);
+        RenderDataBuild build = buildRenderData(columns, displayMode, columnGeometry);
+        columnGeometry = build.geometry();
+        return build.data();
     }
 
-    private static RenderData buildRenderData(
-            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode,
-            boolean cacheGeometry
+    private static RenderData buildDrownedRenderData(
+            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
     ) {
-        Map<Long, ColumnRenderData> previousGeometry = cacheGeometry ? columnGeometry : Map.of();
+        RenderDataBuild build = buildRenderData(columns, displayMode, drownedGeometry);
+        drownedGeometry = build.geometry();
+        return build.data();
+    }
+
+    private static RenderDataBuild buildRenderData(
+            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode,
+            Map<Long, ColumnRenderData> previousGeometry
+    ) {
         Map<Long, ColumnRenderData> nextGeometry = new HashMap<>(columns.size());
         List<ColumnRenderData> visibleGeometry = new ArrayList<>(columns.size());
         int totalLines = 0;
         int totalQuads = 0;
         for (LightOverlayState.MarkerColumn column : columns) {
             ColumnRenderData geometry = previousGeometry.get(column.key());
-            if (geometry == null || geometry.sourceMarkers() != column.markers()
+            if (geometry == null || !geometry.sourceMarkers().equals(column.markers())
                     || geometry.displayMode() != displayMode) {
                 geometry = buildColumnRenderData(column.markers(), displayMode);
             }
@@ -281,10 +298,9 @@ public final class LightOverlayRenderer {
             totalLines += geometry.lineCount();
             totalQuads += geometry.numberQuads().size();
         }
-        if (cacheGeometry) {
-            columnGeometry = nextGeometry;
-        }
-        return new RenderData(columns, displayMode, List.copyOf(visibleGeometry), totalLines, totalQuads);
+        return new RenderDataBuild(
+                new RenderData(columns, displayMode, List.copyOf(visibleGeometry), totalLines, totalQuads),
+                nextGeometry);
     }
 
     private static ColumnRenderData buildColumnRenderData(
@@ -462,6 +478,9 @@ public final class LightOverlayRenderer {
     private record DrownedSource(
             List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
     ) {
+    }
+
+    private record RenderDataBuild(RenderData data, Map<Long, ColumnRenderData> geometry) {
     }
 
     private record ColumnRenderData(
