@@ -61,7 +61,6 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         AutoTorchClient client = new AutoTorchClient();
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
-        KeyBindingHelper.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH);
         ClientTickEvents.END_CLIENT_TICK.register(minecraft -> {
             client.tick();
             updateCommandSuggestions(minecraft);
