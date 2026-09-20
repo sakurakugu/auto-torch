@@ -28,8 +28,8 @@ final class ColoredButton extends Button {
         int color = !active ? 0xCC555555 : highlighted ? hoveredColor : backgroundColor;
         fill(x + 2, y + 2, x + getWidth() - 2, y + height - 2, color);
         drawColoredBevel(color);
-        drawCenteredString(Minecraft.getInstance().fontRenderer, getMessage(),
-                x + getWidth() / 2, y + 6,
+        ScrollingText.render(Minecraft.getInstance().fontRenderer, getMessage(),
+                x + 2, y, x + getWidth() - 2, y + height,
                 active ? 0xFFFFFFFF : 0xFFA0A0A0);
     }
 

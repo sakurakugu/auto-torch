@@ -256,7 +256,7 @@ public final class LightingScreen extends Screen {
 
     private static Button button(int x, int y, int width, int height,
             ITextComponent message, Button.OnPress onPress) {
-        return new Button(x, y, width, height, message.getString(), onPress);
+        return new ScrollingButton(x, y, width, height, message.getString(), onPress);
     }
 
     private void resetLightingTaskSettings() {
@@ -1128,7 +1128,7 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    private static final class LightRangeSlider extends AbstractSliderButton {
+    private static final class LightRangeSlider extends ScrollingSliderButton {
         private LightRangeSlider(int x, int y, int width, int height) {
             super(x, y, width, height, toSliderValue(LightOverlayState.horizontalRange()));
             updateMessage();
@@ -1159,7 +1159,7 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    private static final class NearbyAutoTorchThresholdSlider extends AbstractSliderButton {
+    private static final class NearbyAutoTorchThresholdSlider extends ScrollingSliderButton {
         private NearbyAutoTorchThresholdSlider(int x, int y, int width, int height) {
             super(x, y, width, height, toSliderValue(ClientConfig.nearbyAutoTorchThreshold()));
             updateMessage();
@@ -1195,7 +1195,7 @@ public final class LightingScreen extends Screen {
         return steps == 0 ? 0.0 : (double) (spacing - ServerConfigState.minSpacing()) / steps;
     }
 
-    private final class MinSpacingSlider extends AbstractSliderButton {
+    private final class MinSpacingSlider extends ScrollingSliderButton {
         private MinSpacingSlider(int x, int y, int width, int height) {
             super(x, y, width, height, minSpacingToSliderValue(effectiveDefaultMinSpacing()));
             updateMessage();
@@ -1222,7 +1222,7 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    private static final class AreaLightThresholdSlider extends AbstractSliderButton {
+    private static final class AreaLightThresholdSlider extends ScrollingSliderButton {
         private AreaLightThresholdSlider(int x, int y, int width, int height) {
             super(x, y, width, height, toSliderValue(ClientConfig.defaultTaskLightThreshold()));
             updateMessage();
