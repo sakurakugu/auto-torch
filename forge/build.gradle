@@ -41,6 +41,8 @@ repositories {
 
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${forge_version}")
+    // Forge 1.17.1 的依赖元数据没有声明 LWJGL，公共源码直接使用 GL11 需要在这里补上。
+    compileOnly 'org.lwjgl:lwjgl-opengl:3.2.2'
 }
 
 renamer.mappings.from minecraft.dependency.toSrgFile
