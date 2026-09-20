@@ -30,7 +30,7 @@ public final class AutoTorchClient {
             CATEGORY
     );
 
-    public void tick() {
+    public void tick(BlockPos lightOverlayCenter) {
         Minecraft minecraft = Minecraft.getMinecraft();
         // 处理打开选区面板的请求，避免在 tick 中直接打开 GUI 导致的异常。(仅限 Fabric 端的bug)
         if (openScreenRequested) {
@@ -43,7 +43,7 @@ public final class AutoTorchClient {
                 ? BlockPos.ORIGIN : minecraft.thePlayer.getPosition();
         // 切换世界或退出存档时重置选区，避免把旧维度坐标带入新世界。
         SelectionState.updateLevel(minecraft.theWorld, currentPosition);
-        LightOverlayState.tick(minecraft);
+        LightOverlayState.tick(minecraft, lightOverlayCenter);
         NearbyAutoTorch.tick(minecraft);
         syncSelectionToolSetting(minecraft);
         while (OPEN_SCREEN.isPressed()) {
