@@ -49,7 +49,7 @@ public final class LightOverlayRenderer {
     private static final double NUMBER_MARGIN = 0.1D;
     private static final double NUMBER_SIZE = 1.0D;
     private static final float NUMBER_TEXTURE_CELL_SIZE = 0.25F;
-    private static final int DROWNED_VISIBILITY_CHECKS_PER_FRAME = 4;
+    private static final int DROWNED_VISIBILITY_CHECKS_PER_FRAME = 64;
     private static final long DROWNED_VISIBILITY_BUDGET_NANOS = 1_000_000L;
     private static final double DROWNED_VISIBILITY_REFRESH_DISTANCE_SQUARED = 16.0D;
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
@@ -150,8 +150,7 @@ public final class LightOverlayRenderer {
         if (drownedVisibilityCamera == null
                 || camera.distanceToSqr(drownedVisibilityCamera) >= DROWNED_VISIBILITY_REFRESH_DISTANCE_SQUARED) {
             drownedVisibilityCamera = camera;
-            drownedVisibilityQueue.clear();
-            queuedDrownedPositions.clear();
+            // 保留尚未完成的检查，避免自由相机连续移动时反复丢弃队列进度。
             for (BlockPos pos : activeDrownedPositions) {
                 enqueueDrownedVisibility(pos);
             }
