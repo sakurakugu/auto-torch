@@ -31,7 +31,7 @@ Digging out a perimeter is tedious, and placing torches by hand makes it easy to
 
 - Press `G` by default to open the selection panel and `F7` to toggle the light level overlay. Both key bindings can be changed.
 - Light level overlay:
-  Supports `X` markers and numeric block light levels, with a display range of 1-64 blocks (performance optimized).
+  Supports `X` markers, numeric and boxed numeric block light levels. Horizontal range: 1-64 blocks; vertical range: up to 64 blocks each way (64 blocks maximum), performance optimized.
   | Color | Meaning |
   | ----- | ------- |
   | Red | Mobs can spawn at any time |
@@ -99,8 +99,9 @@ When contributing a translation, submit the `.json` file in a pull request targe
 ### Light Level Overlay
 
 - This feature is entirely client-side. Press `F7` by default to toggle it, or configure it from the `G` panel.
-- The area around the player is scanned incrementally, with a configurable horizontal display range of 1-64 blocks. The overlay refreshes automatically when the player moves, and scanning work is spread across frames.
-- Both `X` markers and numeric light levels are supported. The number is the block light level, while its color indicates the spawning risk at that position.
+- The area around the player is scanned incrementally, with a configurable horizontal range of 1-64 blocks and an optional vertical range of up to 64 blocks each way (64 blocks maximum). The overlay refreshes automatically when the player moves, and scanning work is spread across frames.
+- `X` markers, numeric light levels, and boxed numeric light levels are supported. The number is the block light level, while its color indicates the spawning risk at that position.
+- See-through rendering and camera-following numbers are supported.
 - Standard markers check the foot and head spaces, the collision surface of the block below, and vanilla ground-mob spawning conditions, avoiding false spawn markers at positions where mobs cannot stand.
 - An optional swamp slime check evaluates height, biome, block light, and vanilla slime spawning conditions, marking risk positions in purple.
 - An optional drowned check evaluates continuous water, the biome spawn list, sea level, and block light, marking the top of valid water columns in cyan.
@@ -138,10 +139,18 @@ includeSkyLight = true
 [lightOverlay]
 # Whether the light level overlay is enabled.
 enabled = false
+# Whether see-through rendering is enabled so markers stay visible through blocks.
+renderThrough = false
+# true: numbers rotate with the camera; false: numbers do not rotate with the camera.
+numberRotation = true
 # Horizontal display range centered on the player. Range: 1-64 blocks.
 horizontalRange = 16
-# true: show numeric light levels; false: show X markers.
-showNumbers = false
+# Number of blocks scanned downward from the player. Range: 0-64; the sum with upRange must not exceed 64.
+downRange = 16
+# Number of blocks scanned upward from the player. Range: 0-64; the sum with downRange must not exceed 64.
+upRange = 4
+# Display style: 0 = X markers, 1 = numbers, 2 = boxed numbers.
+mode = 0
 # Whether to mark locations that meet the vanilla spawning conditions for swamp slimes.
 detectSwampSlimes = false
 # Whether to mark locations that meet the vanilla spawning conditions for drowned.
