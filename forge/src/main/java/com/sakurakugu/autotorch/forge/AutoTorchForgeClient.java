@@ -54,7 +54,8 @@ final class AutoTorchForgeClient {
 
     private void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
-            client.tick();
+            Minecraft minecraft = Minecraft.getInstance();
+            client.tick(minecraft.gameRenderer.getMainCamera().getBlockPosition());
             if (!Minecraft.getInstance().options.keyAttack.isDown()) {
                 selectionClickPos = null;
             }
