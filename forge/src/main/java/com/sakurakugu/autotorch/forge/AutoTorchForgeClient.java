@@ -61,7 +61,10 @@ final class AutoTorchForgeClient {
 
     private void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
-            client.tick();
+            Minecraft minecraft = Minecraft.getInstance();
+            Entity view = minecraft.getRenderViewEntity();
+            client.tick(view == null ? BlockPos.ORIGIN
+                    : new BlockPos(ActiveRenderInfo.projectViewFromEntity(view, 1.0F)));
             updateCommandSuggestions();
             if (!Minecraft.getInstance().gameSettings.keyBindAttack.isKeyDown()) {
                 selectionClickPos = null;
@@ -113,8 +116,6 @@ final class AutoTorchForgeClient {
     private void onRender(RenderWorldLastEvent event) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.world == null) return;
-        // Forge 客户端 tick 可能早于原版光照传播，在渲染阶段再次复核已完成的更新。
-        LightOverlayState.tick(minecraft);
         Entity viewEntity = minecraft.getRenderViewEntity();
         if (viewEntity == null) return;
         double partialTicks = event.getPartialTicks();
@@ -126,6 +127,8 @@ final class AutoTorchForgeClient {
         );
         Vec3d camera = ActiveRenderInfo.projectViewFromEntity(viewEntity, partialTicks);
         BlockPos cameraPos = new BlockPos(camera);
+        // Forge 客户端 tick 可能早于原版光照传播，在渲染阶段再次复核已完成的更新。
+        LightOverlayState.tick(minecraft, cameraPos);
         SelectionRenderer.extract(cameraPos);
         LightOverlayRenderer.extract();
 
