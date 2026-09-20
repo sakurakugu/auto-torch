@@ -191,11 +191,10 @@ public final class LightingScreen extends Screen {
         }));
         updateTaskButtonAvailability();
 
-        lightOverlayButton = addRenderableWidget(withTooltip(button(left, 258, 108, 20,
-                lightOverlayMessage(), button -> {
+        lightOverlayButton = addRenderableWidget(button(left, 258, 108, 20, lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
             lightOverlayButton.setMessage(lightOverlayMessage().getFormattedText());
-        }), new TextComponentTranslation("screen.autotorch.light_overlay.tooltip")));
+        }));
         ITextComponent lightOverlayResetMessage = new TextComponentTranslation("screen.autotorch.reset");
         addRenderableWidget(new ResetButton(resetButtonX(lightOverlayResetMessage), 242,
                 font.getStringWidth(lightOverlayResetMessage.getFormattedText()), 16, lightOverlayResetMessage,
