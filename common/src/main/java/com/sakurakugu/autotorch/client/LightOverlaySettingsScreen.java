@@ -31,7 +31,7 @@ public final class LightOverlaySettingsScreen extends Screen {
 
     private static Button button(int x, int y, int width, int height,
             ITextComponent message, Button.OnPress onPress) {
-        return new Button(x, y, width, height, message.getFormattedText(), onPress);
+        return new ScrollingButton(x, y, width, height, message.getFormattedText(), onPress);
     }
 
     private static ITextComponent numberRotationMessage() {

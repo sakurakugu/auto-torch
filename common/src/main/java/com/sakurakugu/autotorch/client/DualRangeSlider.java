@@ -64,7 +64,8 @@ final class DualRangeSlider extends Button {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         thumb(lowX, draggingThumb == 1 || Math.abs(mouseX - lowX) <= 6);
         thumb(highX, draggingThumb == 2 || Math.abs(mouseX - highX) <= 6);
-        drawCenteredString(Minecraft.getMinecraft().fontRendererObj, getMessage(), xPosition + width / 2, yPosition + 5, 0xFFFFFFFF);
+        ScrollingText.render(Minecraft.getMinecraft().fontRendererObj, getMessage(),
+                xPosition + 2, yPosition, xPosition + width - 2, yPosition + height, 0xFFFFFFFF);
     }
 
     private void thumb(int thumbX, boolean hovered) {
