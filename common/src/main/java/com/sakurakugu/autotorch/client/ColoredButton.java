@@ -32,8 +32,9 @@ final class ColoredButton extends Button {
         int color = !active ? 0xCC555555 : highlighted ? hoveredColor : backgroundColor;
         fill(x + 2, y + 2, x + getWidth() - 2, y + height - 2, color);
         drawColoredBevel(color);
-        drawCenteredString(Minecraft.getInstance().font, getMessage(),
-                x + getWidth() / 2, y + 6, active ? 0xFFFFFFFF : 0xFFA0A0A0);
+        ScrollingText.render(Minecraft.getInstance().font, getMessage(),
+                x + 2, y, x + getWidth() - 2, y + height,
+                active ? 0xFFFFFFFF : 0xFFA0A0A0);
     }
 
     private static void drawNineSliced(int x, int y, int width, int height, int cw, int ch, int tw, int th, int u, int v) {
