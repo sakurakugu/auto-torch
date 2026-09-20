@@ -95,7 +95,6 @@ public final class LightOverlayState {
         }
         displayMode = value;
         ClientConfig.setLightOverlayMode(value.ordinal());
-        ClientConfig.setShowsLightOverlayNumbers(value != DisplayMode.CROSSES);
     }
 
     public static boolean isSwampSlimeDetectionEnabled() {
@@ -171,7 +170,7 @@ public final class LightOverlayState {
     private static DisplayMode modeFromConfig() {
         int mode = ClientConfig.lightOverlayMode();
         return mode >= 0 && mode < DisplayMode.values().length ? DisplayMode.values()[mode]
-                : ClientConfig.showsLightOverlayNumbers() ? DisplayMode.NUMBERS : DisplayMode.CROSSES;
+                : DisplayMode.CROSSES;
     }
 
     static List<MarkerColumn> markerColumns() {
