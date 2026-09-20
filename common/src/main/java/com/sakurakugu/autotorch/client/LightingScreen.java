@@ -196,7 +196,9 @@ public final class LightingScreen extends Screen {
         lightOverlayButton = addButton(button(lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
             lightOverlayButton.setMessage(lightOverlayMessage().getString());
-        }).bounds(left, 258, 108, 20).build());
+        }).bounds(left, 258, 108, 20)
+                .tooltip(new TranslatableComponent("screen.autotorch.light_overlay.tooltip"))
+                .build());
         Component lightOverlayResetMessage = new TranslatableComponent("screen.autotorch.reset");
         addButton(new ResetButton(resetButtonX(lightOverlayResetMessage), 242,
                 font.width(lightOverlayResetMessage.getString()), 16, lightOverlayResetMessage, panelLeft(), panelLeft() + 310,
