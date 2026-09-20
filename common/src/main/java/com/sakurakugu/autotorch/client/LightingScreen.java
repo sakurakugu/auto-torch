@@ -215,17 +215,23 @@ public final class LightingScreen extends Screen {
                 (lower, upper) -> new ChatComponentTranslation("screen.autotorch.light_overlay_height_value", lower, upper),
                 (lower, upper) -> { LightOverlayState.setDownRange(-lower); LightOverlayState.setUpRange(upper); }));
 
-        swampSlimeDetectionButton = addRenderableWidget(withTooltip(button(left, 306, 153, 20,
+        swampSlimeDetectionButton = addRenderableWidget(withTooltip(button(left, 306, 116, 20,
                 swampSlimeDetectionMessage(), button -> { }),
                 new ChatComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-")));
         swampSlimeDetectionButton.active = false;
-        drownedDetectionButton = addRenderableWidget(withTooltip(button(left + 157, 306, 153, 20,
+        drownedDetectionButton = addRenderableWidget(withTooltip(button(left + 120, 306, 102, 20,
                 drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage().getFormattedText());
         }), new ChatComponentTranslation("screen.autotorch.drowned_detection.tooltip.1.12.2")));
         // Minecraft 1.7.10 尚未加入溺尸，保留控件位置但禁止修改无效配置。
         drownedDetectionButton.active = false;
+        addRenderableWidget(button(left + 226, 306, 84, 20,
+                new ChatComponentTranslation("screen.autotorch.more_settings"), button -> {
+            saveSelection();
+            saveTaskDefaults();
+            minecraft.displayGuiScreen(new LightOverlaySettingsScreen(this));
+        }));
 
         nearbyAutoTorchButton = addRenderableWidget(withTooltip(button(left, 350, 153, 20,
                 nearbyAutoTorchMessage(), button -> {
@@ -1042,11 +1048,11 @@ public final class LightingScreen extends Screen {
         } else if (hasVisibleText(rangeMessage)) {
             drawCenteredString(font, rangeMessage.getFormattedText(), width / 2, informationY, 0xFFFFC060);
         } else if (!AutoTorchRules.canTorchMeetLightThreshold(ClientConfig.defaultTaskLightThreshold())) {
-            drawCenteredString(font, new TextComponentTranslation("screen.autotorch.light_threshold_unreachable",
+            drawCenteredString(font, new ChatComponentTranslation("screen.autotorch.light_threshold_unreachable",
                     ClientConfig.defaultTaskLightThreshold()).getFormattedText(), width / 2, informationY, 0xFFFF6060);
         } else if (ServerConfigState.minSpacing() > AutoTorchRules.maxSafeSecondPassSpacing(
                 ClientConfig.defaultTaskLightThreshold())) {
-            drawCenteredString(font, new TextComponentTranslation("screen.autotorch.second_pass_spacing_limited",
+            drawCenteredString(font, new ChatComponentTranslation("screen.autotorch.second_pass_spacing_limited",
                     effectiveSecondPassSpacing(), ClientConfig.defaultTaskLightThreshold()).getFormattedText(),
                     width / 2, informationY, 0xFFFFC060);
         } else {
