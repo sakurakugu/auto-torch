@@ -2,16 +2,21 @@ package com.sakurakugu.autotorch.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.ClipContext;
@@ -44,10 +49,22 @@ public final class LightOverlayRenderer {
     private static final double NUMBER_MARGIN = 0.1D;
     private static final double NUMBER_SIZE = 1.0D;
     private static final float NUMBER_TEXTURE_CELL_SIZE = 0.25F;
+    private static final int DROWNED_VISIBILITY_CHECKS_PER_FRAME = 4;
+    private static final long DROWNED_VISIBILITY_BUDGET_NANOS = 1_000_000L;
+    private static final double DROWNED_VISIBILITY_REFRESH_DISTANCE_SQUARED = 16.0D;
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
     private static volatile RenderData renderData;
-    private static volatile RenderData drownedRenderData;
+    private static volatile DrownedSource drownedSource = new DrownedSource(NO_COLUMNS,
+            LightOverlayState.DisplayMode.CROSSES);
+    private static final Map<BlockPos, Boolean> drownedVisibility = new HashMap<>();
+    private static final ArrayDeque<BlockPos> drownedVisibilityQueue = new ArrayDeque<>();
+    private static final Set<BlockPos> queuedDrownedPositions = new HashSet<>();
+    private static Set<BlockPos> activeDrownedPositions = Set.of();
+    private static List<LightOverlayState.MarkerColumn> visibilitySourceColumns = NO_COLUMNS;
+    private static Vec3 drownedVisibilityCamera;
+    private static RenderData visibleDrownedRenderData;
+    private static boolean drownedVisibilityDirty;
     private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
@@ -63,13 +80,13 @@ public final class LightOverlayRenderer {
             return;
         }
         renderData = buildRenderData(columns, displayMode);
-        drownedRenderData = buildRenderData(columns.stream()
+        List<LightOverlayState.MarkerColumn> drownedColumns = columns.stream()
                 .map(column -> new LightOverlayState.MarkerColumn(column.key(), column.minY(),
                         column.markers().stream()
                                 .filter(marker -> marker.riskType() == LightOverlayState.RiskType.DROWNED)
                                 .toList()))
-                .filter(column -> !column.markers().isEmpty())
-                .toList(), displayMode, false);
+                .filter(column -> !column.markers().isEmpty()).toList();
+        drownedSource = new DrownedSource(drownedColumns, displayMode);
     }
 
     public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
@@ -123,27 +140,105 @@ public final class LightOverlayRenderer {
     }
 
     private static RenderData visibleDrownedData(Vec3 camera, LightOverlayState.DisplayMode displayMode) {
-        RenderData source = drownedRenderData;
+        DrownedSource source = drownedSource;
         Minecraft minecraft = Minecraft.getInstance();
-        if (source == null || minecraft.level == null || minecraft.player == null) {
+        if (minecraft.level == null || minecraft.player == null) {
+            clearDrownedVisibility();
             return null;
         }
 
-        List<LightOverlayState.MarkerColumn> columns = source.sourceColumns().stream()
-                .map(column -> new LightOverlayState.MarkerColumn(column.key(), column.minY(),
-                        column.markers().stream().filter(marker -> {
-                            Vec3 target = new Vec3(
-                                    marker.pos().getX() + 0.5D,
-                                    marker.pos().getY() + SURFACE_OFFSET,
-                                    marker.pos().getZ() + 0.5D);
-                            // 忽略流体，让水下标记穿过水面显示；实体方块仍会正常遮挡。
-                            return minecraft.level.clip(new ClipContext(
-                                    camera, target, ClipContext.Block.COLLIDER,
-                                    ClipContext.Fluid.NONE, minecraft.player)).getType() == HitResult.Type.MISS;
-                        }).toList()))
-                .filter(column -> !column.markers().isEmpty())
-                .toList();
-        return buildRenderData(columns, displayMode, false);
+        syncDrownedVisibilitySource(source.columns());
+        if (drownedVisibilityCamera == null
+                || camera.distanceToSqr(drownedVisibilityCamera) >= DROWNED_VISIBILITY_REFRESH_DISTANCE_SQUARED) {
+            drownedVisibilityCamera = camera;
+            drownedVisibilityQueue.clear();
+            queuedDrownedPositions.clear();
+            for (BlockPos pos : activeDrownedPositions) {
+                enqueueDrownedVisibility(pos);
+            }
+            drownedVisibilityDirty = true;
+        }
+
+        int checked = 0;
+        long deadline = System.nanoTime() + DROWNED_VISIBILITY_BUDGET_NANOS;
+        while (checked < DROWNED_VISIBILITY_CHECKS_PER_FRAME && !drownedVisibilityQueue.isEmpty()) {
+            BlockPos pos = drownedVisibilityQueue.removeFirst();
+            queuedDrownedPositions.remove(pos);
+            if (!activeDrownedPositions.contains(pos)) {
+                continue;
+            }
+            Vec3 target = new Vec3(
+                    pos.getX() + 0.5D,
+                    pos.getY() + SURFACE_OFFSET,
+                    pos.getZ() + 0.5D);
+            // 忽略流体，让水下标记穿过水面显示；实体方块仍会正常遮挡。
+            boolean visible = minecraft.level.clip(new ClipContext(camera, target,
+                    ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, minecraft.player)).getType()
+                    == HitResult.Type.MISS;
+            if (!Objects.equals(drownedVisibility.put(pos, visible), visible)) {
+                drownedVisibilityDirty = true;
+            }
+            checked++;
+            // 方块碰撞射线开销较高，避免候选点密集时独占渲染线程。
+            if (System.nanoTime() >= deadline) {
+                break;
+            }
+        }
+
+        if (drownedVisibilityQueue.isEmpty()
+                && (drownedVisibilityDirty || visibleDrownedRenderData == null
+                || visibleDrownedRenderData.displayMode() != displayMode)) {
+            List<LightOverlayState.MarkerColumn> visibleColumns = source.columns().stream()
+                    .map(column -> new LightOverlayState.MarkerColumn(column.key(), column.minY(),
+                            column.markers().stream()
+                                    .filter(marker -> Boolean.TRUE.equals(drownedVisibility.get(marker.pos())))
+                                    .toList()))
+                    .filter(column -> !column.markers().isEmpty()).toList();
+            // 溺尸临时几何不能写入主覆盖层缓存，否则下一次刷新会重建所有列。
+            visibleDrownedRenderData = buildRenderData(visibleColumns, displayMode, false);
+            drownedVisibilityDirty = false;
+        }
+        return visibleDrownedRenderData;
+    }
+
+    private static void syncDrownedVisibilitySource(List<LightOverlayState.MarkerColumn> columns) {
+        if (visibilitySourceColumns == columns) {
+            return;
+        }
+        visibilitySourceColumns = columns;
+        Set<BlockPos> active = new HashSet<>();
+        for (LightOverlayState.MarkerColumn column : columns) {
+            for (LightOverlayState.Marker marker : column.markers()) {
+                active.add(marker.pos());
+            }
+        }
+        activeDrownedPositions = Set.copyOf(active);
+        drownedVisibility.keySet().retainAll(active);
+        drownedVisibilityQueue.removeIf(pos -> !active.contains(pos));
+        queuedDrownedPositions.retainAll(active);
+        for (BlockPos pos : active) {
+            if (!drownedVisibility.containsKey(pos)) {
+                enqueueDrownedVisibility(pos);
+            }
+        }
+        drownedVisibilityDirty = true;
+    }
+
+    private static void enqueueDrownedVisibility(BlockPos pos) {
+        if (queuedDrownedPositions.add(pos)) {
+            drownedVisibilityQueue.addLast(pos);
+        }
+    }
+
+    private static void clearDrownedVisibility() {
+        drownedVisibility.clear();
+        drownedVisibilityQueue.clear();
+        queuedDrownedPositions.clear();
+        activeDrownedPositions = Set.of();
+        visibilitySourceColumns = NO_COLUMNS;
+        drownedVisibilityCamera = null;
+        visibleDrownedRenderData = null;
+        drownedVisibilityDirty = false;
     }
 
     private static void renderGeometry(
@@ -362,6 +457,11 @@ public final class LightOverlayRenderer {
         private int renderableCount() {
             return lineCount + quadCount;
         }
+    }
+
+    private record DrownedSource(
+            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
+    ) {
     }
 
     private record ColumnRenderData(

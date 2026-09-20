@@ -1,14 +1,13 @@
 package com.sakurakugu.autotorch.client;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -46,11 +45,11 @@ public final class LightOverlayState {
     private static int minY;
     private static int maxY;
     private static int ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
-    private static final Map<Long, MarkerColumn> columnCache = new HashMap<>();
-    private static final Set<Long> urgentColumns = new LinkedHashSet<>();
-    private static final Set<Long> lightUpdateColumns = new LinkedHashSet<>();
-    private static final Set<Long> backgroundColumns = new LinkedHashSet<>();
-    private static final Set<Long> verificationColumns = new LinkedHashSet<>();
+    private static final Long2ObjectOpenHashMap<MarkerColumn> columnCache = new Long2ObjectOpenHashMap<>();
+    private static final LongLinkedOpenHashSet urgentColumns = new LongLinkedOpenHashSet();
+    private static final LongLinkedOpenHashSet lightUpdateColumns = new LongLinkedOpenHashSet();
+    private static final LongLinkedOpenHashSet backgroundColumns = new LongLinkedOpenHashSet();
+    private static final LongLinkedOpenHashSet verificationColumns = new LongLinkedOpenHashSet();
     private static List<MarkerColumn> markerColumns = List.of();
 
     private LightOverlayState() {
@@ -209,7 +208,7 @@ public final class LightOverlayState {
             ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
         }
 
-        Set<Long> activeQueue = !urgentColumns.isEmpty() ? urgentColumns
+        LongLinkedOpenHashSet activeQueue = !urgentColumns.isEmpty() ? urgentColumns
                 : !lightUpdateColumns.isEmpty() ? lightUpdateColumns
                 : !backgroundColumns.isEmpty() ? backgroundColumns : verificationColumns;
         boolean cacheChanged = scanQueuedColumns(currentLevel, activeQueue, SCAN_BUDGET_PER_TICK);
@@ -251,7 +250,7 @@ public final class LightOverlayState {
         return true;
     }
 
-    private static void enqueueVisibleColumns(Set<Long> destination) {
+    private static void enqueueVisibleColumns(LongLinkedOpenHashSet destination) {
         if (scanCenter == null) {
             return;
         }
@@ -272,7 +271,7 @@ public final class LightOverlayState {
         }
     }
 
-    private static void enqueueColumn(Set<Long> destination, int x, int z) {
+    private static void enqueueColumn(LongLinkedOpenHashSet destination, int x, int z) {
         long key = columnKey(x, z);
         if (destination == urgentColumns) {
             backgroundColumns.remove(key);
@@ -285,12 +284,14 @@ public final class LightOverlayState {
         }
     }
 
-    private static boolean scanQueuedColumns(ClientLevel currentLevel, Set<Long> queue, int budget) {
+    private static boolean scanQueuedColumns(
+            ClientLevel currentLevel, LongLinkedOpenHashSet queue, int budget
+    ) {
         int columnsRemaining = Math.max(1, budget / (downRange + upRange + 1));
         boolean changed = false;
-        Iterator<Long> iterator = queue.iterator();
+        LongIterator iterator = queue.iterator();
         while (iterator.hasNext() && columnsRemaining-- > 0) {
-            long key = iterator.next();
+            long key = iterator.nextLong();
             if (!isVisibleColumn(key)) {
                 iterator.remove();
                 continue;
@@ -346,8 +347,8 @@ public final class LightOverlayState {
 
     private static void publishVisibleMarkers() {
         List<MarkerColumn> visibleColumns = new ArrayList<>();
-        for (Map.Entry<Long, MarkerColumn> entry : columnCache.entrySet()) {
-            if (isVisibleColumn(entry.getKey())) {
+        for (Long2ObjectMap.Entry<MarkerColumn> entry : columnCache.long2ObjectEntrySet()) {
+            if (isVisibleColumn(entry.getLongKey())) {
                 visibleColumns.add(entry.getValue());
             }
         }
