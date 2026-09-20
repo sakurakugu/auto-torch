@@ -66,7 +66,6 @@
   "screen.autotorch.cancel_task": "Cancel task",
   "screen.autotorch.light_overlay_on": "Overlay: on",
   "screen.autotorch.light_overlay_off": "Overlay: off",
-  "screen.autotorch.light_overlay.tooltip": "Enabling free camera may rebuild chunks and freeze the game temporarily. When using free-camera mods, reduce the range or disable the overlay beforehand and re-enable it afterward.",
   "screen.autotorch.light_overlay_mode_crosses": "Style: X",
   "screen.autotorch.light_overlay_mode_numbers": "Style: numbers",
   "screen.autotorch.light_overlay_mode_boxed_numbers": "Style: boxed numbers",
