@@ -35,7 +35,7 @@ public final class ClientConfig {
         reset(Arrays.<Value>asList(LIGHT_OVERLAY_ENABLED, LIGHT_OVERLAY_HORIZONTAL_RANGE,
                 LIGHT_OVERLAY_RENDER_THROUGH, LIGHT_OVERLAY_NUMBER_ROTATION,
                 LIGHT_OVERLAY_DOWN_RANGE, LIGHT_OVERLAY_UP_RANGE,
-                LIGHT_OVERLAY_SHOW_NUMBERS, LIGHT_OVERLAY_MODE,
+                LIGHT_OVERLAY_MODE,
                 LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED));
     }
 
@@ -79,8 +79,6 @@ public final class ClientConfig {
     public static void setLightOverlayDownRange(int value) { setInt(LIGHT_OVERLAY_DOWN_RANGE, value); }
     public static int lightOverlayUpRange() { return integer(LIGHT_OVERLAY_UP_RANGE); }
     public static void setLightOverlayUpRange(int value) { setInt(LIGHT_OVERLAY_UP_RANGE, value); }
-    public static boolean showsLightOverlayNumbers() { return bool(LIGHT_OVERLAY_SHOW_NUMBERS); }
-    public static void setShowsLightOverlayNumbers(boolean value) { setBool(LIGHT_OVERLAY_SHOW_NUMBERS, value); }
     public static int lightOverlayMode() { return integer(LIGHT_OVERLAY_MODE); }
     public static void setLightOverlayMode(int value) { setInt(LIGHT_OVERLAY_MODE, value); }
     public static boolean detectsSwampSlimes() { return bool(LIGHT_OVERLAY_DETECT_SWAMP_SLIMES); }
