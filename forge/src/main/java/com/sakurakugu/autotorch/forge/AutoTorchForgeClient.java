@@ -77,7 +77,6 @@ final class AutoTorchForgeClient {
     private void registerKeys(FMLClientSetupEvent event) {
         ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
-        ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH);
     }
 
     private void onClientChat(ClientChatEvent event) {
