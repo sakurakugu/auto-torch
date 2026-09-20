@@ -69,7 +69,8 @@ final class AutoTorchForgeClient {
     }
 
     private void onTick(TickEvent.ClientTickEvent.Post event) {
-        client.tick();
+        Minecraft minecraft = Minecraft.getInstance();
+        client.tick(minecraft.gameRenderer.mainCamera().blockPosition());
     }
 
     private void registerRenderPass(AddFramePassEvent event) {
@@ -137,8 +138,8 @@ final class AutoTorchForgeClient {
                 return;
             }
             // Forge 的客户端 tick 可能早于原版光照传播；在渲染阶段再次扫描以读取已完成更新的光照值。
-            LightOverlayState.tick(minecraft);
             var camera = state.cameraRenderState.pos;
+            LightOverlayState.tick(minecraft, BlockPos.containing(camera));
             SelectionRenderer.extract(BlockPos.containing(camera));
             LightOverlayRenderer.extract();
 
