@@ -39,11 +39,6 @@ public final class AutoTorchClient {
             GLFW.GLFW_KEY_F7,
             CATEGORY
     );
-    public static final KeyMapping TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH = new KeyMapping(
-            "key.autotorch.toggle_light_overlay_render_through",
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F8, CATEGORY
-    );
-
     public void tick() {
         Minecraft minecraft = Minecraft.getInstance();
         // 处理打开选区面板的请求，避免在 tick 中直接打开 GUI 导致的异常。(仅限 Fabric 端的bug)
@@ -70,15 +65,6 @@ public final class AutoTorchClient {
                 boolean enabled = LightOverlayState.toggle();
                 minecraft.gui.setOverlayMessage(Component.translatable(enabled
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
-            }
-        }
-        while (TOGGLE_LIGHT_OVERLAY_RENDER_THROUGH.consumeClick()) {
-            if (minecraft.player != null) {
-                boolean enabled = !ClientConfig.isLightOverlayRenderThrough();
-                ClientConfig.setLightOverlayRenderThrough(enabled);
-                minecraft.gui.setOverlayMessage(Component.translatable(enabled
-                        ? "message.autotorch.light_overlay_render_through_on"
-                        : "message.autotorch.light_overlay_render_through_off"), false);
             }
         }
     }
