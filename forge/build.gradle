@@ -54,7 +54,6 @@ dependencies {
     implementation 'com.mojang:brigadier:1.0.14'
     implementation "com.electronwill.night-config:core:${night_config_version}"
     implementation "com.electronwill.night-config:toml:${night_config_version}"
-    compileOnly 'org.lwjgl:lwjgl-opengl:3.2.2'
 
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
