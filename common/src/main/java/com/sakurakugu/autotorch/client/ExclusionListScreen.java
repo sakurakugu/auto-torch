@@ -43,7 +43,7 @@ public final class ExclusionListScreen extends Screen {
             int y = 34 + row * 24;
             int selectedIndex = index;
             boolean lightingEntry = lightingZone != null && index == 0;
-            Button editButton = addRenderableWidget(new Button(left + panelWidth - 108, y, 50, 20,
+            Button editButton = addRenderableWidget(new ScrollingButton(left + panelWidth - 108, y, 50, 20,
                     Component.translatable(lightingEntry
                             ? "screen.autotorch.edit_lighting" : "screen.autotorch.edit_exclusion"), button -> {
                 int exclusionIndex = selectedIndex - (SelectionState.lightingZone() == null ? 0 : 1);
@@ -68,17 +68,17 @@ public final class ExclusionListScreen extends Screen {
                     }, 0xDDA52B2B, 0xEEC83C3C));
         }
 
-        Button previous = addRenderableWidget(new Button(left, 184, 80, 20,
+        Button previous = addRenderableWidget(new ScrollingButton(left, 184, 80, 20,
                 Component.translatable("screen.autotorch.previous_page"), button -> {
             page--;
             rebuildWidgets();
         }));
         previous.active = page > 0;
 
-        addRenderableWidget(new Button(width / 2 - 50, 184, 100, 20,
+        addRenderableWidget(new ScrollingButton(width / 2 - 50, 184, 100, 20,
                 Component.translatable("screen.autotorch.back"), button -> onClose()));
 
-        Button next = addRenderableWidget(new Button(left + panelWidth - 80, 184, 80, 20,
+        Button next = addRenderableWidget(new ScrollingButton(left + panelWidth - 80, 184, 80, 20,
                 Component.translatable("screen.autotorch.next_page"), button -> {
             page++;
             rebuildWidgets();

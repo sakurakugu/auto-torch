@@ -17,13 +17,13 @@ public final class LightOverlaySettingsScreen extends Screen {
 
     @Override
     protected void init() {
-        numberRotationButton = addRenderableWidget(new Button(width / 2 - 100, 42, 200, 20,
+        numberRotationButton = addRenderableWidget(new ScrollingButton(width / 2 - 100, 42, 200, 20,
                 numberRotationMessage(), button -> {
             ClientConfig.setRotatesLightOverlayNumbers(!ClientConfig.rotatesLightOverlayNumbers());
             numberRotationButton.setMessage(numberRotationMessage());
         }));
 
-        addRenderableWidget(new Button(width / 2 - 50, 72, 100, 20,
+        addRenderableWidget(new ScrollingButton(width / 2 - 50, 72, 100, 20,
                 Component.translatable("screen.autotorch.back"), button -> onClose()));
     }
 
