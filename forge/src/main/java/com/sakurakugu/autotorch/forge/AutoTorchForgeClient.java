@@ -52,7 +52,8 @@ final class AutoTorchForgeClient {
     }
 
     private void onTick(TickEvent.ClientTickEvent.Post event) {
-        client.tick();
+        Minecraft minecraft = Minecraft.getInstance();
+        client.tick(minecraft.gameRenderer.getMainCamera().getBlockPosition());
     }
 
     private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {

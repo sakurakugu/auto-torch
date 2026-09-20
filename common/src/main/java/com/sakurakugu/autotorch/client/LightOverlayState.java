@@ -193,18 +193,18 @@ public final class LightOverlayState {
         return markerColumns;
     }
 
-    public static void tick(Minecraft minecraft) {
+    /** 使用当前相机所在方块推进扫描；其他依赖玩家实体的功能不会受相机切换影响。 */
+    public static void tick(Minecraft minecraft, BlockPos viewCenter) {
         ClientLevel currentLevel = minecraft.level;
         if (currentLevel != level) {
             level = currentLevel;
             clearScan();
         }
-        if (!enabled || currentLevel == null || minecraft.player == null) {
+        if (!enabled || currentLevel == null) {
             return;
         }
 
-        BlockPos playerPos = minecraft.player.blockPosition();
-        boolean visibleAreaChanged = updateVisibleArea(playerPos);
+        boolean visibleAreaChanged = updateVisibleArea(viewCenter);
         if (--ticksUntilVerification <= 0) {
             enqueueVisibleColumns(verificationColumns);
             ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
@@ -232,19 +232,19 @@ public final class LightOverlayState {
         markerColumns = List.of();
     }
 
-    private static boolean updateVisibleArea(BlockPos playerPos) {
+    private static boolean updateVisibleArea(BlockPos viewCenter) {
         boolean verticalChanged = scanCenter == null
-                || Math.abs(playerPos.getY() - scanCenter.getY()) >= 4;
+                || Math.abs(viewCenter.getY() - scanCenter.getY()) >= 4;
         boolean centerChanged = scanCenter == null
-                || scanCenter.getX() != playerPos.getX()
-                || scanCenter.getZ() != playerPos.getZ()
+                || scanCenter.getX() != viewCenter.getX()
+                || scanCenter.getZ() != viewCenter.getZ()
                 || verticalChanged;
         if (!verticalChanged && !centerChanged) {
             return false;
         }
 
-        int centerY = verticalChanged ? playerPos.getY() : scanCenter.getY();
-        scanCenter = new BlockPos(playerPos.getX(), centerY, playerPos.getZ());
+        int centerY = verticalChanged ? viewCenter.getY() : scanCenter.getY();
+        scanCenter = new BlockPos(viewCenter.getX(), centerY, viewCenter.getZ());
         minY = centerY - downRange;
         maxY = centerY + upRange;
         pruneDistantColumns();
@@ -256,7 +256,7 @@ public final class LightOverlayState {
         if (scanCenter == null) {
             return;
         }
-        // 从玩家附近向外加入队列，使首次开启和移动后的近处标记最先出现。
+        // 从相机附近向外加入队列，使首次开启和移动后的近处标记最先出现。
         int centerX = scanCenter.getX();
         int centerZ = scanCenter.getZ();
         for (int radius = 0; radius <= horizontalRange; radius++) {
