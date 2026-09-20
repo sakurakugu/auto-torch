@@ -1,7 +1,6 @@
 package com.sakurakugu.autotorch.client;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -26,7 +25,12 @@ abstract class Screen extends GuiScreen {
     protected List<?> children() { return children; }
     protected void renderTooltip(String text, int mouseX, int mouseY) {
         // 旧版 .lang 无法直接保存多行值，构建时会把换行写成字面量 \n。
-        drawHoveringText(Arrays.asList(text.replace("\\n", "\n").split("\n")), mouseX, mouseY, font);
+        drawHoveringText(font.listFormattedStringToWidth(
+                text.replace("\\n", "\n"), tooltipWidth(mouseX)), mouseX, mouseY, font);
+    }
+    /** 预留原版提示框的左右边距，并优先使用鼠标两侧较宽的一边。 */
+    private int tooltipWidth(int mouseX) {
+        return Math.max(1, Math.max(mouseX - 20, width - mouseX - 16));
     }
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) { return false; }
     @Override public void handleMouseInput() {
