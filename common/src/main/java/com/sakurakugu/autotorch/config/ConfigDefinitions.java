@@ -19,7 +19,6 @@ public final class ConfigDefinitions {
     public static final IntValue LIGHT_OVERLAY_HORIZONTAL_RANGE = integer("lightOverlay.horizontalRange", 16, 1, 64);
     public static final IntValue LIGHT_OVERLAY_DOWN_RANGE = integer("lightOverlay.downRange", 16, 0, 64);
     public static final IntValue LIGHT_OVERLAY_UP_RANGE = integer("lightOverlay.upRange", 4, 0, 64);
-    public static final BooleanValue LIGHT_OVERLAY_SHOW_NUMBERS = bool("lightOverlay.showNumbers", false);
     public static final IntValue LIGHT_OVERLAY_MODE = integer("lightOverlay.mode", 0, 0, 2);
     public static final BooleanValue LIGHT_OVERLAY_DETECT_SWAMP_SLIMES = bool("lightOverlay.detectSwampSlimes", false);
     public static final BooleanValue LIGHT_OVERLAY_DETECT_DROWNED = bool("lightOverlay.detectDrowned", false);
@@ -55,7 +54,7 @@ public final class ConfigDefinitions {
             NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT, LIGHT_OVERLAY_ENABLED, LIGHT_OVERLAY_RENDER_THROUGH,
             LIGHT_OVERLAY_NUMBER_ROTATION,
             LIGHT_OVERLAY_HORIZONTAL_RANGE, LIGHT_OVERLAY_DOWN_RANGE, LIGHT_OVERLAY_UP_RANGE,
-            LIGHT_OVERLAY_SHOW_NUMBERS, LIGHT_OVERLAY_MODE,
+            LIGHT_OVERLAY_MODE,
             LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED,
             SELECTION_OVERLAY_ENABLED, SELECTION_OVERLAY_LINES_ONLY,
             SELECTION_OVERLAY_SMOOTH_SPHERES, TASK_DEFAULT_MAX_TORCHES,
