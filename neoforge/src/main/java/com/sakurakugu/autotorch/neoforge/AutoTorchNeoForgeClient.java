@@ -50,7 +50,10 @@ public final class AutoTorchNeoForgeClient {
         AutoTorchClientCommands.register(event.getDispatcher());
     }
 
-    private void onTick(ClientTickEvent.Post event) { client.tick(); }
+    private void onTick(ClientTickEvent.Post event) {
+        Minecraft minecraft = Minecraft.getInstance();
+        client.tick(minecraft.gameRenderer.getMainCamera().blockPosition());
+    }
 
     private void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
         if (event.getLevel() instanceof net.minecraft.client.multiplayer.ClientLevel clientLevel
