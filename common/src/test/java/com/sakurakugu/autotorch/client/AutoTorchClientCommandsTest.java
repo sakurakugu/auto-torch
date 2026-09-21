@@ -31,6 +31,10 @@ class AutoTorchClientCommandsTest {
         child(overlay, "on");
         child(overlay, "off");
         child(child(overlay, "range"), "value");
+        child(child(overlay, "down_range"), "value");
+        child(child(overlay, "up_range"), "value");
+        assertToggle(child(overlay, "render_through"));
+        assertToggle(child(overlay, "number_rotation"));
         CommandNode<Object> mode = child(overlay, "mode");
         child(mode, "crosses");
         child(mode, "numbers");
