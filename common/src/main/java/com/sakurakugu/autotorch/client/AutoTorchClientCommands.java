@@ -8,6 +8,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
@@ -117,6 +118,28 @@ public final class AutoTorchClientCommands {
                                     LightOverlayState.setHorizontalRange(value);
                                     return feedback("command.autotorch.overlay_range", value);
                                 })))
+                .then(AutoTorchClientCommands.<S>literal("down_range")
+                        .then(RequiredArgumentBuilder
+                                .<S, Integer>argument("value", IntegerArgumentType.integer(
+                                        0, ConfigDefinitions.LIGHT_OVERLAY_DOWN_RANGE.maxValue()))
+                                .executes(context -> setOverlayVerticalRange(true,
+                                        IntegerArgumentType.getInteger(context, "value")))))
+                .then(AutoTorchClientCommands.<S>literal("up_range")
+                        .then(RequiredArgumentBuilder
+                                .<S, Integer>argument("value", IntegerArgumentType.integer(
+                                        0, ConfigDefinitions.LIGHT_OVERLAY_UP_RANGE.maxValue()))
+                                .executes(context -> setOverlayVerticalRange(false,
+                                        IntegerArgumentType.getInteger(context, "value")))))
+                .then(AutoTorchClientCommands.<S>literal("render_through")
+                        .then(booleanLiteral("on", ClientConfig::setLightOverlayRenderThrough,
+                                "command.autotorch.overlay_render_through", true))
+                        .then(booleanLiteral("off", ClientConfig::setLightOverlayRenderThrough,
+                                "command.autotorch.overlay_render_through", false)))
+                .then(AutoTorchClientCommands.<S>literal("number_rotation")
+                        .then(booleanLiteral("on", ClientConfig::setRotatesLightOverlayNumbers,
+                                "command.autotorch.overlay_number_rotation", true))
+                        .then(booleanLiteral("off", ClientConfig::setRotatesLightOverlayNumbers,
+                                "command.autotorch.overlay_number_rotation", false)))
                 .then(AutoTorchClientCommands.<S>literal("mode")
                         .then(AutoTorchClientCommands.<S>literal("crosses").executes(context -> setOverlayMode(
                                 LightOverlayState.DisplayMode.CROSSES)))
@@ -233,12 +256,56 @@ public final class AutoTorchClientCommands {
         return feedback("command.autotorch.config_defaults");
     }
 
+    /** 设置光照显示的垂直扫描范围，并回报被上下限裁剪后的实际值。 */
+    private static int setOverlayVerticalRange(boolean down, int value) {
+        String key;
+        int applied;
+        if (down) {
+            LightOverlayState.setDownRange(value);
+            key = "command.autotorch.overlay_down_range";
+            applied = LightOverlayState.downRange();
+        } else {
+            LightOverlayState.setUpRange(value);
+            key = "command.autotorch.overlay_up_range";
+            applied = LightOverlayState.upRange();
+        }
+        return feedback(key, applied);
+    }
+
+    /** 光照显示开关文本，开启透视渲染时附加对应的标记。 */
+    private static Component overlayEnabledText() {
+        return ClientConfig.isLightOverlayRenderThrough()
+                ? new TranslatableComponent("command.autotorch.status.overlay_see_through",
+                        state(LightOverlayState.isEnabled()))
+                : state(LightOverlayState.isEnabled());
+    }
+
+    /** 光照显示样式文本，数字样式且跟随视角时附加对应的标记。 */
+    private static Component overlayModeText() {
+        LightOverlayState.DisplayMode mode = LightOverlayState.displayMode();
+        boolean rotatesNumbers = mode != LightOverlayState.DisplayMode.CROSSES
+                && ClientConfig.rotatesLightOverlayNumbers();
+        return rotatesNumbers
+                ? new TranslatableComponent("command.autotorch.status.overlay_rotate_numbers",
+                        new TranslatableComponent(displayModeKey(mode)))
+                : new TranslatableComponent(displayModeKey(mode));
+    }
+
+    /** 光照显示样式对应的本地化键。 */
+    private static String displayModeKey(LightOverlayState.DisplayMode mode) {
+        if (mode == LightOverlayState.DisplayMode.CROSSES) {
+            return "command.autotorch.mode_crosses";
+        }
+        if (mode == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
+            return "command.autotorch.mode_boxed_numbers";
+        }
+        return "command.autotorch.mode_numbers";
+    }
+
     private static int setOverlayMode(LightOverlayState.DisplayMode mode) {
         LightOverlayState.setDisplayMode(mode);
         return feedback("command.autotorch.overlay_mode",
-                new TranslatableComponent(mode == LightOverlayState.DisplayMode.CROSSES
-                        ? "command.autotorch.mode_crosses" : mode == LightOverlayState.DisplayMode.NUMBERS
-                        ? "command.autotorch.mode_numbers" : "command.autotorch.mode_boxed_numbers"));
+                new TranslatableComponent(displayModeKey(mode)));
     }
 
     private static <S> BlockPos position(CommandContext<S> context, String name) {
@@ -478,7 +545,11 @@ public final class AutoTorchClientCommands {
         helpLine(option("/autotorch nearby skylight on"), separator("|"), option("off"));
         helpLine(option("/autotorch overlay on"), separator("|"), option("off"));
         helpLine(option("/autotorch overlay range <1-64>"));
-        helpLine(option("/autotorch overlay mode crosses"), separator("|"), option("numbers"));
+        helpLine(option("/autotorch overlay down_range <0-64>"), separator("|"), option("up_range <0-64>"));
+        helpLine(option("/autotorch overlay render_through on"), separator("|"), option("off"));
+        helpLine(option("/autotorch overlay number_rotation on"), separator("|"), option("off"));
+        helpLine(option("/autotorch overlay mode crosses"), separator("|"), option("numbers"), separator("|"),
+                option("boxed_numbers"));
         helpLine(option("/autotorch overlay detect swamp_slime"), separator("|"),
                 option("drowned on"), separator("|"), option("off"));
         helpLine(option("/autotorch selection pos1"), separator("|"), option("pos2 [here|target|<pos>]"));
@@ -518,9 +589,9 @@ public final class AutoTorchClientCommands {
                 state(ClientConfig.isNearbyAutoTorchEnabled()),
                 ClientConfig.nearbyAutoTorchThreshold(), state(ClientConfig.includesSkyLight()));
         feedbackColored("command.autotorch.status.overlay", STATUS_OVERLAY_COLOR,
-                state(LightOverlayState.isEnabled()), LightOverlayState.horizontalRange(),
-                new TranslatableComponent(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
-                        ? "command.autotorch.mode_crosses" : "command.autotorch.mode_numbers"),
+                overlayEnabledText(), LightOverlayState.horizontalRange(),
+                -LightOverlayState.downRange(), LightOverlayState.upRange(),
+                overlayModeText(),
                 specialDetection());
 
         Minecraft minecraft = Minecraft.getInstance();
@@ -551,8 +622,7 @@ public final class AutoTorchClientCommands {
                     new TranslatableComponent(sphere
                             ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                     state(LightOverlayState.isEnabled()),
-                    new TranslatableComponent(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
-                            ? "command.autotorch.mode_crosses" : "command.autotorch.mode_numbers"));
+                    new TranslatableComponent(displayModeKey(LightOverlayState.displayMode())));
         }
         feedbackColored("------------------------------------------------", ChatFormatting.WHITE);
         return 1;
