@@ -47,6 +47,7 @@ public final class LightOverlayRenderer {
     private static final float NUMBER_TEXTURE_CELL_SIZE = 0.25F;
     private static final List<LightOverlayState.MarkerColumn> NO_COLUMNS = List.of();
     private static Map<Long, ColumnRenderData> columnGeometry = Map.of();
+    private static Map<Long, ColumnRenderData> drownedGeometry = Map.of();
     private static volatile RenderData renderData;
     private static volatile RenderData drownedRenderData;
     private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
@@ -64,7 +65,7 @@ public final class LightOverlayRenderer {
             return;
         }
         renderData = buildRenderData(columns, displayMode);
-        drownedRenderData = buildRenderData(columns.stream()
+        drownedRenderData = buildDrownedRenderData(columns.stream()
                 .map(column -> new LightOverlayState.MarkerColumn(column.key(), column.minY(), column.markers().stream()
                         .filter(marker -> marker.riskType() == LightOverlayState.RiskType.DROWNED).toList()))
                 .filter(column -> !column.markers().isEmpty()).toList(), displayMode);
@@ -195,7 +196,8 @@ public final class LightOverlayRenderer {
                         .filter(marker -> minecraft.level.clip(new ClipContext(camera, Vec3.atCenterOf(marker.pos()),
                                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, minecraft.player)).getType() == HitResult.Type.MISS).toList()))
                 .filter(column -> !column.markers().isEmpty()).toList();
-        return buildRenderData(columns, mode);
+        // 溺尸几何使用独立缓存，避免把仅含溺尸的列写进主覆盖层缓存，导致下次刷新全量重建。
+        return buildDrownedRenderData(columns, mode);
     }
 
     private static void renderGeometry(
@@ -220,14 +222,31 @@ public final class LightOverlayRenderer {
     private static RenderData buildRenderData(
             List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
     ) {
-        Map<Long, ColumnRenderData> previousGeometry = columnGeometry;
+        RenderDataBuild build = buildRenderData(columns, displayMode, columnGeometry);
+        columnGeometry = build.geometry();
+        return build.data();
+    }
+
+    private static RenderData buildDrownedRenderData(
+            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
+    ) {
+        RenderDataBuild build = buildRenderData(columns, displayMode, drownedGeometry);
+        drownedGeometry = build.geometry();
+        return build.data();
+    }
+
+    private static RenderDataBuild buildRenderData(
+            List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode,
+            Map<Long, ColumnRenderData> previousGeometry
+    ) {
         Map<Long, ColumnRenderData> nextGeometry = new HashMap<>(columns.size());
         List<ColumnRenderData> visibleGeometry = new ArrayList<>(columns.size());
         int totalLines = 0;
         int totalQuads = 0;
         for (LightOverlayState.MarkerColumn column : columns) {
             ColumnRenderData geometry = previousGeometry.get(column.key());
-            if (geometry == null || geometry.sourceMarkers() != column.markers()
+            // 列内容是不可变列表，按值比较即可复用几何；引用比较会因溺尸列每帧重建而永远失配。
+            if (geometry == null || !geometry.sourceMarkers().equals(column.markers())
                     || geometry.displayMode() != displayMode) {
                 geometry = buildColumnRenderData(column.markers(), displayMode);
             }
@@ -236,8 +255,9 @@ public final class LightOverlayRenderer {
             totalLines += geometry.lineCount();
             totalQuads += geometry.numberQuads().size();
         }
-        columnGeometry = nextGeometry;
-        return new RenderData(columns, displayMode, List.copyOf(visibleGeometry), totalLines, totalQuads);
+        return new RenderDataBuild(
+                new RenderData(columns, displayMode, List.copyOf(visibleGeometry), totalLines, totalQuads),
+                nextGeometry);
     }
 
     private static ColumnRenderData buildColumnRenderData(
@@ -410,6 +430,9 @@ public final class LightOverlayRenderer {
         private int renderableCount() {
             return lineCount + quadCount;
         }
+    }
+
+    private record RenderDataBuild(RenderData data, Map<Long, ColumnRenderData> geometry) {
     }
 
     private record ColumnRenderData(
