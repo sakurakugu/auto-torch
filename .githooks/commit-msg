@@ -78,7 +78,14 @@ new_title="$type: $body"
 #     exit 1
 # fi
 
-# 写回 commit message
-echo "$new_title" > "$msg_file"
+# 写回 commit message：只替换标题行，后面的正文、trailer、注释原样保留
+tmp_file="${msg_file}.tmp"
+if { printf '%s\n' "$new_title"; tail -n +2 "$msg_file"; } > "$tmp_file"; then
+    mv "$tmp_file" "$msg_file"
+else
+    rm -f "$tmp_file"
+    echo "❌ 写入提交信息失败"
+    exit 1
+fi
 
 exit 0
