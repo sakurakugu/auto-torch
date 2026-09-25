@@ -37,7 +37,6 @@ public final class LightOverlayRenderer {
     private static final float NUMBER_TEXTURE_CELL_SIZE = 0.25F;
     private static final List<LightOverlayState.Marker> NO_MARKERS = Collections.emptyList();
     private static volatile RenderData renderData;
-    private static Vec3 activeLineCamera;
 
     private LightOverlayRenderer() {
     }
@@ -144,12 +143,7 @@ public final class LightOverlayRenderer {
             setupLineRenderState();
         }
         // 旧版固定管线的线宽是 draw call 状态，逐段提交才能让远近线段使用不同宽度。
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(-camera.x(), -camera.y(), -camera.z());
-        activeLineCamera = camera;
-        submitLines(Pose.INSTANCE, null, data);
-        activeLineCamera = null;
-        GlStateManager.popMatrix();
+        submitLines(Pose.INSTANCE, null, data, camera);
         if (waterVisible) {
             clearWaterVisibleRenderState();
         } else {
@@ -165,10 +159,9 @@ public final class LightOverlayRenderer {
         Tesselator tesselator = Tesselator.getInstance();
         BufferBuilder builder = tesselator.getBuilder();
         builder.begin(GL11.GL_QUADS, DefaultVertexFormat.POSITION_TEX2_COLOR);
-        builder.offset(-camera.x(), -camera.y(), -camera.z());
-        submitNumbers(Pose.INSTANCE, new VertexConsumer(builder), data);
+        // 顶点在提交时转换为相机相对坐标，避免大世界坐标分别转 float 后再相减造成精度损失。
+        submitNumbers(Pose.INSTANCE, new VertexConsumer(builder), data, camera);
         tesselator.end();
-        builder.offset(0.0D, 0.0D, 0.0D);
         clearNumberRenderState(waterVisible);
     }
 
@@ -293,14 +286,14 @@ public final class LightOverlayRenderer {
                 : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
     }
 
-    private static void submitLines(Pose pose, VertexConsumer buffer, RenderData data) {
-        float[] coordinates = data.coordinates();
+    private static void submitLines(Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
+        double[] coordinates = data.coordinates();
         int[] colors = data.colors();
         for (int line = 0, offset = 0; line < data.lineCount(); line++, offset += 6) {
             line(pose, buffer,
                     coordinates[offset], coordinates[offset + 1], coordinates[offset + 2],
                     coordinates[offset + 3], coordinates[offset + 4], coordinates[offset + 5],
-                    colors[line], CROSS_LINE_WIDTH);
+                    colors[line], CROSS_LINE_WIDTH, camera);
         }
     }
 
@@ -312,14 +305,14 @@ public final class LightOverlayRenderer {
         return Direction.fromYRot(Minecraft.getInstance().gameRenderer.getMainCamera().getYRot());
     }
 
-    private static void submitNumbers(Pose pose, VertexConsumer buffer, RenderData data) {
+    private static void submitNumbers(Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
         Direction direction = numberDirection();
         for (NumberQuad quad : data.numberQuads()) {
             float u = (quad.value() & 3) * NUMBER_TEXTURE_CELL_SIZE;
             float v = (quad.value() >> 2) * NUMBER_TEXTURE_CELL_SIZE;
-            float x = (float) quad.x();
-            float y = (float) quad.y();
-            float z = (float) quad.z();
+            float x = (float) (quad.x() - camera.x());
+            float y = (float) (quad.y() - camera.y());
+            float z = (float) (quad.z() - camera.z());
             float size = quad.size();
             float offset = quad.directionOffset();
             // 数字平面向镜头一侧偏移，避免贴合在方块边缘被遮挡。
@@ -389,12 +382,13 @@ public final class LightOverlayRenderer {
 
     private static void line(
             Pose pose, VertexConsumer buffer,
-            float x1, float y1, float z1, float x2, float y2, float z2, int color, float lineWidth
+            double x1, double y1, double z1, double x2, double y2, double z2,
+            int color, float lineWidth, Vec3 camera
     ) {
+        // 先转换为相机相对坐标，再转为 float，避免远离世界原点时的精度损失。
+        double rx1 = x1 - camera.x(), ry1 = y1 - camera.y(), rz1 = z1 - camera.z();
+        double rx2 = x2 - camera.x(), ry2 = y2 - camera.y(), rz2 = z2 - camera.z();
         if (buffer == null) {
-            Vec3 camera = activeLineCamera;
-            double rx1 = x1 - camera.x(), ry1 = y1 - camera.y(), rz1 = z1 - camera.z();
-            double rx2 = x2 - camera.x(), ry2 = y2 - camera.y(), rz2 = z2 - camera.z();
             float width = LineWidthScaler.scale(lineWidth,
                     rx1 * rx1 + ry1 * ry1 + rz1 * rz1,
                     rx2 * rx2 + ry2 * ry2 + rz2 * rz2,
@@ -403,14 +397,14 @@ public final class LightOverlayRenderer {
             GL11.glBegin(GL11.GL_LINES);
             GL11.glColor4ub((byte) ((color >> 16) & 0xFF), (byte) ((color >> 8) & 0xFF),
                     (byte) (color & 0xFF), (byte) ((color >>> 24) & 0xFF));
-            GL11.glVertex3f(x1, y1, z1);
-            GL11.glVertex3f(x2, y2, z2);
+            GL11.glVertex3d(rx1, ry1, rz1);
+            GL11.glVertex3d(rx2, ry2, rz2);
             GL11.glEnd();
             return;
         }
-        applyColor(buffer.vertex(pose.pose(), x1, y1, z1), color)
+        applyColor(buffer.vertex(pose.pose(), (float) rx1, (float) ry1, (float) rz1), color)
                 .endVertex();
-        applyColor(buffer.vertex(pose.pose(), x2, y2, z2), color)
+        applyColor(buffer.vertex(pose.pose(), (float) rx2, (float) ry2, (float) rz2), color)
                 .endVertex();
     }
 
@@ -422,14 +416,14 @@ public final class LightOverlayRenderer {
     private static final class RenderData {
         private final List<LightOverlayState.Marker> sourceMarkers;
         private final LightOverlayState.DisplayMode displayMode;
-        private final float[] coordinates;
+        private final double[] coordinates;
         private final int[] colors;
         private final int lineCount;
         private final List<NumberQuad> numberQuads;
 
         private RenderData(
                 List<LightOverlayState.Marker> sourceMarkers, LightOverlayState.DisplayMode displayMode,
-                float[] coordinates, int[] colors, int lineCount, List<NumberQuad> numberQuads
+                double[] coordinates, int[] colors, int lineCount, List<NumberQuad> numberQuads
         ) {
             this.sourceMarkers = sourceMarkers;
             this.displayMode = displayMode;
@@ -441,7 +435,7 @@ public final class LightOverlayRenderer {
 
         private List<LightOverlayState.Marker> sourceMarkers() { return sourceMarkers; }
         private LightOverlayState.DisplayMode displayMode() { return displayMode; }
-        private float[] coordinates() { return coordinates; }
+        private double[] coordinates() { return coordinates; }
         private int[] colors() { return colors; }
         private int lineCount() { return lineCount; }
         private List<NumberQuad> numberQuads() { return numberQuads; }
@@ -477,26 +471,26 @@ public final class LightOverlayRenderer {
     }
 
     private static final class GeometryBuilder {
-        private float[] coordinates;
+        private double[] coordinates;
         private int[] colors;
         private int lineCount;
         private final List<NumberQuad> numberQuads = new ArrayList<>();
 
         private GeometryBuilder(int markerCount) {
             int initialLines = Math.max(16, markerCount * 2);
-            coordinates = new float[initialLines * 6];
+            coordinates = new double[initialLines * 6];
             colors = new int[initialLines];
         }
 
         private void add(double x1, double y1, double z1, double x2, double y2, double z2, int color) {
             ensureCapacity(lineCount + 1);
             int offset = lineCount * 6;
-            coordinates[offset] = (float) x1;
-            coordinates[offset + 1] = (float) y1;
-            coordinates[offset + 2] = (float) z1;
-            coordinates[offset + 3] = (float) x2;
-            coordinates[offset + 4] = (float) y2;
-            coordinates[offset + 5] = (float) z2;
+            coordinates[offset] = x1;
+            coordinates[offset + 1] = y1;
+            coordinates[offset + 2] = z1;
+            coordinates[offset + 3] = x2;
+            coordinates[offset + 4] = y2;
+            coordinates[offset + 5] = z2;
             colors[lineCount] = color;
             lineCount++;
         }
@@ -600,6 +594,5 @@ public final class LightOverlayRenderer {
         private static void pushMatrix() { GL11.glPushMatrix(); }
         private static void popMatrix() { GL11.glPopMatrix(); }
         private static void scalef(float x, float y, float z) { GL11.glScalef(x, y, z); }
-        private static void translate(double x, double y, double z) { GL11.glTranslated(x, y, z); }
     }
 }
