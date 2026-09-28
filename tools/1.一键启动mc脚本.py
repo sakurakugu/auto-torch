@@ -16,8 +16,13 @@ logic = importlib.util.module_from_spec(_spec)
 sys.modules[_spec.name] = logic
 _spec.loader.exec_module(logic)
 
+class ChineseArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        self.exit(2, f"{self.prog}: 错误：{message}\n")
+
 def parse_args(argv):
-    p = argparse.ArgumentParser(add_help=False, usage="1.一键启动mc脚本.py [目标] [动作] [选项]")
+    p = ChineseArgumentParser(add_help=False, usage="1.一键启动mc脚本.py [目标] [动作] [选项]")
     p.add_argument("--all", dest="task", action="store_const", const="all")
     p.add_argument("--all_branch", dest="task", action="store_const", const="all_branch")
     for loader in LOADERS:
@@ -33,6 +38,8 @@ def parse_args(argv):
     args, unknown = p.parse_known_args(argv)
     if unknown:
         p.error(f"不支持的参数 '{unknown[0]}'。请使用 --help 查看用法。")
+    if "--build" in argv and "--release" in argv:
+        p.error("参数冲突：--build、--release 不能同时使用，请只选择一个。")
     args.task = args.task or "all"
     args.mode = args.mode or "debug"
     if args.mc_version:
@@ -46,9 +53,9 @@ def show_help():
     print("""用法：
   1.一键启动mc脚本.py [目标] [动作] [选项]
 
-目标：--all（默认）、--forge、--fabric、--neoforge、--all_branch
+目标：--all（默认）、--forge、--fabric、--neoforge
 动作：--debug（默认）、--build、--release
-选项：--path <路径>、--java-path <路径>、--mc_version <版本号或范围>、--branch <分支名>、--help
+选项：--path <路径>、--java-path <路径>、--all_branch、--mc_version <版本号或范围>、--branch <分支名>、--help
 版本范围使用闭区间，例如：--mc_version 1.16.5-1.8.9。
 release 默认使用 D:\\elric\\Code\\Repos\\Minecraft\\test-mc\\PCL2_Release.exe。
 """)
@@ -92,12 +99,15 @@ def main(argv=None):
         for target in selected: logic.start_client(target, release)
         return 0
     if args.build:
-        if roots and len(roots) > 1: raise RuntimeError("--build 暂不支持版本范围，请指定单个 --mc_version。")
         if args.task == "all_branch":
-            for branch, version in logic.branches():
-                if logic.gradle(logic.worktree(branch, version), "clean", "build"): raise RuntimeError(f"[{version}] 构建失败。")
+            logic.build_all_branches()
             return 0
-        return logic.gradle(root, "clean", "build" if args.task == "all" else f":{args.task}:build")
+        build_roots = roots or [root]
+        gradle_task = "build" if args.task == "all" else f":{args.task}:build"
+        for build_root in build_roots:
+            if logic.gradle(build_root, "clean", gradle_task):
+                raise RuntimeError(f"[{logic.prop(build_root, 'minecraft_version')}] 构建失败。")
+        return 0
     if args.task == "all":
         for launch_root in roots or [root]:
             for loader in LOADERS: logic.loader_client(launch_root, loader, logic.prop(launch_root, "minecraft_version"))
