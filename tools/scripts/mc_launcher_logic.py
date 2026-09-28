@@ -86,6 +86,37 @@ def java_env(path):
 
 def gradle(root, *args): return run([str(root / "gradlew.bat"), *args], cwd=root).returncode
 
+def build_all_branches():
+    """构建所有 Minecraft 分支，并将产物汇总到主分支的专用目录。"""
+    vs = branches()
+    if not vs: raise RuntimeError("未找到 mc/<版本号> 形式的本地分支。")
+    built = []
+    names = set()
+    for branch, version in vs:
+        root = worktree(branch, version)
+        if gradle(root, "clean", "build"):
+            raise RuntimeError(f"[{version}] 构建失败。")
+        mod = prop(root, "mod_version")
+        source_dir = root / "build" / f"v{mod}"
+        files = list(source_dir.glob(f"autotorch-v{mod}-mc{version}-*.jar")) if source_dir.is_dir() else []
+        if not files:
+            raise RuntimeError(f"[{version}] 未在 {source_dir} 中找到构建产物。")
+        for file in files:
+            if file.name in names:
+                raise RuntimeError(f"汇总产物名称冲突：{file.name}。")
+            names.add(file.name)
+            built.append(file)
+
+    mod = prop(PROJECT_ROOT, "mod_version")
+    archive = PROJECT_ROOT / "build" / f"v{mod}-all_branch"
+    archive.mkdir(parents=True, exist_ok=True)
+    for old in archive.glob("autotorch-*.jar"):
+        old.unlink()
+    for file in built:
+        shutil.copy2(file, archive / file.name)
+    print(f"已将 {len(built)} 个产物汇总到：{archive}")
+    return archive
+
 def pcl_cli(release, *args):
     """运行 PCL-CE CLI 命令并解析 PCL_CLI_RESULT 结果块（config 命令输出的是缩进的多行 JSON）。"""
     r = run([str(release / "PCL2_Release.exe"), *args], cwd=release, capture=True)
