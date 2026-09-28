@@ -13,7 +13,8 @@ _WINDOW = "/window"
 _ENABLED_BUTTON = _WINDOW + "/enabled_button"
 _THRESHOLD_LABEL = _WINDOW + "/threshold_label"
 _THRESHOLD_SLIDER = _WINDOW + "/threshold_slider"
-_SKY_LIGHT_BUTTON = _WINDOW + "/sky_light_button"
+# 暂时屏蔽天空光开关：网易 API 无法单独获取天空光。
+# _SKY_LIGHT_BUTTON = _WINDOW + "/sky_light_button"
 _RESET_BUTTON = _WINDOW + "/reset_button"
 _DONE_BUTTON = _WINDOW + "/done_button"
 _BUTTON_LABEL = "/button_label"
@@ -23,8 +24,9 @@ def _enabled_text(enabled):
     return "自动放置：开" if enabled else "自动放置：关"
 
 
-def _sky_light_text(include):
-    return "亮度计算包括天空光：是" if include else "亮度计算包括天空光：否"
+# 暂时屏蔽天空光开关，保留实现以便后续 API 支持时恢复。
+# def _sky_light_text(include):
+#     return "亮度计算包括天空光：是" if include else "亮度计算包括天空光：否"
 
 
 def _threshold_text(threshold):
@@ -43,7 +45,7 @@ class AutoTorchSettingsScreen(ScreenNode):
 
     def Create(self):
         self._bind_button(_ENABLED_BUTTON, self.OnEnabledClick)
-        self._bind_button(_SKY_LIGHT_BUTTON, self.OnSkyLightClick)
+        # self._bind_button(_SKY_LIGHT_BUTTON, self.OnSkyLightClick)
         self._bind_button(_RESET_BUTTON, self.OnResetClick)
         self._bind_button(_DONE_BUTTON, self.OnDoneClick)
         self._refresh()
@@ -60,7 +62,7 @@ class AutoTorchSettingsScreen(ScreenNode):
         nearby = self._nearby()
         threshold = nearby[config.NEARBY_LIGHT_THRESHOLD]
         self._set_text(_ENABLED_BUTTON + _BUTTON_LABEL, _enabled_text(nearby[config.NEARBY_ENABLED]))
-        self._set_text(_SKY_LIGHT_BUTTON + _BUTTON_LABEL, _sky_light_text(nearby[config.NEARBY_INCLUDE_SKY_LIGHT]))
+        # self._set_text(_SKY_LIGHT_BUTTON + _BUTTON_LABEL, _sky_light_text(nearby[config.NEARBY_INCLUDE_SKY_LIGHT]))
         self._set_text(_THRESHOLD_LABEL, _threshold_text(threshold))
         self._slider_value = config.threshold_to_slider(threshold)
         self.GetBaseUIControl(_THRESHOLD_SLIDER).asSlider().SetSliderValue(self._slider_value)
@@ -70,10 +72,11 @@ class AutoTorchSettingsScreen(ScreenNode):
         self._client.update_nearby({config.NEARBY_ENABLED: enabled})
         self._refresh()
 
-    def OnSkyLightClick(self, args):
-        include = not self._nearby()[config.NEARBY_INCLUDE_SKY_LIGHT]
-        self._client.update_nearby({config.NEARBY_INCLUDE_SKY_LIGHT: include})
-        self._refresh()
+    # 暂时屏蔽天空光开关。
+    # def OnSkyLightClick(self, args):
+    #     include = not self._nearby()[config.NEARBY_INCLUDE_SKY_LIGHT]
+    #     self._client.update_nearby({config.NEARBY_INCLUDE_SKY_LIGHT: include})
+    #     self._refresh()
 
     def OnResetClick(self, args):
         self._client.reset_nearby()

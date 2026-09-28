@@ -32,7 +32,8 @@ class ConfigTest(unittest.TestCase):
         })
         self.assertTrue(data[config.NEARBY_ENABLED] is True)
         self.assertEqual(data[config.NEARBY_LIGHT_THRESHOLD], 16)
-        self.assertTrue(data[config.NEARBY_INCLUDE_SKY_LIGHT] is False)
+        # 网易 API 暂不支持区分天空光，配置始终固定为启用状态。
+        self.assertTrue(data[config.NEARBY_INCLUDE_SKY_LIGHT] is True)
         self.assertEqual(config.normalize_nearby({config.NEARBY_LIGHT_THRESHOLD: -3})[config.NEARBY_LIGHT_THRESHOLD], 1)
 
     def test_invalid_threshold_uses_default(self):

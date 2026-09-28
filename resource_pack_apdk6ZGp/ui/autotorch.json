@@ -152,11 +152,6 @@
             }
          },
          {
-            "sky_light_button@autotorch.setting_button" : {
-               "offset" : [ 0, 84 ]
-            }
-         },
-         {
             "reset_button@autotorch.setting_button" : {
                "$label_text" : "重置",
                "anchor_from" : "top_left",

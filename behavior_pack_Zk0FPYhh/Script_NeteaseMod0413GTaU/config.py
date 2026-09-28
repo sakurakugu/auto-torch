@@ -38,7 +38,8 @@ def normalize_nearby(data):
     return {
         NEARBY_ENABLED: bool(data.get(NEARBY_ENABLED, False)),
         NEARBY_LIGHT_THRESHOLD: threshold,
-        NEARBY_INCLUDE_SKY_LIGHT: bool(data.get(NEARBY_INCLUDE_SKY_LIGHT, True)),
+        # 网易公开 API 目前只提供综合光照，暂时屏蔽天空光开关；保留键名兼容旧配置。
+        NEARBY_INCLUDE_SKY_LIGHT: True,
     }
 
 
