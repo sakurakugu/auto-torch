@@ -2,17 +2,17 @@
 
 English | [简体中文](../../README.md)
 
-An automatic torch placement and light level overlay mod for Minecraft 1.7.10~26.2 on NeoForge, Forge, and Fabric.
+An automatic torch placement and light level overlay mod for Minecraft 1.7.10~26.3 on NeoForge, Forge, and Fabric.
 
-![Icon](./common/src/main/resources/autotorch.png)
+![Icon](../../common/src/main/resources/autotorch.png)
 
 ## Motivation
 
-Digging out a perimeter is tedious, and placing torches by hand makes it easy to miss spots. Existing light level overlays also do not account for the special spawning conditions of drowned and swamp slimes, which makes building swamp mob farms or lighting riverbeds inconvenient. That is why this mod was created.
+Digging out an area is tedious, and placing torches by hand makes it easy to miss spots. Existing light level overlays also do not handle the special spawning conditions of drowned and swamp slimes, which makes building swamp mob farms or lighting riverbeds inconvenient. That is why this mod was created.
 
 ## Overview
 
-- Press `G` by default to open the selection panel and configure automatic torch placement within a selected area or near the player.
+- Press `G` by default to open the selection panel, where you can configure automatic torch placement within an area or near the player.
 - Press `F7` by default to toggle the light level overlay, including special checks for drowned and swamp slimes.
 
 | Nearby Torch Placement | Light Level Overlay | Area Torch Placement |
@@ -21,15 +21,16 @@ Digging out a perimeter is tedious, and placing torches by hand makes it easy to
 
 ## Screenshots
 
-![Automatic torch placement within a selected area](./docs/image/区间自动插火把功能.png)
-![Light level overlay](./docs/image/显示光照强度功能.png)
-![Settings panel](./docs/image/设置面板_en.png)
+![Automatic torch placement within an area](../image/区间自动插火把功能.png)
+![Light level overlay](../image/显示光照强度功能.png)
+![Settings panel](../image/设置面板_en.png)
 
 ## Usage
 
-- Press `G` by default to open the selection panel and `F7` to toggle the light level overlay. Both key bindings can be changed.
+- Press `G` by default to open the selection panel and `F7` to toggle the light level overlay. The key bindings can be changed.
+- Commands are also available; see the [command usage documentation](../命令使用.md) for the complete syntax.
 - Light level overlay:
-  Supports `X` markers, numeric and boxed numeric block light levels. Horizontal range: 1-64 blocks; vertical range: up to 64 blocks each way (64 blocks maximum), performance optimized.
+  Supports `X` markers, numeric light levels, and boxed numeric light levels. The display range is 1-64 blocks horizontally and up to 64 blocks both above and below vertically (64 blocks maximum), with performance optimizations.
   | Color | Meaning |
   | ----- | ------- |
   | Red | Mobs can spawn at any time |
@@ -38,9 +39,9 @@ Digging out a perimeter is tedious, and placing torches by hand makes it easy to
   | Purple | Swamp slimes can spawn at night |
   | Cyan | Drowned can spawn |
 - Nearby automatic torch placement:
-  Searches for valid positions within two blocks of the player and uses vanilla right-click interaction to place torches from the player's inventory. A torch is placed only when the light level is below the configured threshold, with an option to include sky light in the calculation.
+  Searches for valid positions within two blocks of the player and uses right-click interaction to place torches from the inventory. A torch is placed only when the light level is below the threshold; you can choose whether sky light is included in the calculation.
 - Area automatic torch placement:
-  Select points A and B to define a cuboid (opposite corners) or sphere (center/radius), with wooden axe selection support. Set the selection as the lighting area (green) or an exclusion area (red), adjust the block-light threshold, then click "Start Task." One lighting area and multiple exclusion areas are supported. (Lighting a maximum-size area of ordinary natural terrain generally takes about half an inventory, or roughly 1,000 torches, with the default settings.)
+  Select points A and B to define a cuboid (opposite corners) or sphere (center and radius), with wooden axe selection support. Set the selection as a lighting area (green) or exclusion area (red), adjust the block-light threshold, and click `Start Task`. One lighting area and multiple exclusion areas are supported.
 - All features are available in the settings panel shown above.
 
 ## Building
@@ -49,7 +50,7 @@ Digging out a perimeter is tedious, and placing torches by hand makes it easy to
 .\gradlew.bat build
 ```
 
-The generated JARs are automatically copied to the root `build` directory and renamed to:
+The generated JAR is automatically copied to the root `build` directory and renamed to:
 
 - `build/autotorch-v<mod version>-mc<MC version>-<loader type>.jar`
 
@@ -69,53 +70,48 @@ Contributions that add or improve translations are welcome. Language files are l
 
 Different Minecraft versions use different maintenance branches and language file formats:
 
-| Minecraft Version                    | Pull Request Target Branch | Language File Format |
-| ------------------------------------ | -------------------------- | -------------------- |
-| Current development version (latest) | `main`                     | `.json`              |
-| 1.7.10~1.12.2                        | `mc/<version>`             | `.lang`              |
-| 1.13.2 and later                     | `mc/<version>`             | `.json`              |
+| Minecraft Version | Pull Request Target Branch | Language File Format |
+| ----------------- | -------------------------- | -------------------- |
+| Current development version (latest) | `main` | `.json` |
+| 1.7.10~1.12.2 | `mc/<version>` | `.lang` |
+| 1.13.2 and later | `mc/<version>` | `.json` |
 
-When contributing a translation, submit the `.json` file in a pull request targeting `main`. Do not submit it directly to another `mc/x.x.x` branch; it will be merged manually later.
+When contributing a translation, submit the `.json` file in a pull request targeting `main`. Do not submit it to another `mc/x.x.x` branch; it will be merged manually later.
 
-> `.json` files will be automatically converted to `.lang` files by a script.
+> `.json` files are automatically converted to `.lang` files by a script.
 
 1. Fork this repository and create a new branch from `main`.
-2. Copy `zh_cn.json` on that branch, then translate it manually or with the help of AI (preferably with manual proofreading).
-3. Add a corresponding README file for the language.
-4. Commit the translated file and make sure it uses UTF-8 encoding.
+2. Copy `zh_cn.json` in the target branch, then translate it manually or with the help of AI (manual proofreading is recommended).
+3. Add a README file for the corresponding language.
+4. Commit the translation and make sure the file uses `UTF-8` encoding.
 
-## Features
+## Detailed Description
 
 ### Nearby Automatic Torch Placement
 
-- This feature is entirely client-side; the server does not need the mod installed.
-- When enabled, it scans every 10 ticks within a horizontal radius of 2 blocks and a vertical range of -2 to +1 blocks around the player, prioritizing the nearest dark position.
-- Torches are placed only in air blocks with no fluid, where a torch can remain in place and will not collide with the player.
-- It uses regular torches from the offhand or hotbar and places them through vanilla right-click interaction. Placement therefore remains subject to server rules such as Adventure mode restrictions, land protection, and interaction range.
-- The light threshold that triggers placement can be set from 1 to 16. You can also choose whether sky light is included when evaluating the light level. When sky light is excluded, outdoor areas are evaluated using block light only.
-- If the mod temporarily switches hotbar slots to place a torch, it automatically switches back afterward. A failed position is not retried for 40 ticks.
+- When enabled, the mod scans every 10 ticks (0.5 seconds) within a horizontal radius of 2 blocks and a vertical range of -2 to +1 blocks around the player. It places torches from near to far; a failed position is retried after 40 ticks (2 seconds).
+- Torches are placed only in air blocks without fluid, where a torch can remain in place and will not collide with the player.
+- A torch must be available in the hotbar or offhand.
+- You can set the light level threshold that triggers placement (1-16) and choose whether sky light is included in the calculation.
 
 ### Light Level Overlay
 
-- This feature is entirely client-side. Press `F7` by default to toggle it, or configure it from the `G` panel.
-- The area around the current camera is scanned incrementally, with a configurable horizontal range of 1-64 blocks and an optional vertical range of up to 64 blocks each way (64 blocks maximum). The overlay refreshes automatically when the camera moves and supports free-camera or detached-camera mods that switch the view through Minecraft's standard camera entity mechanism. Scanning work is spread across frames.
-- `X` markers, numeric light levels, and boxed numeric light levels are supported. The number is the block light level, while its color indicates the spawning risk at that position.
-- See-through rendering and camera-following numbers are supported.
-- Standard markers check the foot and head spaces, the collision surface of the block below, and vanilla ground-mob spawning conditions, avoiding false spawn markers at positions where mobs cannot stand.
-- An optional swamp slime check evaluates height, biome, block light, and vanilla slime spawning conditions, marking risk positions in purple.
-- An optional drowned check evaluates continuous water, the biome spawn list, sea level, and block light, marking the top of valid water columns in cyan.
+- Press `F7` by default to toggle it, or configure it in the `G` panel.
+- Centered on the current view, the horizontal display range can be set to 1-64 blocks. Vertically, up to 64 blocks can be selected in each direction (64 blocks maximum). Free-camera and similar mods are supported.
+- `X` markers, numeric light levels, and boxed numeric light levels are supported.
+- See-through rendering is supported, and numbers can rotate with the view.
+- Markers check whether mobs can spawn at the current position, including the special spawning conditions of swamp slimes and drowned, and use different colors to identify the results.
 
 ### Area Automatic Torch Placement
 
-- The client handles selection and task settings, while the server validates, scans, and places torches. In multiplayer, the mod must be installed on both the client and server.
-- Points A and B can be entered in the panel, set to the current position, or selected by left- and right-clicking with a wooden axe. Wooden axe selection can be disabled; while enabled, it intercepts those interactions to prevent accidental block breaking.
-- A cuboid uses A and B as opposite corners. A sphere uses A as its center and the straight-line distance from A to B as its radius. The panel can convert between an inscribed sphere and a circumscribed cube.
-- Each player can configure one green lighting area and multiple red exclusion areas. Selections can be rendered as translucent faces or outlines, and smooth sphere rendering is also available.
-- The task block-light maximum can be set from 0 to 15. Tasks process positions at or below that value with air at both foot and head level and a safe block to stand on below. The default is `0`, which preserves the block-light-0-only behavior. When "Underground Only" is enabled, positions with sky light are also skipped.
-- The mod first tries to place a torch beneath each dark position. If that is not possible, it randomly searches nearby for a valid placement position. Only loaded chunks are processed; the mod never force-loads chunks.
-- Scanning runs in two passes. The first uses the configured minimum spacing, while the second uses tighter spacing to fill positions that remain dark. The second pass automatically tightens its spacing for higher light targets, preventing its spacing rule from skipping dark positions; the screen and task-start message warn when the server minimum spacing is too large to meet the target. Spacing is the three-dimensional straight-line distance between torch block coordinates placed by the current task; existing torches in the area are not included. At spacing `8`, two aligned torches have 7 blocks between them. Scan and placement work are rate-limited per tick, and tasks from multiple players take turns receiving the available budget. A torch can provide at most block light 14, so only threshold 15 cannot be fully satisfied.
-- A maximum torch count can be set per task; `0` means unlimited. Inventory consumption can be configured separately for Survival and Creative mode. The server validates all task settings, and its Survival consumption rule takes precedence in multiplayer.
-- Each player can have only one active task. Starting a new task replaces the old one, and reopening the panel allows the active task to be canceled.
+- Enter coordinates or select two points by left- and right-clicking with a wooden axe.
+- A cuboid uses A and B as opposite corners. A sphere uses A as its center and the straight-line distance from A to B as its radius.
+- You can configure one green lighting area and multiple red exclusion areas. Several display modes are available.
+- Set the task's maximum block light (0-15). The task processes positions whose block light is at or below that value, with air at two blocks of height, a block that can be stood on, and block light 0 at the placement position. Positions with sky light can be skipped.
+- The mod first prefers placing a torch beneath a dark position. If that is not possible, it randomly searches nearby for a valid position. Only loaded chunks are processed; chunks are never force-loaded.
+- Scanning runs in two passes: the first uses the configured minimum spacing, and the second uses a smaller spacing to fill remaining gaps.
+- You can limit the maximum number of torches placed by a task; `0` means unlimited. You can also choose whether regular torches in the inventory are consumed.
+- Each player can have only one task at a time. A new task replaces the old one.
 
 ## Configuration Files
 
@@ -138,9 +134,9 @@ includeSkyLight = true
 [lightOverlay]
 # Whether the light level overlay is enabled.
 enabled = false
-# Whether see-through rendering is enabled so markers stay visible through blocks.
+# Whether see-through rendering is enabled so markers can be seen through blocks.
 renderThrough = false
-# true: numbers rotate with the camera; false: numbers do not rotate with the camera.
+# true: numbers rotate with the view; false: numbers remain fixed.
 numberRotation = true
 # Horizontal display range centered on the current camera. Range: 1-64 blocks.
 horizontalRange = 16
@@ -221,18 +217,8 @@ globalPlaceBudgetPerTick = 16
 randomPlacementAttempts = 32
 ```
 
-Lowering `scanBudgetPerTaskTick` and `globalScanBudgetPerTick` reduces the per-tick load caused by scanning but increases task duration. The same tradeoff applies to placement budgets. Server-wide budgets are hard limits, and the budget each task actually receives is also divided according to the number of tasks running concurrently.
-
-## Limits and Safety
-
-- By default, each side of a cuboid is limited to 321 blocks, while a sphere is limited to a radius of 160 blocks (321-block diameter). Server administrators can lower these limits in the configuration.
-- The mod does not force-load chunks; unloaded chunks encountered during scanning are skipped. (With a render distance of at least 8 chunks, the relevant area will generally be loaded.)
-- The spawnability check uses conservative rules suitable for common vanilla hostile mobs and does not include special handling for other mods.
-- Land-claim plugins are not supported. Placement uses vanilla `/setblock` behavior.
-
 ## Other
 
-- A Bedrock Edition port was started, but Bedrock proved less developer-friendly than Java Edition for custom rendering, UI configuration, and related features, so the port has been canceled. Anyone interested is welcome to create their own port.
-  - As for LeviLamina on Bedrock Edition, an evaluation found that all of the mod's features could be supported, but because the Bedrock ecosystem is lacking, there are no plans to port it.
-- Minecraft Java Edition versions earlier than 1.7.10 are not planned to be supported because doing so would require extensive changes, and no official Forge downloads for those versions could be found.
-- Regarding the sky light display feature, no practical use has been identified, so it is not planned to be added at this time.
+- "Can spawn" uses conservative checks suitable for common vanilla hostile mobs and does not include special handling for other mods.
+- Land-claim plugins are not supported. Placement uses the vanilla `/setblock` command.
+- No practical use has been found for displaying sky light, so there are currently no plans to add it.
