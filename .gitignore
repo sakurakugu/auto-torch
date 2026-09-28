@@ -41,3 +41,6 @@ temp/
 *.mcpack
 *.mcaddon
 *.mcworld
+
+### 其他 ###
+docs/superpowers

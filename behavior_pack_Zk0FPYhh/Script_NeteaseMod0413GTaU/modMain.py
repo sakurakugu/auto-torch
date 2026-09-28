@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 
 from mod.common.mod import Mod
+import mod.client.extraClientApi as clientApi
+import mod.server.extraServerApi as serverApi
+
+from Script_NeteaseMod0413GTaU import config
+
+_SCRIPT_ROOT = "Script_NeteaseMod0413GTaU"
 
 
 @Mod.Binding(name="Script_NeteaseMod0413GTaU", version="0.0.1")
@@ -11,7 +17,8 @@ class Script_NeteaseMod0413GTaU(object):
 
     @Mod.InitServer()
     def Script_NeteaseMod0413GTaUServerInit(self):
-        pass
+        serverApi.RegisterSystem(config.MOD_NAMESPACE, config.SERVER_SYSTEM_NAME,
+                                 _SCRIPT_ROOT + ".server_system.AutoTorchServer")
 
     @Mod.DestroyServer()
     def Script_NeteaseMod0413GTaUServerDestroy(self):
@@ -19,7 +26,8 @@ class Script_NeteaseMod0413GTaU(object):
 
     @Mod.InitClient()
     def Script_NeteaseMod0413GTaUClientInit(self):
-        pass
+        clientApi.RegisterSystem(config.MOD_NAMESPACE, config.CLIENT_SYSTEM_NAME,
+                                 _SCRIPT_ROOT + ".client_system.AutoTorchClient")
 
     @Mod.DestroyClient()
     def Script_NeteaseMod0413GTaUClientDestroy(self):
