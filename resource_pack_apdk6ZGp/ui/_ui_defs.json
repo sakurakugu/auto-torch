@@ -1,5 +1,6 @@
 {
     "ui_defs": [
-        "ui/autotorch.json"
+        "ui/autotorch.json",
+        "ui/autotorch_hud.json"
     ]
 }

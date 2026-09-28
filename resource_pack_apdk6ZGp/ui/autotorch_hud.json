@@ -1,0 +1,37 @@
+{
+   "namespace" : "autotorch_hud",
+
+   "open_button@autotorch.setting_button" : {
+      "anchor_from" : "top_right",
+      "anchor_to" : "top_right",
+      "controls" : [
+         { "default@autotorch.button_default" : {} },
+         { "hover@autotorch.button_hover" : {} },
+         { "pressed@autotorch.button_pressed" : {} },
+         {
+            "icon" : {
+               "layer" : 3,
+               "size" : [ 16, 16 ],
+               "texture" : "textures/blocks/torch_on",
+               "type" : "image"
+            }
+         }
+      ],
+      "offset" : [ -4, 32 ],
+      "size" : [ 22, 22 ]
+   },
+
+   "main" : {
+      "absorbs_input" : false,
+      "always_accepts_input" : false,
+      "controls" : [
+         { "open_button@autotorch_hud.open_button" : {} }
+      ],
+      "force_render_below" : false,
+      "is_showing_menu" : false,
+      "render_game_behind" : true,
+      "render_only_when_topmost" : true,
+      "should_steal_mouse" : false,
+      "type" : "screen"
+   }
+}

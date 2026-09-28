@@ -39,6 +39,17 @@ class ConfigTest(unittest.TestCase):
         data = config.normalize_nearby({config.NEARBY_LIGHT_THRESHOLD: "abc"})
         self.assertEqual(data[config.NEARBY_LIGHT_THRESHOLD], 4)
 
+    def test_threshold_slider_round_trip(self):
+        self.assertEqual(config.threshold_slider_steps(), 16)
+        for threshold in range(config.NEARBY_LIGHT_THRESHOLD_MIN, config.NEARBY_LIGHT_THRESHOLD_MAX + 1):
+            self.assertEqual(config.slider_to_threshold(config.threshold_to_slider(threshold)), threshold)
+
+    def test_slider_value_rounds_and_clamps(self):
+        self.assertEqual(config.slider_to_threshold(2.6), 4)
+        self.assertEqual(config.slider_to_threshold(-1.0), 1)
+        self.assertEqual(config.slider_to_threshold(40.0), 16)
+        self.assertEqual(config.slider_to_threshold(None), 4)
+
 
 class GeometryTest(unittest.TestCase):
 

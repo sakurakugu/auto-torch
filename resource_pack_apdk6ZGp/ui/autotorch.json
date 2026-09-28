@@ -1,6 +1,205 @@
 {
-    "main": {
-        "type": "screen"
-    },
-    "namespace": "autotorch"
+   "namespace" : "autotorch",
+
+   "button_default" : {
+      "nineslice_size" : "$nineslice_size",
+      "layer" : "$texture_layer",
+      "texture" : "$default_texture",
+      "type" : "image"
+   },
+   "button_hover" : {
+      "nineslice_size" : "$nineslice_size",
+      "layer" : "$texture_layer",
+      "texture" : "$hover_texture",
+      "type" : "image"
+   },
+   "button_pressed" : {
+      "nineslice_size" : "$nineslice_size",
+      "layer" : "$texture_layer",
+      "texture" : "$pressed_texture",
+      "type" : "image"
+   },
+   "button_label" : {
+      "color" : "$label_color",
+      "font_scale_factor" : "$label_font_scale_factor",
+      "font_size" : "$label_font_size",
+      "font_type" : "smooth",
+      "layer" : "$label_layer",
+      "max_size" : [ "100%", "100%" ],
+      "offset" : "$label_offset",
+      "shadow" : true,
+      "text" : "$label_text",
+      "text_alignment" : "center",
+      "type" : "label"
+   },
+
+   "setting_button@common.button" : {
+      "$default_texture" : "textures/netease/common/button/default",
+      "$hover_texture" : "textures/netease/common/button/hover",
+      "$pressed_texture" : "textures/netease/common/button/pressed",
+      "$is_new_nine_slice" : false,
+      "$nine_slice_buttom" : 0,
+      "$nine_slice_left" : 0,
+      "$nine_slice_right" : 0,
+      "$nine_slice_top" : 0,
+      "$nineslice_size" : 4,
+      "$texture_layer" : 2,
+      "$label_color" : [ 1, 1, 1 ],
+      "$label_font_scale_factor" : 1.0,
+      "$label_font_size" : "normal",
+      "$label_layer" : 3,
+      "$label_offset" : [ 0, 0 ],
+      "$label_text" : "",
+      "$pressed_button_name" : "",
+      "anchor_from" : "top_middle",
+      "anchor_to" : "top_middle",
+      "bindings" : [
+         {
+            "binding_collection_name" : "",
+            "binding_condition" : "always_when_visible",
+            "binding_type" : "collection_details"
+         }
+      ],
+      "button_mappings" : [],
+      "controls" : [
+         { "default@autotorch.button_default" : {} },
+         { "hover@autotorch.button_hover" : {} },
+         { "pressed@autotorch.button_pressed" : {} },
+         { "button_label@autotorch.button_label" : {} }
+      ],
+      "default_control" : "default",
+      "hover_control" : "hover",
+      "pressed_control" : "pressed",
+      "is_handle_button_move_event" : true,
+      "layer" : 5,
+      "size" : [ 220, 20 ],
+      "type" : "button"
+   },
+
+   "window" : {
+      "anchor_from" : "center",
+      "anchor_to" : "center",
+      "controls" : [
+         {
+            "background" : {
+               "layer" : 0,
+               "size" : [ "100%", "100%" ],
+               "texture" : "textures/ui/dialog_background_opaque",
+               "type" : "image"
+            }
+         },
+         {
+            "title" : {
+               "anchor_from" : "top_middle",
+               "anchor_to" : "top_middle",
+               "color" : [ 0.25, 0.25, 0.25 ],
+               "font_type" : "smooth",
+               "layer" : 2,
+               "offset" : [ 0, 8 ],
+               "text" : "附近自动插火把",
+               "text_alignment" : "center",
+               "type" : "label"
+            }
+         },
+         {
+            "enabled_button@autotorch.setting_button" : {
+               "offset" : [ 0, 24 ]
+            }
+         },
+         {
+            "threshold_label" : {
+               "anchor_from" : "top_middle",
+               "anchor_to" : "top_middle",
+               "color" : [ 0.25, 0.25, 0.25 ],
+               "font_type" : "smooth",
+               "layer" : 2,
+               "offset" : [ 0, 50 ],
+               "size" : [ 220, 10 ],
+               "text" : "",
+               "text_alignment" : "left",
+               "type" : "label"
+            }
+         },
+         {
+            "threshold_slider@common.slider" : {
+               "$background_default_control" : "common.slider_background",
+               "$background_hover_control" : "common.slider_background_hover",
+               "$progress_default_clip_direction" : "left",
+               "$progress_default_control" : "common.slider_progress",
+               "$progress_hover_clip_direction" : "left",
+               "$progress_hover_control" : "common.slider_progress_hover",
+               "$slider_box_hover_layout" : "common.slider_button_hover_layout",
+               "$slider_box_indent_layout" : "common.slider_button_indent_layout",
+               "$slider_box_layout" : "common.slider_button_layout",
+               "$slider_box_locked_layout" : "common.slider_button_locked_layout",
+               "$slider_box_size" : [ 8, 16 ],
+               "$slider_direction" : "horizontal",
+               "$slider_name" : "#AutoTorchSettingsScreen.OnThresholdSliderChanged",
+               "$slider_value_binding_name" : "#AutoTorchSettingsScreen.ReturnThresholdSliderValue",
+               "$slider_steps_binding_name" : "#AutoTorchSettingsScreen.ReturnThresholdSliderSteps",
+               "$slider_step_factory_control_ids" : {
+                  "slider_step" : "@common.slider_step",
+                  "slider_step_hover" : "@common.slider_step_hover",
+                  "slider_step_progress" : "@common.slider_step_progress",
+                  "slider_step_progress_hover" : "@common.slider_step_progress_hover"
+               },
+               "$slider_tts_text_value" : "#netease_tts_text_value",
+               "anchor_from" : "top_middle",
+               "anchor_to" : "top_middle",
+               "layer" : 5,
+               "offset" : [ 0, 64 ],
+               "size" : [ 212, 10 ]
+            }
+         },
+         {
+            "sky_light_button@autotorch.setting_button" : {
+               "offset" : [ 0, 84 ]
+            }
+         },
+         {
+            "reset_button@autotorch.setting_button" : {
+               "$label_text" : "重置",
+               "anchor_from" : "top_left",
+               "anchor_to" : "top_left",
+               "offset" : [ 10, 116 ],
+               "size" : [ 106, 20 ]
+            }
+         },
+         {
+            "done_button@autotorch.setting_button" : {
+               "$label_text" : "完成",
+               "anchor_from" : "top_right",
+               "anchor_to" : "top_right",
+               "offset" : [ -10, 116 ],
+               "size" : [ 106, 20 ]
+            }
+         }
+      ],
+      "layer" : 10,
+      "size" : [ 240, 146 ],
+      "type" : "panel"
+   },
+
+   "main" : {
+      "absorbs_input" : true,
+      "always_accepts_input" : false,
+      "controls" : [
+         {
+            "dim" : {
+               "alpha" : 0.5,
+               "layer" : 1,
+               "size" : [ "100%", "100%" ],
+               "texture" : "textures/ui/Black",
+               "type" : "image"
+            }
+         },
+         { "window@autotorch.window" : {} }
+      ],
+      "force_render_below" : false,
+      "is_showing_menu" : true,
+      "render_game_behind" : true,
+      "render_only_when_topmost" : true,
+      "should_steal_mouse" : false,
+      "type" : "screen"
+   }
 }
