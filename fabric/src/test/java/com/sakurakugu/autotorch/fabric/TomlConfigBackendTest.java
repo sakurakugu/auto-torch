@@ -23,10 +23,16 @@ class TomlConfigBackendTest {
         Path clientPath = configDirectory.resolve("autotorch-client.toml");
         Path serverPath = configDirectory.resolve("autotorch-server.toml");
 
-        try (TomlConfigBackend ignoredClient = new TomlConfigBackend(clientPath, ConfigDefinitions.CLIENT);
-                TomlConfigBackend ignoredServer = new TomlConfigBackend(serverPath, ConfigDefinitions.SERVER)) {
+        // 构造后端即写出默认配置；这里只需要它们在断言后关闭以落盘，
+        // 用 try/finally 而不是 try-with-resources，避免“资源未被引用”的编译告警。
+        TomlConfigBackend client = new TomlConfigBackend(clientPath, ConfigDefinitions.CLIENT);
+        TomlConfigBackend server = new TomlConfigBackend(serverPath, ConfigDefinitions.SERVER);
+        try {
             assertTrue(Files.exists(clientPath));
             assertTrue(Files.exists(serverPath));
+        } finally {
+            client.close();
+            server.close();
         }
 
         String clientToml = Files.readString(clientPath);
