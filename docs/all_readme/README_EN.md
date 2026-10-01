@@ -52,7 +52,7 @@ Digging out an area is tedious, and placing torches by hand makes it easy to mis
 
 The generated JAR is automatically copied to the root `build` directory and renamed to:
 
-- `build/autotorch-v<mod version>-mc<MC version>-<loader type>.jar`
+- `build/v<mod version>/autotorch-v<mod version>-mc<MC version>-<loader type>.jar`
 
 Run a development client with:
 
@@ -62,7 +62,7 @@ Run a development client with:
 .\gradlew.bat :fabric:runClient
 ```
 
-On Windows, you can also run `tools\1.一键启动mc脚本.ps1`.
+On Windows, you can also run `tools\1.一键启动mc脚本.py`.
 
 ## Contributing Translations
 

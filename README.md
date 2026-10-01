@@ -52,7 +52,7 @@
 
 生成的 JAR 会自动复制到根目录的 `build` 中并重命名为：
 
-- `build/autotorch-v<模组版本>-mc<MC版本>-<加载器类型>.jar`
+- `build/v<模组版本>/autotorch-v<模组版本>-mc<MC版本>-<加载器类型>.jar`
 
 运行开发客户端分别使用：
 
@@ -62,7 +62,7 @@
 .\gradlew.bat :fabric:runClient
 ```
 
-在 Windows 上，也可以运行 `tools\1.一键启动mc脚本.ps1`。
+在 Windows 上，也可以运行 `tools\1.一键启动mc脚本.py`。
 
 ## 提交翻译
 
