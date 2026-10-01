@@ -76,6 +76,11 @@ def worktree(branch: str, version: str) -> Path:
     return root
 
 def java_env(path):
+    # Mavenizer 会单独调用旧版 javac，需要通过环境变量统一使用 UTF-8。
+    java_options = os.environ.get("JAVA_TOOL_OPTIONS", "").strip()
+    utf8_option = "-Dfile.encoding=UTF-8"
+    if java_options.split()[-1:] != [utf8_option]:
+        os.environ["JAVA_TOOL_OPTIONS"] = f"{java_options} {utf8_option}".strip()
     if not path:
         print("Gradle 将通过 Toolchain 自动检测或下载所需 Java。")
         return
