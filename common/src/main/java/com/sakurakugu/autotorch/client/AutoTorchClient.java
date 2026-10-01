@@ -37,6 +37,12 @@ public final class AutoTorchClient {
             InputConstants.KEY_F7,
             CATEGORY
     );
+    public static final KeyMapping TOGGLE_NEARBY_AUTO_TORCH = new KeyMapping(
+            "key.autotorch.toggle_nearby_auto_torch",
+            InputConstants.Type.KEYBOARD,
+            InputConstants.UNKNOWN.getValue(),
+            CATEGORY
+    );
     public void tick(BlockPos lightOverlayCenter) {
         Minecraft minecraft = Minecraft.getInstance();
         // 处理打开选区面板的请求，避免在 tick 中直接打开 GUI 导致的异常。(仅限 Fabric 端的bug)
@@ -63,6 +69,15 @@ public final class AutoTorchClient {
                 boolean enabled = LightOverlayState.toggle();
                 minecraft.gui.hud.setOverlayMessage(Component.translatable(enabled
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"), false);
+            }
+        }
+        while (TOGGLE_NEARBY_AUTO_TORCH.consumeClick()) {
+            if (minecraft.player != null) {
+                boolean enabled = !ClientConfig.isNearbyAutoTorchEnabled();
+                ClientConfig.setNearbyAutoTorchEnabled(enabled);
+                minecraft.gui.hud.setOverlayMessage(Component.translatable(enabled
+                        ? "message.autotorch.nearby_auto_torch_on"
+                        : "message.autotorch.nearby_auto_torch_off"), false);
             }
         }
     }
