@@ -132,7 +132,7 @@ enabled = false
 # 光照低于此值时尝试放置火把，范围 1~16。
 lightThreshold = 4
 # true：使用方块光与天空光中的较大值；false：只判断方块光。
-includeSkyLight = true
+includeSkyLight = false
 
 [lightOverlay]
 # 是否启用光照显示。
