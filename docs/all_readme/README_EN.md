@@ -129,7 +129,7 @@ enabled = false
 # Attempt to place a torch when the light level is below this value. Range: 1-16.
 lightThreshold = 4
 # true: use the greater of block light and sky light; false: use block light only.
-includeSkyLight = true
+includeSkyLight = false
 
 [lightOverlay]
 # Whether the light level overlay is enabled.
