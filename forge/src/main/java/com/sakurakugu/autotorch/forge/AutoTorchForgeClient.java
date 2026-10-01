@@ -171,6 +171,9 @@ final class AutoTorchForgeClient {
         )).getType() == RayTraceResult.Type.MISS;
     }
 
+    // 1.16.5 的矩阵栈只有 RenderSystem.pushMatrix/scalef/popMatrix 这一套旧 API
+    // （1.17 起才换成模型视图矩阵栈，这个版本没有替代写法），只能集中在这里抑制。
+    @SuppressWarnings("deprecation")
     private static void setupWaterVisibleRenderState() {
         // RenderWorldLastEvent 会继承世界渲染状态，纯色线条需要显式关闭纹理。
         RenderSystem.disableTexture();
@@ -193,6 +196,8 @@ final class AutoTorchForgeClient {
         ));
     }
 
+    // 同上：popMatrix 在 1.16.5 没有替代写法，与 setupWaterVisibleRenderState 成对使用。
+    @SuppressWarnings("deprecation")
     private static void clearWaterVisibleRenderState() {
         RenderSystem.lineWidth(1.0F);
         RenderSystem.popMatrix();

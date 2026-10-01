@@ -19,6 +19,9 @@ final class ColoredButton extends Button {
         this.hoveredColor = hoveredColor;
     }
 
+    // 1.16.5 里设置顶点颜色只有 RenderSystem.color4f 一种写法（setShaderColor 要 1.17 才有），
+    // 这个版本没有替代 API，只能集中在这里抑制。
+    @SuppressWarnings("deprecation")
     @Override
     public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         boolean highlighted = isHovered() || isFocused();

@@ -51,6 +51,9 @@ public final class AutoTorchRenderTypes {
         }
     }
 
+    // 1.16.5 的固定管线状态（alpha test、顶点颜色）在 1.17 被移除，
+    // 这个版本只有这一套写法、没有替代 API，只能集中在这里抑制。
+    @SuppressWarnings("deprecation")
     private static RenderType createSeeThroughNumbers(ResourceLocation texture) {
         return RenderTypeInvoker.autotorch$create(
                 "autotorch_light_overlay_see_through_numbers",
