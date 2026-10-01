@@ -12,7 +12,7 @@ public final class ConfigDefinitions {
 
     public static final BooleanValue NEARBY_AUTO_TORCH_ENABLED = bool("nearbyAutoTorch.enabled", false);
     public static final IntValue NEARBY_AUTO_TORCH_LIGHT_THRESHOLD = integer("nearbyAutoTorch.lightThreshold", 4, 1, 16);
-    public static final BooleanValue NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT = bool("nearbyAutoTorch.includeSkyLight", true);
+    public static final BooleanValue NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT = bool("nearbyAutoTorch.includeSkyLight", false);
     public static final BooleanValue LIGHT_OVERLAY_ENABLED = bool("lightOverlay.enabled", false);
     public static final BooleanValue LIGHT_OVERLAY_RENDER_THROUGH = bool("lightOverlay.renderThrough", false);
     public static final BooleanValue LIGHT_OVERLAY_NUMBER_ROTATION = bool("lightOverlay.numberRotation", true);
