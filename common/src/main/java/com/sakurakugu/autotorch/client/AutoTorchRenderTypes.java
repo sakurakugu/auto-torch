@@ -17,6 +17,9 @@ public final class AutoTorchRenderTypes {
     private static final RenderType SEE_THROUGH_LINES = createSeeThroughLines();
     private AutoTorchRenderTypes() { }
     public static RenderType seeThroughLines() { return SEE_THROUGH_LINES; }
+    // 本版本的 Snippet 只有这一个构造器（部分加载器把它标记为过时），没有可用的不过时替代，
+    // 且 common 源码要同时给 fabric/forge/neoforge 三个模块编译，故显式抑制该过时告警。
+    @SuppressWarnings("deprecation")
     private static RenderType createSeeThroughLines() {
         RenderPipeline source = RenderPipelines.LINES;
         Snippet snippet = new Snippet(Optional.of(source.getVertexShader()), Optional.of(source.getFragmentShader()),
