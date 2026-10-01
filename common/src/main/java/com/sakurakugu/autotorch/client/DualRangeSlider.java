@@ -10,8 +10,8 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
-/** 可复用的双端点范围滑动条。 */
-public class DualRangeSlider extends Button {
+/** 可复用的双端点范围滑动条。声明为 final：构造函数中调用了 setValues/setMessage，防止子类覆写导致 this-escape 告警。 */
+public final class DualRangeSlider extends Button {
     private static final Identifier SLIDER = Identifier.withDefaultNamespace("widget/slider");
     private static final Identifier HANDLE = Identifier.withDefaultNamespace("widget/slider_handle");
     private static final Identifier HANDLE_HIGHLIGHTED = Identifier.withDefaultNamespace("widget/slider_handle_highlighted");
