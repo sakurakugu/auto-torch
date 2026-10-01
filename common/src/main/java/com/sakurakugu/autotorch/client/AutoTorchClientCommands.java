@@ -21,6 +21,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.text.Style;
+import net.minecraft.util.text.event.ClickEvent;
+import net.minecraft.util.text.event.HoverEvent;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
@@ -33,6 +36,7 @@ public final class AutoTorchClientCommands {
     private static final TextFormatting STATUS_NEARBY_COLOR = TextFormatting.GREEN;
     private static final TextFormatting STATUS_OVERLAY_COLOR = TextFormatting.AQUA;
     private static final TextFormatting STATUS_DETAILS_COLOR = TextFormatting.YELLOW;
+    private static final TextFormatting STATUS_JSON_COPY_COLOR = TextFormatting.GREEN;
     private static final TextFormatting HELP_OPTION_COLOR = TextFormatting.WHITE;
     private static final TextFormatting HELP_SEPARATOR_COLOR = TextFormatting.AQUA;
 
@@ -68,7 +72,11 @@ public final class AutoTorchClientCommands {
                 .executes(context -> openScreen())
                 .then(AutoTorchClientCommands.<S>literal("gui").executes(context -> openScreen()))
                 .then(AutoTorchClientCommands.<S>literal("help").executes(context -> showHelp()))
-                .then(AutoTorchClientCommands.<S>literal("status").executes(context -> showStatus()))
+                .then(AutoTorchClientCommands.<S>literal("status")
+                        .executes(context -> showStatus())
+                        .then(AutoTorchClientCommands.<S>literal("json").executes(context -> showStatusJson()))
+                        // 复制入口内部使用：帮助里不列出，只由 [复制 JSON] 的点击事件触发。
+                        .then(AutoTorchClientCommands.<S>literal("copyjson").executes(context -> copyStatusJson())))
                 .then(AutoTorchClientCommands.<S>literal("config")
                         .then(AutoTorchClientCommands.<S>literal("defaults")
                                 .executes(context -> resetConfigDefaults())))
@@ -502,14 +510,9 @@ public final class AutoTorchClientCommands {
         AreaZone selection = SelectionState.lightingZone();
         if (selection == null) return feedback("command.autotorch.no_lighting_zone");
         if (SelectionState.drafting()) return feedback("command.autotorch.confirm_draft");
-        Minecraft minecraft = Minecraft.getInstance();
-        boolean consume = minecraft.player != null && minecraft.player.isCreative()
-                ? ClientConfig.creativeConsumesTorches()
-                : (minecraft.isIntegratedServerRunning() ? ClientConfig.survivalConsumesTorches()
-                        : ServerConfigState.survivalConsumesTorches());
         PlatformNetworking.sendToServer(new StartLightingPayload(
                 selection, effectiveDefaultMaxTorches(), effectiveDefaultMinSpacing(),
-                ClientConfig.defaultTaskLightThreshold(), consume,
+                ClientConfig.defaultTaskLightThreshold(), consumesTorches(),
                 ClientConfig.isDefaultUndergroundOnly(), SelectionState.exclusions()));
         return feedback("command.autotorch.task_submitted");
     }
@@ -539,7 +542,8 @@ public final class AutoTorchClientCommands {
 
     private static int showHelp() {
         feedbackColored("command.autotorch.help.title", STATUS_TITLE_COLOR);
-        helpLine(option("/autotorch [gui"), separator("|"), option("help"), separator("|"), option("status]"));
+        helpLine(option("/autotorch [gui"), separator("|"), option("help"), separator("|"),
+                option("status [json]"));
         helpLine(option("/autotorch nearby on"), separator("|"), option("off"));
         helpLine(option("/autotorch nearby threshold <1-16>"));
         helpLine(option("/autotorch nearby skylight on"), separator("|"), option("off"));
@@ -598,11 +602,7 @@ public final class AutoTorchClientCommands {
         if (minecraft.player != null) {
             AreaZone draft = SelectionState.draft(minecraft.player.getPosition());
             boolean sphere = draft.shape() == AreaShape.SPHERE;
-            boolean consumesTorches = minecraft.player.isCreative()
-                    ? ClientConfig.creativeConsumesTorches()
-                    : (minecraft.isIntegratedServerRunning()
-                            ? ClientConfig.survivalConsumesTorches()
-                            : ServerConfigState.survivalConsumesTorches());
+            boolean consumesTorches = consumesTorches();
             int maxTorches = effectiveDefaultMaxTorches();
             feedbackColored("command.autotorch.status.selection", STATUS_DETAILS_COLOR,
                     new TextComponentTranslation(sphere
@@ -629,16 +629,47 @@ public final class AutoTorchClientCommands {
     }
 
     private static int effectiveDefaultMaxTorches() {
-        int configured = ClientConfig.defaultMaxTorches();
-        if (configured == 0) {
-            return ServerConfigState.allowsUnlimitedTorches() ? 0 : ServerConfigState.maxTorchesPerTask();
-        }
-        return Math.min(configured, ServerConfigState.maxTorchesPerTask());
+        return ClientStatusJson.effectiveDefaultMaxTorches();
     }
 
     private static int effectiveDefaultMinSpacing() {
-        return Math.max(ServerConfigState.minSpacing(),
-                Math.min(ServerConfigState.maxSpacing(), ClientConfig.defaultMinSpacing()));
+        return ClientStatusJson.effectiveDefaultMinSpacing();
+    }
+
+    /** 把当前全部状态以单行 JSON 输出，并在下一行给出点击复制的入口。 */
+    private static int showStatusJson() {
+        String json = ClientStatusJson.build(consumesTorches(), playerPositionOrNull());
+        chat(new TextComponentString(json));
+        // 1.13.2 没有 COPY_TO_CLIPBOARD，点击改为执行本地命令，由 copyjson 写入剪贴板。
+        chat(new TextComponentTranslation("command.autotorch.status.json_copy")
+                .setStyle(new Style()
+                        .setColor(STATUS_JSON_COPY_COLOR)
+                        .setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/autotorch status copyjson"))
+                        .setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                new TextComponentTranslation(
+                                        "command.autotorch.status.json_copy_hover")))));
+        return 1;
+    }
+
+    /** 把当前状态写入系统剪贴板，供复制入口的点击命令调用。 */
+    private static int copyStatusJson() {
+        Minecraft.getInstance().keyboardListener
+                .setClipboardString(ClientStatusJson.build(consumesTorches(), playerPositionOrNull()));
+        return 1;
+    }
+
+    /** 本次任务是否消耗背包火把：创造模式跟随客户端配置，生存模式单人跟随客户端、联机跟随服务端。 */
+    private static boolean consumesTorches() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft.player != null && minecraft.player.isCreative()
+                ? ClientConfig.creativeConsumesTorches()
+                : (minecraft.isIntegratedServerRunning() ? ClientConfig.survivalConsumesTorches()
+                        : ServerConfigState.survivalConsumesTorches());
+    }
+
+    private static BlockPos playerPositionOrNull() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft.player == null ? null : minecraft.player.getPosition();
     }
 
     private static ITextComponent specialDetection() {
