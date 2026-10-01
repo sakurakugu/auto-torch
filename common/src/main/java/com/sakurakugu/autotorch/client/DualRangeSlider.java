@@ -11,7 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 /** 可复用的双端点范围滑动条。 */
-public class DualRangeSlider extends Button {
+public final class DualRangeSlider extends Button {
     private static final Identifier SLIDER = Identifier.withDefaultNamespace("widget/slider");
     private static final Identifier HANDLE = Identifier.withDefaultNamespace("widget/slider_handle");
     private static final Identifier HANDLE_HIGHLIGHTED = Identifier.withDefaultNamespace("widget/slider_handle_highlighted");
