@@ -29,8 +29,8 @@ displayName="${mod_name}" #必填
 # 此模组的“主页” URL，将显示在模组界面中
 #displayURL="https://change.me.to.your.mods.homepage.example.invalid/" #可选
 
-# 包含显示用徽标的文件名，文件位于模组 JAR 根目录
-logoFile="autotorch.png" #可选
+# 包含显示用方形图标的文件名，文件位于模组 JAR 根目录
+iconFile="autotorch.png" #可选
 
 # 显示在模组界面中的文本字段
 #credits="" #可选
