@@ -18,8 +18,16 @@ import net.minecraft.world.phys.Vec3;
 
 /** 在可生成怪物的地面上，将缓存的光照等级绘制为经过深度测试的交叉标记或纹理数字。 */
 public final class LightOverlayRenderer {
+    // 该构造器在 1.21 起标记为待删除，但 common 源码还要给 fabric 编译
+    // （原版映射没有 fromNamespaceAndPath/parse 等工厂方法），只能保留构造器写法；
+    // forge/neoforge 复用同一份源码时会产生 [removal] 告警，这里按最小范围抑制。
+    @SuppressWarnings("removal")
     private static final ResourceLocation NUMBER_TEXTURE =
             new ResourceLocation("autotorch", "textures/misc/light_level_numbers_large.png");
+    // 该构造器在 1.21 起标记为待删除，但 common 源码还要给 fabric 编译
+    // （原版映射没有 fromNamespaceAndPath/parse 等工厂方法），只能保留构造器写法；
+    // forge/neoforge 复用同一份源码时会产生 [removal] 告警，这里按最小范围抑制。
+    @SuppressWarnings("removal")
     private static final ResourceLocation MEDIUM_NUMBER_TEXTURE =
             new ResourceLocation("autotorch", "textures/misc/light_level_numbers_medium.png");
     private static final int FULL_BRIGHT_LIGHT = 0xF0;
