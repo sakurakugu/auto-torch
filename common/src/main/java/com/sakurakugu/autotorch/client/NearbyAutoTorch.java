@@ -8,6 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
@@ -110,7 +111,7 @@ public final class NearbyAutoTorch {
     }
 
     private static boolean isValidTarget(ClientLevel level, LocalPlayer player, BlockPos target) {
-        if (!level.getBlockState(target).isAir() || !level.getFluidState(target).isEmpty()) {
+        if (!isAir(level, target) || !level.getFluidState(target).isEmpty()) {
             return false;
         }
         if (!Blocks.TORCH.defaultBlockState().canSurvive(level, target)
@@ -119,6 +120,15 @@ public final class NearbyAutoTorch {
         }
         Vec3 hitLocation = centerOf(target.below()).add(0.0, 0.5, 0.0);
         return player.getEyePosition(1.0F).distanceToSqr(hitLocation) <= 20.25;
+    }
+
+    /**
+     * 1.15.2 的映射把 BlockState.isAir() 标为过时，但这个版本没有带参重载，
+     * 只能继续调用无参形式；集中在这里抑制，避免每个调用点都带抑制注解。
+     */
+    @SuppressWarnings("deprecation")
+    private static boolean isAir(BlockGetter level, BlockPos pos) {
+        return level.getBlockState(pos).isAir();
     }
 
     private static int measuredLight(ClientLevel level, BlockPos position) {

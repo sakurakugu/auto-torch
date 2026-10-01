@@ -21,6 +21,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -217,7 +218,7 @@ final class LightingTask {
     }
 
     private boolean isPotentialSpawnPosition(BlockPos feet) {
-        if (isExcluded(feet) || !level.getBlockState(feet).isAir() || !level.getBlockState(feet.above()).isAir()) {
+        if (isExcluded(feet) || !isAir(level, feet) || !isAir(level, feet.above())) {
             return false;
         }
         if (!level.getFluidState(feet).isEmpty()
@@ -233,6 +234,15 @@ final class LightingTask {
         return Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP);
     }
 
+    /**
+     * 1.15.2 的映射把 BlockState.isAir() 标为过时，但这个版本没有带参重载，
+     * 只能继续调用无参形式；集中在这里抑制，避免每个调用点都带抑制注解。
+     */
+    @SuppressWarnings("deprecation")
+    private static boolean isAir(BlockGetter level, BlockPos pos) {
+        return level.getBlockState(pos).isAir();
+    }
+
     private BlockPos findTorchPosition(ServerPlayer player, BlockPos darkPosition) {
         // 优先尝试暗点脚下；失败后在附近随机寻找可放置且玩家有权限的位置。
         for (int attempt = 0; attempt < ServerConfig.randomPlacementAttempts(); attempt++) {
@@ -245,7 +255,7 @@ final class LightingTask {
             if (!insideSelection(candidate) || isExcluded(candidate) || !isChunkLoaded(candidate)) {
                 continue;
             }
-            if (!level.getBlockState(candidate).isAir() || !level.getFluidState(candidate).isEmpty()) {
+            if (!isAir(level, candidate) || !level.getFluidState(candidate).isEmpty()) {
                 continue;
             }
 
