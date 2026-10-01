@@ -8,8 +8,8 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
-/** 可复用的双端点范围滑动条。 */
-public class DualRangeSlider extends Button {
+/** 可复用的双端点范围滑动条。声明为 final：构造函数中调用了 setValues/setMessage，防止子类覆写导致 this-escape 告警。 */
+public final class DualRangeSlider extends Button {
     private static final ResourceLocation SLIDER = ResourceLocation.withDefaultNamespace("widget/slider");
     private static final ResourceLocation HANDLE = ResourceLocation.withDefaultNamespace("widget/slider_handle");
     private static final ResourceLocation HANDLE_HIGHLIGHTED = ResourceLocation.withDefaultNamespace("widget/slider_handle_highlighted");
