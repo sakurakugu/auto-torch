@@ -8,6 +8,7 @@ TORCH = "minecraft:torch"
 # 脚本 tick 为 30 次/秒：15 次约等于 Java 版的 10 游戏 tick，60 次约等于 40 游戏 tick
 SCAN_INTERVAL_TICKS = 15
 RETRY_DELAY_TICKS = 60
+LIGHT_CONFIRMATION_SCANS = 2
 HORIZONTAL_RADIUS = 2
 MIN_Y_OFFSET = -2
 MAX_Y_OFFSET = 1
@@ -77,14 +78,19 @@ def candidates(foot_pos):
     return positions
 
 
-def find_target(foot_pos, is_waiting, is_placeable, light_at, threshold):
+def find_target(foot_pos, is_waiting, is_placeable, light_at, threshold,
+                is_light_stable=None):
     """返回最近的可放置暗处坐标；先做几何判断，再调用开销较大的方块与光照查询。"""
     for pos in candidates(foot_pos):
         if (is_waiting(pos)
                 or intersects_player(foot_pos, pos)
                 or not within_reach(foot_pos, pos)
-                or not is_placeable(pos)
-                or light_at(pos) >= threshold):
+                or not is_placeable(pos)):
+            continue
+        light = light_at(pos)
+        if is_light_stable is not None and not is_light_stable(pos, light):
+            continue
+        if light >= threshold:
             continue
         return pos
     return None
@@ -116,6 +122,8 @@ class NearbyTracker(object):
         self._ticks_until_scan = 0
         self._last_attempt = None
         self._last_attempt_age = RETRY_DELAY_TICKS
+        self._scan_number = 0
+        self._light_observations = {}
 
     def age(self):
         """每 tick 调用一次，推进重试计时。"""
@@ -128,11 +136,31 @@ class NearbyTracker(object):
             self._ticks_until_scan -= 1
             return False
         self._ticks_until_scan = SCAN_INTERVAL_TICKS - 1
+        self._scan_number += 1
+        for pos, observation in list(self._light_observations.items()):
+            if observation[0] < self._scan_number - 1:
+                del self._light_observations[pos]
         return True
+
+    def confirm_dark(self, pos, light, threshold):
+        """确认位置连续多个扫描周期都低于阈值，避免读取到光照更新前的瞬时 0。"""
+        pos = tuple(pos)
+        if light >= threshold:
+            self._light_observations.pop(pos, None)
+            return False
+
+        previous = self._light_observations.get(pos)
+        if previous is not None and previous[0] == self._scan_number - 1:
+            count = previous[1] + 1
+        else:
+            count = 1
+        self._light_observations[pos] = (self._scan_number, count)
+        return count >= LIGHT_CONFIRMATION_SCANS
 
     def record_attempt(self, pos):
         self._last_attempt = tuple(pos)
         self._last_attempt_age = 0
+        self._light_observations.pop(self._last_attempt, None)
 
     def is_waiting(self, pos):
         return (self._last_attempt is not None

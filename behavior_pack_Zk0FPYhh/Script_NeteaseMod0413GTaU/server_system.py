@@ -88,13 +88,15 @@ class AutoTorchServer(ServerSystem):
         if not foot_pos:
             return
         dimension = state.dimension
+        threshold = state.nearby[config.NEARBY_LIGHT_THRESHOLD]
         target = nearby_logic.find_target(
             foot_pos,
             state.tracker.is_waiting,
             lambda pos: self._is_placeable(pos, dimension),
             # 网易仅提供综合光照等级，“计入天空光”选项暂无法区分，待游戏内验证后再调整
             lambda pos: self._block_info.GetBlockLightLevel(pos, dimension),
-            state.nearby[config.NEARBY_LIGHT_THRESHOLD])
+            threshold,
+            lambda pos, light: state.tracker.confirm_dark(pos, light, threshold))
         if target is None:
             return
 

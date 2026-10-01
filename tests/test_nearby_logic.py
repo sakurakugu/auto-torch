@@ -112,6 +112,22 @@ class FindTargetTest(unittest.TestCase):
         nearby_logic.find_target((0.5, 64.0, 0.5), lambda pos: False, lambda pos: False, light, 4)
         self.assertEqual(light_checked, [])
 
+    def test_requires_stable_light_before_selecting_target(self):
+        tracker = nearby_logic.NearbyTracker()
+        foot = (0.5, 64.0, 0.5)
+        only = (2, 63, 2)
+        stable = lambda pos, light: tracker.confirm_dark(pos, light, 4)
+
+        self.assertTrue(tracker.should_scan())
+        self.assertIsNone(nearby_logic.find_target(
+            foot, lambda pos: False, lambda pos: pos == only, lambda pos: 0, 4, stable))
+        for _ in range(nearby_logic.SCAN_INTERVAL_TICKS - 1):
+            self.assertFalse(tracker.should_scan())
+
+        self.assertTrue(tracker.should_scan())
+        self.assertEqual(nearby_logic.find_target(
+            foot, lambda pos: False, lambda pos: pos == only, lambda pos: 0, 4, stable), only)
+
 
 class TorchSourceTest(unittest.TestCase):
 
@@ -155,6 +171,37 @@ class TrackerTest(unittest.TestCase):
         for _ in range(nearby_logic.RETRY_DELAY_TICKS):
             tracker.age()
         self.assertFalse(tracker.is_waiting(pos))
+
+    def test_confirms_darkness_across_scans(self):
+        tracker = nearby_logic.NearbyTracker()
+        pos = (1, 2, 3)
+
+        self.assertTrue(tracker.should_scan())
+        self.assertFalse(tracker.confirm_dark(pos, 0, 4))
+        for _ in range(nearby_logic.SCAN_INTERVAL_TICKS - 1):
+            self.assertFalse(tracker.should_scan())
+
+        self.assertTrue(tracker.should_scan())
+        self.assertTrue(tracker.confirm_dark(pos, 0, 4))
+        self.assertFalse(tracker.confirm_dark(pos, 4, 4))
+        self.assertFalse(tracker.confirm_dark(pos, 0, 4))
+
+    def test_bright_scan_breaks_darkness_confirmation(self):
+        tracker = nearby_logic.NearbyTracker()
+        pos = (1, 2, 3)
+
+        self.assertTrue(tracker.should_scan())
+        self.assertFalse(tracker.confirm_dark(pos, 0, 4))
+        for _ in range(nearby_logic.SCAN_INTERVAL_TICKS - 1):
+            self.assertFalse(tracker.should_scan())
+
+        self.assertTrue(tracker.should_scan())
+        self.assertFalse(tracker.confirm_dark(pos, 4, 4))
+        for _ in range(nearby_logic.SCAN_INTERVAL_TICKS - 1):
+            self.assertFalse(tracker.should_scan())
+
+        self.assertTrue(tracker.should_scan())
+        self.assertFalse(tracker.confirm_dark(pos, 0, 4))
 
     def test_reset(self):
         tracker = nearby_logic.NearbyTracker()
