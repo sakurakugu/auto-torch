@@ -163,6 +163,8 @@
   "command.autotorch.status.overlay": "光照显示: %s；范围: 宽: %s，高: %s ~ %s；样式: %s；特判: %s",
   "command.autotorch.status.overlay_see_through": "%s（透视）",
   "command.autotorch.status.overlay_rotate_numbers": "%s（跟随视角）",
+  "command.autotorch.status.json_copy": "[复制 JSON]",
+  "command.autotorch.status.json_copy_hover": "点击复制到剪贴板",
   "command.autotorch.special.none": "无",
   "command.autotorch.special.swamp_slime": "沼泽史莱姆",
   "command.autotorch.special.drowned": "溺尸",

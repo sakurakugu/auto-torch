@@ -22,7 +22,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.commands.arguments.coordinates.Coordinates;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
@@ -38,6 +40,7 @@ public final class AutoTorchClientCommands {
     private static final ChatFormatting STATUS_NEARBY_COLOR = ChatFormatting.GREEN;
     private static final ChatFormatting STATUS_OVERLAY_COLOR = ChatFormatting.AQUA;
     private static final ChatFormatting STATUS_DETAILS_COLOR = ChatFormatting.YELLOW;
+    private static final ChatFormatting STATUS_JSON_COPY_COLOR = ChatFormatting.GREEN;
     private static final ChatFormatting HELP_OPTION_COLOR = ChatFormatting.WHITE;
     private static final ChatFormatting HELP_SEPARATOR_COLOR = ChatFormatting.AQUA;
 
@@ -73,7 +76,9 @@ public final class AutoTorchClientCommands {
                 .executes(context -> openScreen())
                 .then(AutoTorchClientCommands.<S>literal("gui").executes(context -> openScreen()))
                 .then(AutoTorchClientCommands.<S>literal("help").executes(context -> showHelp()))
-                .then(AutoTorchClientCommands.<S>literal("status").executes(context -> showStatus()))
+                .then(AutoTorchClientCommands.<S>literal("status")
+                        .executes(context -> showStatus())
+                        .then(AutoTorchClientCommands.<S>literal("json").executes(context -> showStatusJson())))
                 .then(AutoTorchClientCommands.<S>literal("config")
                         .then(AutoTorchClientCommands.<S>literal("defaults")
                                 .executes(context -> resetConfigDefaults())))
@@ -507,14 +512,9 @@ public final class AutoTorchClientCommands {
         AreaZone selection = SelectionState.lightingZone();
         if (selection == null) return feedback("command.autotorch.no_lighting_zone");
         if (SelectionState.drafting()) return feedback("command.autotorch.confirm_draft");
-        Minecraft minecraft = Minecraft.getInstance();
-        boolean consume = minecraft.player != null && minecraft.player.isCreative()
-                ? ClientConfig.creativeConsumesTorches()
-                : (minecraft.hasSingleplayerServer() ? ClientConfig.survivalConsumesTorches()
-                        : ServerConfigState.survivalConsumesTorches());
         PlatformNetworking.sendToServer(new StartLightingPayload(
                 selection, effectiveDefaultMaxTorches(), effectiveDefaultMinSpacing(),
-                ClientConfig.defaultTaskLightThreshold(), consume,
+                ClientConfig.defaultTaskLightThreshold(), consumesTorches(),
                 ClientConfig.isDefaultUndergroundOnly(), SelectionState.exclusions()));
         return feedback("command.autotorch.task_submitted");
     }
@@ -544,7 +544,8 @@ public final class AutoTorchClientCommands {
 
     private static int showHelp() {
         feedbackColored("command.autotorch.help.title", STATUS_TITLE_COLOR);
-        helpLine(option("/autotorch [gui"), separator("|"), option("help"), separator("|"), option("status]"));
+        helpLine(option("/autotorch [gui"), separator("|"), option("help"), separator("|"),
+                option("status [json]"));
         helpLine(option("/autotorch nearby on"), separator("|"), option("off"));
         helpLine(option("/autotorch nearby threshold <1-16>"));
         helpLine(option("/autotorch nearby skylight on"), separator("|"), option("off"));
@@ -603,11 +604,7 @@ public final class AutoTorchClientCommands {
         if (minecraft.player != null) {
             AreaZone draft = SelectionState.draft(minecraft.player.blockPosition());
             boolean sphere = draft.shape() == AreaShape.SPHERE;
-            boolean consumesTorches = minecraft.player.isCreative()
-                    ? ClientConfig.creativeConsumesTorches()
-                    : (minecraft.hasSingleplayerServer()
-                            ? ClientConfig.survivalConsumesTorches()
-                            : ServerConfigState.survivalConsumesTorches());
+            boolean consumesTorches = consumesTorches();
             int maxTorches = effectiveDefaultMaxTorches();
             feedbackColored("command.autotorch.status.selection", STATUS_DETAILS_COLOR,
                     new TranslatableComponent(sphere
@@ -634,16 +631,38 @@ public final class AutoTorchClientCommands {
     }
 
     private static int effectiveDefaultMaxTorches() {
-        int configured = ClientConfig.defaultMaxTorches();
-        if (configured == 0) {
-            return ServerConfigState.allowsUnlimitedTorches() ? 0 : ServerConfigState.maxTorchesPerTask();
-        }
-        return Math.min(configured, ServerConfigState.maxTorchesPerTask());
+        return ClientStatusJson.effectiveDefaultMaxTorches();
     }
 
     private static int effectiveDefaultMinSpacing() {
-        return Math.max(ServerConfigState.minSpacing(),
-                Math.min(ServerConfigState.maxSpacing(), ClientConfig.defaultMinSpacing()));
+        return ClientStatusJson.effectiveDefaultMinSpacing();
+    }
+
+    /** 把当前全部状态以单行 JSON 输出，并在下一行给出点击复制的入口。 */
+    private static int showStatusJson() {
+        String json = ClientStatusJson.build(consumesTorches(), playerPositionOrNull());
+        chat(new TextComponent(json));
+        chat(new TranslatableComponent("command.autotorch.status.json_copy")
+                .withStyle(style -> style
+                        .withColor(STATUS_JSON_COPY_COLOR)
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, json))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, 
+                                new TranslatableComponent("command.autotorch.status.json_copy_hover")))));
+        return 1;
+    }
+
+    /** 本次任务是否消耗背包火把：创造模式跟随客户端配置，生存模式单人跟随客户端、联机跟随服务端。 */
+    private static boolean consumesTorches() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft.player != null && minecraft.player.isCreative()
+                ? ClientConfig.creativeConsumesTorches()
+                : (minecraft.hasSingleplayerServer() ? ClientConfig.survivalConsumesTorches()
+                        : ServerConfigState.survivalConsumesTorches());
+    }
+
+    private static BlockPos playerPositionOrNull() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft.player == null ? null : minecraft.player.blockPosition();
     }
 
     private static Component specialDetection() {
