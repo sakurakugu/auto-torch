@@ -874,6 +874,8 @@ public final class LightingScreen extends Screen {
         return new ChatComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-");
     }
 
+    // 1.7.10 的 GuiScreen.buttonList 是原始类型 List，没有泛型可用，add 元素必然触发未检查告警
+    @SuppressWarnings("unchecked")
     private <T extends Button> T addRenderableWidget(T widget) {
         children.add(widget);
         buttonList.add(widget);

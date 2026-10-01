@@ -76,6 +76,8 @@ final class LegacyAutoTorchServerCommand extends CommandBase {
         }
     }
 
+    // 1.7.10 的 ICommand.addTabCompletionOptions 返回原始类型 List，getListOfStringsMatchingLastWord 也返回原始 List，赋给 List<String> 必然触发未检查转换
+    @SuppressWarnings("unchecked")
     @Override
     public List<String> addTabCompletionOptions(ICommandSender sender, String[] arguments) {
         if (arguments.length == 1) return getListOfStringsMatchingLastWord(arguments, "help", "serverconfig");

@@ -22,6 +22,8 @@ public final class ExclusionListScreen extends Screen {
         super(new ChatComponentTranslation("screen.autotorch.exclusions_title"));
     }
 
+    // 1.7.10 的 GuiScreen.buttonList 是原始类型 List，没有泛型可用，add 元素必然触发未检查告警
+    @SuppressWarnings("unchecked")
     private <T extends Button> T addRenderableWidget(T widget) {
         buttonList.add(widget);
         return widget;
