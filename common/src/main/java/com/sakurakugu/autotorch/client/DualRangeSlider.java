@@ -13,6 +13,10 @@ import net.minecraft.resources.ResourceLocation;
 
 /** 可复用的双端点范围滑动条。 */
 public class DualRangeSlider extends Button {
+    // 该构造器在 1.21 起标记为待删除，但 common 源码还要给 fabric 编译
+    // （原版映射没有 fromNamespaceAndPath/parse 等工厂方法），只能保留构造器写法；
+    // forge/neoforge 复用同一份源码时会产生 [removal] 告警，这里按最小范围抑制。
+    @SuppressWarnings("removal")
     private static final ResourceLocation SLIDER_LOCATION = new ResourceLocation("autotorch", "textures/gui/slider.png");
     private final int minValue;
     private final int maxValue;

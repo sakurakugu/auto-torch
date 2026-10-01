@@ -10,6 +10,10 @@ import net.minecraft.resources.ResourceLocation;
 
 /** 使用明确语义色的普通按钮，保留原版按钮的输入、焦点和旁白行为。 */
 final class ColoredButton extends Button {
+    // 该构造器在 1.21 起标记为待删除，但 common 源码还要给 fabric 编译
+    // （原版映射没有 fromNamespaceAndPath/parse 等工厂方法），只能保留构造器写法；
+    // forge/neoforge 复用同一份源码时会产生 [removal] 告警，这里按最小范围抑制。
+    @SuppressWarnings("removal")
     private static final ResourceLocation WIDGETS_LOCATION = new ResourceLocation("minecraft", "textures/gui/widgets.png");
     private final int backgroundColor;
     private final int hoveredColor;
