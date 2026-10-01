@@ -42,6 +42,7 @@ public final class AutoTorchNeoForgeClient {
     private void registerKeys(RegisterKeyMappingsEvent event) {
         event.register(AutoTorchClient.OPEN_SCREEN);
         event.register(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        event.register(AutoTorchClient.TOGGLE_NEARBY_AUTO_TORCH);
     }
 
     private void registerClientCommands(RegisterClientCommandsEvent event) {
