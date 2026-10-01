@@ -163,6 +163,8 @@
   "command.autotorch.status.overlay": "Light overlay: %s; range: width %s, height %s ~ %s; mode: %s; special: %s",
   "command.autotorch.status.overlay_see_through": "%s (see-through)",
   "command.autotorch.status.overlay_rotate_numbers": "%s (follows view)",
+  "command.autotorch.status.json_copy": "[Copy JSON]",
+  "command.autotorch.status.json_copy_hover": "Click to copy to clipboard",
   "command.autotorch.special.none": "none",
   "command.autotorch.special.swamp_slime": "swamp slimes",
   "command.autotorch.special.drowned": "drowned",
