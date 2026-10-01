@@ -18,6 +18,7 @@ import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.Level;
 
 /** 按玩家管理照明任务，并在每个服务端刻推进任务。 */
 public final class LightingTaskManager {
@@ -73,7 +74,7 @@ public final class LightingTaskManager {
         }
         BlockPos scanMin = new BlockPos(min.getX(), scanMinY, min.getZ());
         BlockPos scanMax = new BlockPos(max.getX(), scanMaxY, max.getZ());
-        if (!player.getLevel().isInWorldBounds(scanMin) || !player.getLevel().isInWorldBounds(scanMax)) {
+        if (!Level.isInWorldBounds(scanMin) || !Level.isInWorldBounds(scanMax)) {
             sendSystemMessage(player, new TranslatableComponent("message.autotorch.outside_world"));
             return;
         }
