@@ -30,6 +30,7 @@ public final class AutoTorchForgeClient {
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
         ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
+        ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_NEARBY_AUTO_TORCH);
         ClientCommandHandler.instance.registerCommand(new LegacyAutoTorchClientCommand());
         MinecraftForge.EVENT_BUS.register(this);
         FMLCommonHandler.instance().bus().register(this);

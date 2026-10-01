@@ -29,6 +29,11 @@ public final class AutoTorchClient {
             Keyboard.KEY_F7,
             CATEGORY
     );
+    public static final KeyBinding TOGGLE_NEARBY_AUTO_TORCH = new KeyBinding(
+            "key.autotorch.toggle_nearby_auto_torch",
+            Keyboard.KEY_NONE,
+            CATEGORY
+    );
 
     public void tick(BlockPos lightOverlayCenter) {
         Minecraft minecraft = Minecraft.getMinecraft();
@@ -56,6 +61,14 @@ public final class AutoTorchClient {
                 boolean enabled = LightOverlayState.toggle();
                 showMessage(new ChatComponentTranslation(enabled
                         ? "message.autotorch.light_overlay_on" : "message.autotorch.light_overlay_off"));
+            }
+        }
+        while (TOGGLE_NEARBY_AUTO_TORCH.isPressed()) {
+            if (minecraft.thePlayer != null) {
+                boolean enabled = !ClientConfig.isNearbyAutoTorchEnabled();
+                ClientConfig.setNearbyAutoTorchEnabled(enabled);
+                showMessage(new ChatComponentTranslation(enabled
+                        ? "message.autotorch.nearby_auto_torch_on" : "message.autotorch.nearby_auto_torch_off"));
             }
         }
     }
