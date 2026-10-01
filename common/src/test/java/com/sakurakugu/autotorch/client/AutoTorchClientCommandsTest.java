@@ -18,7 +18,7 @@ class AutoTorchClientCommandsTest {
         CommandNode<Object> root = child(dispatcher.getRoot(), "autotorch");
         child(root, "gui");
         child(root, "help");
-        child(root, "status");
+        child(child(root, "status"), "json");
         child(child(root, "config"), "defaults");
 
         CommandNode<Object> nearby = child(root, "nearby");
