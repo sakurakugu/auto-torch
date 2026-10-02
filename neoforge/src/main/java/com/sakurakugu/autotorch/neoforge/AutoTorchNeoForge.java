@@ -24,7 +24,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class AutoTorchNeoForge {
     public AutoTorchNeoForge(IEventBus modBus, ModContainer container) {
         ServerConfig.install(NeoForgeConfigs.SERVER);
-        container.registerConfig(ModConfig.Type.SERVER, NeoForgeConfigs.SERVER.spec());
+        container.registerConfig(ModConfig.Type.SYNCED, NeoForgeConfigs.SERVER.spec());
         modBus.addListener(NeoForgeNetworking::register);
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) ->
                 AutoTorchServerCommands.register(event.getDispatcher(),

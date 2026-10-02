@@ -70,11 +70,11 @@ Contributions that add or improve translations are welcome. Language files are l
 
 Different Minecraft versions use different maintenance branches and language file formats:
 
-| Minecraft Version | Pull Request Target Branch | Language File Format |
-| ----------------- | -------------------------- | -------------------- |
-| Current development version (latest) | `main` | `.json` |
-| 1.7.10~1.12.2 | `mc/<version>` | `.lang` |
-| 1.13.2 and later | `mc/<version>` | `.json` |
+| Minecraft Version                    | Pull Request Target Branch | Language File Format |
+| ------------------------------------ | -------------------------- | -------------------- |
+| Current development version (latest) | `main`                     | `.json`              |
+| 1.7.10~1.12.2                        | `mc/<version>`             | `.lang`              |
+| 1.13.2 and later                     | `mc/<version>`             | `.json`              |
 
 When contributing a translation, submit the `.json` file in a pull request targeting `main`. Do not submit it to another `mc/x.x.x` branch; it will be merged manually later.
 
@@ -181,6 +181,8 @@ woodenAxeSelectionEnabled = true
 
 File: `<world directory>/serverconfig/autotorch-server.toml`
 Single-player location: `config/autotorch-server.toml`
+
+> 26.3 renamed the configuration to `autotorch-synced.toml` in NeoForge.
 
 ```toml
 [limits]
