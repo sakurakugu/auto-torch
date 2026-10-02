@@ -182,6 +182,8 @@ woodenAxeSelectionEnabled = true
 文件位置：`<世界目录>/serverconfig/autotorch-server.toml`
 单人位置：`config/autotorch-server.toml`
 
+> 26.3 的配置被 NeoForge 改名为了 `autotorch-synced.toml`
+
 ```toml
 [limits]
 # 长方体任一边允许的最大长度，范围 1~321 格。
