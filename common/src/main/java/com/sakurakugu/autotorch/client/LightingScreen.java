@@ -1,5 +1,6 @@
 package com.sakurakugu.autotorch.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.sakurakugu.autotorch.AutoTorchRules;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
@@ -951,7 +952,7 @@ public final class LightingScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (maxScrollOffset() > 0 && event.button() == 0
+        if (maxScrollOffset() > 0 && event.button() == InputConstants.MOUSE_BUTTON_LEFT
                 && event.x() >= scrollbarX() && event.x() < scrollbarX() + SCROLLBAR_WIDTH
                 && event.y() >= VIEWPORT_MARGIN && event.y() < height - VIEWPORT_MARGIN) {
             draggingScrollbar = true;
