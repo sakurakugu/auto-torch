@@ -78,7 +78,7 @@ public final class DualRangeSlider extends Button {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() != 0 || !isMouseOver(event.x(), event.y())) return false;
+        if (!isValidClickButton(event.buttonInfo()) || !isMouseOver(event.x(), event.y())) return false;
         draggingThumb = Math.abs(event.x() - position(lowerValue)) <= Math.abs(event.x() - position(upperValue)) ? 1 : 2;
         update(event.x());
         return true;
@@ -86,13 +86,14 @@ public final class DualRangeSlider extends Button {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
-        if (draggingThumb == 0) return false;
+        if (draggingThumb == 0 || !isValidClickButton(event.buttonInfo())) return false;
         update(event.x());
         return true;
     }
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+        if (draggingThumb == 0 || !isValidClickButton(event.buttonInfo())) return false;
         draggingThumb = 0;
         return true;
     }
