@@ -2,6 +2,7 @@ package com.sakurakugu.autotorch.client;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.io.IOException;
 
 import com.sakurakugu.autotorch.AutoTorchRules;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
@@ -1012,6 +1013,23 @@ public final class LightingScreen extends Screen {
         saveSelection();
         saveTaskDefaults();
         super.onClose();
+    }
+
+    @Override
+    protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (!textInputFocused() && keyCode == AutoTorchClient.OPEN_SCREEN.getKeyCode()) {
+            onClose();
+            return;
+        }
+        super.keyTyped(typedChar, keyCode);
+    }
+
+    /** 输入框获得焦点时不拦截快捷键，避免与文本输入冲突。 */
+    private boolean textInputFocused() {
+        for (Object child : children()) {
+            if (child instanceof EditBox && ((EditBox) child).isFocused()) return true;
+        }
+        return false;
     }
 
     @Override
