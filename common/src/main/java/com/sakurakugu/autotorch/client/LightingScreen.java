@@ -1013,6 +1013,18 @@ public final class LightingScreen extends Screen {
     }
 
     @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        Object focused = getFocused();
+        boolean textInputFocused = focused instanceof EditBox && ((EditBox) focused).isFocused();
+        // 1.13.2 的 KeyBinding 用 matchesKey 而不是后续版本的 matches。
+        if (!textInputFocused && AutoTorchClient.OPEN_SCREEN.matchesKey(keyCode, scanCode)) {
+            onClose();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
     public void render(int mouseX, int mouseY, float partialTick) {
         enableViewportScissor();
         super.render(mouseX, mouseY, partialTick);
