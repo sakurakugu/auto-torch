@@ -14,6 +14,7 @@ import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
@@ -984,6 +985,16 @@ public final class LightingScreen extends Screen {
         saveSelection();
         saveTaskDefaults();
         super.onClose();
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        boolean textInputFocused = getFocused() instanceof EditBox editBox && editBox.canConsumeInput();
+        if (!textInputFocused && AutoTorchClient.OPEN_SCREEN.matches(event)) {
+            onClose();
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     @Override
