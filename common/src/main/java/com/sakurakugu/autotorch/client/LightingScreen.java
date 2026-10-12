@@ -1016,6 +1016,23 @@ public final class LightingScreen extends Screen {
     }
 
     @Override
+    protected void keyTyped(char typedChar, int keyCode) {
+        if (!textInputFocused() && keyCode == AutoTorchClient.OPEN_SCREEN.getKeyCode()) {
+            onClose();
+            return;
+        }
+        super.keyTyped(typedChar, keyCode);
+    }
+
+    /** 输入框获得焦点时不拦截快捷键，避免与文本输入冲突。 */
+    private boolean textInputFocused() {
+        for (Object child : children()) {
+            if (child instanceof EditBox && ((EditBox) child).isFocused()) return true;
+        }
+        return false;
+    }
+
+    @Override
     public void render(int mouseX, int mouseY, float partialTick) {
         enableViewportScissor();
         super.render(mouseX, mouseY, partialTick);
