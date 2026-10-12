@@ -1029,6 +1029,16 @@ public final class LightingScreen extends Screen {
     }
 
     @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        boolean textInputFocused = getFocused() instanceof EditBox editBox && editBox.canConsumeInput();
+        if (!textInputFocused && AutoTorchClient.OPEN_SCREEN.matches(keyCode, scanCode)) {
+            onClose();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
     public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         enableViewportScissor();
         super.render(poseStack, mouseX, mouseY, partialTick);
