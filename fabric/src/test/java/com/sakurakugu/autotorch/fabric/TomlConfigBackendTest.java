@@ -2,12 +2,17 @@ package com.sakurakugu.autotorch.fabric;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -134,7 +139,93 @@ class TomlConfigBackendTest {
         }
     }
 
+    @Test
+    void writesChineseCommentsForEveryKey() throws IOException {
+        Path path = configDirectory.resolve("autotorch-client.toml");
+        try (TomlConfigBackend backend = new TomlConfigBackend(path, ConfigDefinitions.CLIENT)) {
+            assertTrue(Files.exists(path));
+        }
+
+        List<String> lines = Files.readAllLines(path);
+        Map<String, Integer> indexes = keyLineIndexes(lines);
+        for (ConfigDefinitions.Value definition : ConfigDefinitions.CLIENT) {
+            Integer index = indexes.get(definition.key());
+            assertNotNull(index, definition.key());
+            // 说明行紧贴在键上方，顺序是用途说明在前、默认值与范围在后。
+            String[] expected = definition.fullCommentLines();
+            for (int offset = 1; offset <= expected.length; offset++) {
+                assertEquals("#" + expected[expected.length - offset],
+                        lines.get(index - offset).trim(), definition.key());
+            }
+        }
+    }
+
+    @Test
+    void addsCommentsToExistingFileWithoutChangingValues() throws IOException {
+        Path path = configDirectory.resolve("autotorch-client.toml");
+        Files.write(path, "futureValue = 42\n\n[nearbyAutoTorch]\nenabled = true\nlightThreshold = 9\n"
+                .getBytes(StandardCharsets.UTF_8));
+
+        try (TomlConfigBackend backend = new TomlConfigBackend(path, ConfigDefinitions.CLIENT)) {
+            assertTrue(backend.getBoolean("nearbyAutoTorch.enabled", false));
+            assertEquals(9, backend.getInt("nearbyAutoTorch.lightThreshold", 4));
+        }
+
+        List<String> lines = Files.readAllLines(path);
+        Map<String, Integer> indexes = keyLineIndexes(lines);
+        // 玩家已改的值与未知键都要保留。
+        assertEquals("futureValue = 42", lines.get(0).trim());
+        assertEquals("enabled = true", lines.get(indexes.get("nearbyAutoTorch.enabled")).trim());
+        assertEquals("lightThreshold = 9", lines.get(indexes.get("nearbyAutoTorch.lightThreshold")).trim());
+        // 说明只写给已知配置键，未知键不会被加上说明。
+        int expectedComments = 0;
+        for (ConfigDefinitions.Value definition : ConfigDefinitions.CLIENT) {
+            expectedComments += definition.fullCommentLines().length;
+        }
+        int actualComments = 0;
+        for (String line : lines) {
+            if (line.trim().startsWith("#")) {
+                actualComments++;
+            }
+        }
+        assertEquals(expectedComments, actualComments);
+    }
+
+    @Test
+    void keepsCommentsStableAcrossReloads() throws IOException {
+        Path path = configDirectory.resolve("autotorch-client.toml");
+        try (TomlConfigBackend backend = new TomlConfigBackend(path, ConfigDefinitions.CLIENT)) {
+            assertEquals(4, backend.getInt("nearbyAutoTorch.lightThreshold", 0));
+        }
+        String first = String.join("\n", Files.readAllLines(path));
+
+        // 说明写过之后再次加载，文件内容不应再变化。
+        try (TomlConfigBackend backend = new TomlConfigBackend(path, ConfigDefinitions.CLIENT)) {
+            assertEquals(4, backend.getInt("nearbyAutoTorch.lightThreshold", 0));
+        }
+
+        assertEquals(first, String.join("\n", Files.readAllLines(path)));
+    }
+
     private static String leafName(String key) {
         return key.substring(key.lastIndexOf('.') + 1);
+    }
+
+    /** 按 [表名.键名] 找出每个配置键所在的行号。 */
+    private static Map<String, Integer> keyLineIndexes(List<String> lines) {
+        Map<String, Integer> indexes = new HashMap<>();
+        String section = "";
+        for (int index = 0; index < lines.size(); index++) {
+            String line = lines.get(index).trim();
+            if (line.startsWith("#")) {
+                continue;
+            }
+            if (line.startsWith("[") && line.endsWith("]")) {
+                section = line.substring(1, line.length() - 1);
+            } else if (line.contains(" = ")) {
+                indexes.put(section + "." + line.substring(0, line.indexOf(" = ")), index);
+            }
+        }
+        return indexes;
     }
 }
