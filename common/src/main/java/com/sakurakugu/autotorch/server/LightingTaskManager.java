@@ -75,7 +75,9 @@ public final class LightingTaskManager {
             player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
             return;
         }
-        if (payload.minSpacing() < ServerConfig.minSpacing()
+        // 服务端间距下限只在此读取一次：既用于校验，也作为本任务第二轮补点的下限快照。
+        int secondPassMinimumSpacing = ServerConfig.minSpacing();
+        if (payload.minSpacing() < secondPassMinimumSpacing
                 || payload.minSpacing() > ServerConfig.maxSpacing()) {
             player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
             return;
@@ -103,7 +105,8 @@ public final class LightingTaskManager {
                 player.level().getServer().isSingleplayerOwner(player.getGameProfile()));
 
         LightingTask task = new LightingTask(
-                player.serverLevel(), selection, scanMin, scanMax, maxTorches, minSpacing, lightThreshold,
+                player.serverLevel(), selection, scanMin, scanMax, maxTorches, minSpacing, secondPassMinimumSpacing,
+                lightThreshold,
                 consumeTorches, payload.undergroundOnly(),
                 payload.exclusions(), player.getUUID()
         );
@@ -113,9 +116,9 @@ public final class LightingTaskManager {
         if (!AutoTorchRules.canTorchMeetLightThreshold(lightThreshold)) {
             player.sendSystemMessage(Component.translatable("message.autotorch.light_threshold_unreachable",
                     lightThreshold));
-        } else if (ServerConfig.minSpacing() > AutoTorchRules.maxSafeSecondPassSpacing(lightThreshold)) {
+        } else if (secondPassMinimumSpacing > AutoTorchRules.maxSafeSecondPassSpacing(lightThreshold)) {
             player.sendSystemMessage(Component.translatable("message.autotorch.second_pass_spacing_limited",
-                    ServerConfig.minSpacing(), lightThreshold));
+                    secondPassMinimumSpacing, lightThreshold));
         }
         task.showInitialProgress(player);
     }
