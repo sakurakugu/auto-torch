@@ -41,6 +41,7 @@ final class LightingTask {
     private final long permutationStep;
     private final int maxTorches;
     private final int configuredSpacing;
+    private final int secondPassMinimumSpacing; // 第二轮补点的间距下限
     private final int lightThreshold;
     private final boolean consumeTorches;
     private final boolean undergroundOnly;
@@ -62,6 +63,7 @@ final class LightingTask {
             BlockPos scanMax,
             int maxTorches,
             int configuredSpacing,
+            int secondPassMinimumSpacing,
             int lightThreshold,
             boolean consumeTorches,
             boolean undergroundOnly,
@@ -77,6 +79,7 @@ final class LightingTask {
         this.volume = (long) sizeX * sizeY * sizeZ;
         this.maxTorches = maxTorches;
         this.configuredSpacing = configuredSpacing;
+        this.secondPassMinimumSpacing = secondPassMinimumSpacing;
         this.lightThreshold = lightThreshold;
         this.consumeTorches = consumeTorches;
         this.undergroundOnly = undergroundOnly;
@@ -224,7 +227,9 @@ final class LightingTask {
 
     private BlockPos findTorchPosition(EntityPlayerMP player, BlockPos darkPosition) {
         // 优先尝试暗点脚下；失败后在附近随机寻找可放置且玩家有权限的位置。
-        for (int attempt = 0; attempt < ServerConfig.randomPlacementAttempts(); attempt++) {
+        // 尝试次数在本次查找开始时读一次：保留运行中调速，同时避免循环条件里反复读配置。
+        int maxAttempts = ServerConfig.randomPlacementAttempts();
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
             int radius = attempt == 0 ? 0 : 4;
             int dx = radius == 0 ? 0 : random.nextInt(radius * 2 + 1) - radius;
             int dz = radius == 0 ? 0 : random.nextInt(radius * 2 + 1) - radius;
@@ -262,7 +267,7 @@ final class LightingTask {
 
     private int currentSpacing() {
         return pass == 0 ? configuredSpacing
-                : AutoTorchRules.secondPassSpacing(configuredSpacing, lightThreshold, ServerConfig.minSpacing());
+                : AutoTorchRules.secondPassSpacing(configuredSpacing, lightThreshold, secondPassMinimumSpacing);
     }
 
     private boolean farEnoughFromPlaced(BlockPos pos, int spacing) {
