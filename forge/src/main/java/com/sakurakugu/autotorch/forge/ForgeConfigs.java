@@ -69,6 +69,7 @@ final class ForgeConfigs {
                         changed = true;
                     }
                     changed |= repair(definition, raw);
+                    changed |= applyComment(definition);
                 }
                 if (changed) save();
             } catch (RuntimeException exception) {
@@ -166,6 +167,14 @@ final class ForgeConfigs {
                 return true;
             }
             return false;
+        }
+
+        /** 写入配置项的中文说明；说明已经一致时不动文件，避免每次启动都重写。 */
+        private boolean applyComment(Value definition) {
+            String comment = String.join("\n", definition.fullCommentLines());
+            if (comment.equals(config.getComment(definition.key()))) return false;
+            config.setComment(definition.key(), comment);
+            return true;
         }
 
         private Map<String, Object> readLegacyValues(File legacyFile) {
