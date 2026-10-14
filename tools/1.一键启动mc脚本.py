@@ -58,6 +58,7 @@ def show_help():
 选项：--path <路径>、--java-path <路径>、--all_branch、--mc_version <版本号或范围>、--branch <分支名>、--help
 版本范围使用闭区间，例如：--mc_version 1.16.5-1.8.9。
 release 默认使用 D:\\elric\\Code\\Repos\\Minecraft\\test-mc\\PCL2_Release.exe。
+release 按版本后台打包，完成一个版本即启动测试；游戏运行期间继续编译剩余版本。
 """)
 
 def main(argv=None):
@@ -92,11 +93,7 @@ def main(argv=None):
         if not (release / "PCL2_Release.exe").is_file(): raise RuntimeError(f"生产测试端路径无效：{release}。未找到 PCL2_Release.exe。")
         logic.skip_profile_auth(release)
         build_roots = roots or [root]
-        files = [f for r in build_roots for f in logic.artifacts(r, args.task)]
-        selected = logic.targets(files, release, args.task if args.task in LOADERS else None)
-        if not selected: raise RuntimeError("没有可部署的 release 产物。")
-        for target in selected: logic.install(target)
-        for target in selected: logic.start_client(target, release)
+        logic.release_clients(build_roots, args.task, release, args.task if args.task in LOADERS else None)
         return 0
     if args.build:
         if args.task == "all_branch":
