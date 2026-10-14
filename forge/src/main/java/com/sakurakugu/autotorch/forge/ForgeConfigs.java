@@ -33,6 +33,8 @@ final class ForgeConfigs {
 
         void define(Value definition) {
             List<String> path = Arrays.asList(definition.key().split("\\."));
+            // comment 只作用于紧接着的下一个定义。
+            builder.comment(definition.commentLines());
             if (definition instanceof BooleanValue) {
                 BooleanValue value = (BooleanValue) definition;
                 values.put(value.key(), builder.define(path, value.defaultValue()));

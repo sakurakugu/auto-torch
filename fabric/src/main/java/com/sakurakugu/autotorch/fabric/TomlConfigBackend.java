@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.electronwill.nightconfig.core.CommentedConfig;
+import com.electronwill.nightconfig.core.Config;
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.toml.TomlFormat;
 import com.sakurakugu.autotorch.config.ConfigBackend;
@@ -42,7 +44,7 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
             throw new IllegalStateException("Cannot read TOML configuration " + path, exception);
         }
         try {
-            if (repairKnownValues()) {
+            if (synchronizeKnownValues()) {
                 save();
             }
         } catch (RuntimeException exception) {
@@ -59,7 +61,7 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
         }
         Value knownDefinition = definitionIndex.get(key);
         BooleanValue definition = knownDefinition instanceof BooleanValue
-                ? (BooleanValue) knownDefinition : new BooleanValue(key, fallback);
+                ? (BooleanValue) knownDefinition : new BooleanValue(key, fallback, "");
         warnInvalidType(key, value, "boolean", definition.defaultValue());
         config.set(key, definition.defaultValue());
         save();
@@ -132,7 +134,7 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
         }
     }
 
-    private boolean repairKnownValues() {
+    private boolean synchronizeKnownValues() {
         boolean[] changed = { !Files.exists(path) };
         config.bulkUpdate(values -> {
             for (Value definition : definitions) {
@@ -169,9 +171,26 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
                         changed[0] = true;
                     }
                 }
+                if (applyComment(values, definition)) {
+                    changed[0] = true;
+                }
             }
         });
         return changed[0];
+    }
+
+    /** 写入配置项的中文说明；说明已经一致时不动文件，避免每次启动都重写。 */
+    private static boolean applyComment(Config values, Value definition) {
+        if (!(values instanceof CommentedConfig)) {
+            return false;
+        }
+        CommentedConfig commentedValues = (CommentedConfig) values;
+        String comment = String.join("\n", definition.fullCommentLines());
+        if (comment.equals(commentedValues.getComment(definition.key()))) {
+            return false;
+        }
+        commentedValues.setComment(definition.key(), comment);
+        return true;
     }
 
     private void warnInvalidType(String key, Object value, String expectedType, Object fallback) {
