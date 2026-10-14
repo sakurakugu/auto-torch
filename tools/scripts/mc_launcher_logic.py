@@ -1,13 +1,15 @@
 """Auto Torch Minecraft 构建/启动工具（PCL-CE CLI 版本）。"""
 from __future__ import annotations
-import json, os, re, shutil, signal, subprocess, sys, time
+import json, os, queue, re, shutil, signal, subprocess, sys, threading, time
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WORKTREES_ROOT = PROJECT_ROOT.parent / "worktrees"
 
-def run(cmd: list[str], cwd: Path | None = None, capture=False):
+def run(cmd: list[str], cwd: Path | None = None, capture=False, cancel_event=None):
     """运行子进程，并在 Ctrl+C 时终止整个进程树。"""
+    if cancel_event is not None and cancel_event.is_set():
+        raise RuntimeError("已取消后台构建。")
     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
     p = subprocess.Popen(
         cmd, cwd=str(cwd) if cwd else None, text=True, encoding="utf-8", errors="replace",
@@ -15,7 +17,13 @@ def run(cmd: list[str], cwd: Path | None = None, capture=False):
         creationflags=creationflags,
     )
     try:
-        stdout, stderr = p.communicate()
+        while True:
+            try:
+                stdout, stderr = p.communicate(timeout=0.5 if cancel_event is not None else None)
+                break
+            except subprocess.TimeoutExpired:
+                if cancel_event.is_set():
+                    raise KeyboardInterrupt
     except KeyboardInterrupt:
         if os.name == "nt":
             # Python 3.14 不再保证 subprocess 暴露 CTRL_BREAK_EVENT，
@@ -41,6 +49,8 @@ def run(cmd: list[str], cwd: Path | None = None, capture=False):
                 p.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 p.kill()
+        if cancel_event is not None and cancel_event.is_set():
+            raise RuntimeError("已取消后台构建。")
         raise
     return subprocess.CompletedProcess(cmd, p.returncode, stdout, stderr)
 
@@ -89,7 +99,8 @@ def java_env(path):
     if not exe.is_file(): raise RuntimeError(f"指定的 Java 路径无效：'{path}'。未找到 bin/java.exe。")
     os.environ["JAVA_HOME"] = str(home); os.environ["PATH"] = str(home / "bin") + os.pathsep + os.environ.get("PATH", "")
 
-def gradle(root, *args): return run([str(root / "gradlew.bat"), *args], cwd=root).returncode
+def gradle(root, *args, cancel_event=None):
+    return run([str(root / "gradlew.bat"), *args], cwd=root, cancel_event=cancel_event).returncode
 
 def build_all_branches():
     """构建所有 Minecraft 分支，并将产物汇总到主分支的专用目录。"""
@@ -164,9 +175,9 @@ def loader_client(root, loader, version):
     code = gradle(root, f":{loader}:runClient")
     if code: print(f"警告：[{version}] {loader} 已退出，退出码：{code}。", file=sys.stderr)
 
-def release_build(root, version):
+def release_build(root, version, cancel_event=None):
     print(f"\n========== 打包 Minecraft {version} =========="); run(["git", "-C", str(root), "config", "core.hooksPath", ".githooks"])
-    code=gradle(root, "clean", "build")
+    code=gradle(root, "clean", "build", cancel_event=cancel_event)
     if code: raise RuntimeError(f"[{version}] 打包失败，退出码：{code}。")
     ar=root / "build" / f"v{prop(root,'mod_version')}"
     # 打包目录可能包含其他 Minecraft 版本的历史产物，只返回本次版本。
@@ -174,16 +185,47 @@ def release_build(root, version):
     if not files: raise RuntimeError(f"[{version}] 未在 {ar} 中找到打包产物。")
     return files
 
-def artifacts(root, task):
+def artifact_batches(root, task, cancel_event=None):
+    """每完成一个 Minecraft 版本就交付产物，供前台立即部署和启动。"""
     mod=prop(root,"mod_version"); archive=root / "build" / f"v{mod}"
-    if task != "all_branch": return release_build(root, prop(root,"minecraft_version"))
+    if task != "all_branch":
+        yield release_build(root, prop(root,"minecraft_version"), cancel_event)
+        return
     vs=branches()
     if not vs: raise RuntimeError("未找到 mc/<版本号> 形式的本地分支。")
     archive.mkdir(parents=True, exist_ok=True)
     for old in archive.glob(f"autotorch-v{mod}-mc*.jar"): old.unlink()
     for b,v in vs:
-        for f in release_build(worktree(b,v),v): shutil.copy2(f, archive / f.name)
-    return list(archive.glob(f"autotorch-v{mod}-mc*.jar"))
+        if cancel_event is not None and cancel_event.is_set(): return
+        files = release_build(worktree(b,v), v, cancel_event)
+        copied = []
+        for f in files:
+            dest = archive / f.name
+            shutil.copy2(f, dest)
+            copied.append(dest)
+        yield copied
+
+def artifacts(root, task):
+    return [f for batch in artifact_batches(root, task) for f in batch]
+
+def newest_instance(found, version, loader):
+    """存在多个实例时按加载器版本的数值选择最新版本，避免字典序误判。"""
+    if len(found) == 1: return found[0]
+    pattern = re.compile(rf"{re.escape(version)}-{re.escape(loader)}[_ ](\d+(?:\.\d+)+)(?:-([\w.]+))?", re.I)
+    ranked = []
+    for instance in found:
+        match = pattern.fullmatch(instance.name)
+        if not match: break
+        # 同一数值版本优先正式版；未知命名或同版本重复实例仍报错。
+        key = (tuple(map(int, match.group(1).split('.'))), not bool(match.group(2)))
+        ranked.append((key, instance))
+    else:
+        best = max(key for key, _ in ranked)
+        latest = [instance for key, instance in ranked if key == best]
+        if len(latest) == 1:
+            print(f"[{version} {loader}] 检测到多个生产测试实例，选择最新版本：{latest[0].name}")
+            return latest[0]
+    raise RuntimeError(f"{version} {loader} 匹配到多个生产测试实例，无法确定最新版本：{'、'.join(p.name for p in found)}")
 
 def targets(files, release, loader_filter):
     vr=release / ".minecraft" / "versions"
@@ -196,9 +238,45 @@ def targets(files, release, loader_filter):
         if loader_filter and l != loader_filter: continue
         found=[p for p in vr.iterdir() if p.is_dir() and re.fullmatch(rf"{re.escape(v)}-{re.escape(l)}(?:[_ ].*)?",p.name,re.I)]
         if len(found)==0: raise RuntimeError(f"未安装 {v} {l} 的生产测试实例；release 模式不会下载实例。")
-        if len(found)>1: raise RuntimeError(f"{v} {l} 匹配到多个生产测试实例：{'、'.join(p.name for p in found)}")
-        out.append((v,l,f,found[0]))
+        out.append((v,l,f,newest_instance(found,v,l)))
     order={"forge":0,"fabric":1,"neoforge":2}; return sorted(out,key=lambda x:(version_key(x[0]),-order[x[1]]),reverse=True)
+
+def release_clients(build_roots, task, release, loader_filter=None):
+    """后台串行构建各版本，前台按交付顺序逐个启动并等待游戏关闭。"""
+    pending = queue.Queue()
+    cancel_event = threading.Event()
+
+    def build():
+        try:
+            for root in build_roots:
+                for files in artifact_batches(root, task, cancel_event):
+                    if cancel_event.is_set(): return
+                    pending.put((files, None))
+        except Exception as exc:
+            pending.put((None, exc))
+        finally:
+            pending.put((None, None))
+
+    worker = threading.Thread(target=build, name="release-build")
+    print("后台逐版本打包；每个版本完成后立即启动测试，关闭游戏后启动下一个。")
+    worker.start()
+    launched = False
+    try:
+        while True:
+            try: files, error = pending.get(timeout=0.5)
+            except queue.Empty: continue
+            if error is not None: raise error
+            if files is None: break
+            selected = targets(files, release, loader_filter)
+            for target in selected: install(target)
+            for target in selected:
+                start_client(target, release)
+                launched = True
+        if not launched: raise RuntimeError("没有可部署的 release 产物。")
+    finally:
+        # 主线程收到 Ctrl+C 或启动失败时，终止正在构建的 Gradle 进程树。
+        cancel_event.set()
+        worker.join()
 
 def install(item):
     _,_,artifact,root=item; mods=root / "mods"; mods.mkdir(parents=True,exist_ok=True)
