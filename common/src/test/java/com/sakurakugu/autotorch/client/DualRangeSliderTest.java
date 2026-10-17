@@ -1,6 +1,7 @@
 package com.sakurakugu.autotorch.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.components.events.AbstractContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -68,6 +69,26 @@ class DualRangeSliderTest {
         assertTrue(slider.mouseDragged(left(300), 232, 0));
         assertEquals(0, slider.lowerValue());
         assertEquals(64, slider.upperValue());
+    }
+
+    @Test
+    void commitsCurrentValuesOnlyWhenTheDragEnds() {
+        List<String> commits = new ArrayList<>();
+        DualRangeSlider slider = new DualRangeSlider(0, 0, 136, 20, -64, 64, 64, -32, 32,
+                (lower, upper) -> Component.empty(),
+                (lower, upper) -> { },
+                (lower, upper) -> commits.add(lower + "," + upper));
+
+        assertTrue(slider.mouseClicked(left(36), false));
+        assertTrue(slider.mouseDragged(left(52), 16, 0));
+        assertEquals(-16, slider.lowerValue());
+        assertTrue(commits.isEmpty());
+        assertTrue(slider.mouseReleased(left(52)));
+        assertEquals(List.of("-16,32"), commits);
+
+        // 外部同步数值（重置等）不应再次触发提交。
+        slider.setValues(-8, 8);
+        assertEquals(List.of("-16,32"), commits);
     }
 
     private static DualRangeSlider slider(int[] observed) {

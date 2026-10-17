@@ -41,7 +41,7 @@
 - 附近自动插火把功能：
   搜索玩家附近两格内的有效位置，使用右键交互放置物品栏的火把，光照等级低于阈值时才会放置（可选择是否计算天空光）。
 - 区间自动插火把功能：
-  选取 A/B 两点，定义长方体（对角线）或球体（球心/半径），支持木斧选择。然后设置为照明范围（绿色）或排除区（红色），调整方块光阈值并点击“开始任务”即可。支持一个照明范围和多个排除区。
+  选取 A/B 两点，定义长方体（对角线）或球体（球心/半径），支持用选区工具选择。然后设置为照明范围（绿色）或排除区（红色），调整方块光阈值并点击“开始任务”即可。支持一个照明范围和多个排除区。
 - 全部的功能都在上图中的设置面板中
 
 ## 构建
@@ -104,7 +104,7 @@
 
 ### 区间自动插火把
 
-- 可通过输入坐标，或用木斧左键/右键选择两点。
+- 可通过输入坐标，或用选区工具左键/右键选择两点。
 - 长方体以 A/B 为两个对角点；球体以 A 为球心、A 到 B 的直线距离为半径。
 - 可设置一个绿色照明范围和多个红色排除区。具有多种显示方式。
 - 可设置任务的方块光上限（0~15），任务处理方块光≤该值、2格高为空气、且可站立、方块光为 `0` 的位置。可以跳过有天空光的位置。
@@ -130,6 +130,16 @@ enabled = false
 lightThreshold = 4
 # true：使用方块光与天空光中的较大值；false：只判断方块光。
 includeSkyLight = false
+# 扫描间隔，1~40 tick。
+scanIntervalTicks = 10
+# 连续黑暗确认时间，5~40 tick，步进 5。
+darkConfirmTicks = 10
+# 同一位置重试等待，10~100 tick，步进 10。
+retryDelayTicks = 40
+# 水平扫描半径，1~4 格；纵向范围固定 -2~+1。
+horizontalRadius = 2
+# 自动放置使用的方块物品 ID，需放在副手或快捷栏。
+item = "minecraft:torch"
 
 [lightOverlay]
 # 是否启用光照显示。
@@ -150,6 +160,23 @@ mode = 0
 detectSwampSlimes = false
 # 是否标记符合原版条件的溺尸刷新位置。
 detectDrowned = false
+# 每 tick 扫描预算，2000~48000，步进 2000。
+scanBudgetPerTick = 12000
+# 定期复查间隔，20~400 tick，步进 20。
+refreshIntervalTicks = 100
+# 溺尸遮挡检测每帧预算，16~256，步进 16；仅 26.2 及更新版本使用。
+drownedBudgetPerFrame = 64
+# 近处线宽，0.25~8.0；远处最低线宽，0.75~2.5。
+nearLineWidth = 2.5
+farLineWidth = 0.75
+# 标记颜色，使用 6 位十六进制 RGB，不带 #。
+alwaysRiskColor = "FF3030"
+nightRiskColor = "FFD23C"
+safeColor = "50E060"
+swampSlimeColor = "E050E0"
+drownedColor = "40D8E8"
+# 标记透明度，0~255。
+markerAlpha = 224
 
 [selectionOverlay]
 # 是否显示照明范围和排除区。
@@ -158,23 +185,44 @@ enabled = true
 linesOnly = false
 # 是否使用更平滑的球形选区显示。
 smoothSpheres = false
+# 近处线宽，0.25~8.0；远处最低线宽，0.75~3.0。
+nearLineWidth = 3.0
+farLineWidth = 0.75
+# 草稿、照明范围、排除区颜色，使用 6 位十六进制 RGB。
+draftColor = "70A0FF"
+mainColor = "50FF70"
+exclusionColor = "FF5050"
+# 选区面、排除区面的透明度，0~255。
+faceAlpha = 40
+exclusionFaceAlpha = 48
+# 球体水平、垂直分段数，12~48，步进 4。
+sphereLongitudeSegments = 24
+sphereLatitudeSegments = 12
+# 选区工具，接受有效的非空气物品 ID。
+toolItem = "minecraft:wooden_axe"
+# 是否启用手持选区工具左键/右键选取 A/B 点；关闭后该物品恢复原版交互。
+selectionToolEnabled = true
+# 区间插火把界面的转换与互换按钮是否用符号显示；false 时显示文字。
+symbolButtons = false
 
 [lightingTaskDefaults]
-# 任务默认最大火把数，范围 0~4096；0 表示无限。
+# 任务默认最大火把数，范围 0~4096，步进 128；0 表示无限。
 maxTorches = 0
 # 火把默认最小间距，范围 1~12 格。
 minSpacing = 8
 # 处理方块光小于或等于此值的位置，范围 0~15；0 表示只处理方块光为 0 的位置。
 lightThreshold = 0
-# 是否默认只处理无天空光的位置。
-undergroundOnly = true
+# 是否默认包含有天空光的位置；false 表示只处理无天空光的位置。
+includeSkyLight = false
 # 创造模式是否默认消耗背包中的火把。
 creativeConsumeTorches = false
 # 单人游戏中，生存模式是否默认消耗背包中的火把。
 # 多人游戏以服务端 gameplay.survivalConsumesTorches 为准。
 survivalConsumeTorches = true
-# 是否启用木斧左键/右键选取 A/B 点。
-woodenAxeSelectionEnabled = true
+# 进度同步间隔，10~40 tick，步进 10。
+progressIntervalTicks = 10
+# 区间任务放置使用的方块物品 ID。
+placementItem = "minecraft:torch"
 ```
 
 ### 服务端配置
@@ -185,6 +233,10 @@ woodenAxeSelectionEnabled = true
 > 26.3 的配置被 NeoForge 改名为了 `autotorch-synced.toml`
 
 ```toml
+[lightingTask]
+# 是否允许运行区间自动插火把任务；关闭会停止已有任务并拒绝新任务。
+enabled = true
+
 [limits]
 # 长方体任一边允许的最大长度，范围 1~321 格。
 maxBoxAxisLength = 321

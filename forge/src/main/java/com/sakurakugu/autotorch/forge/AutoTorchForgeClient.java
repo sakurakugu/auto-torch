@@ -32,6 +32,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.GameShuttingDownEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 import java.util.Optional;
@@ -42,8 +43,10 @@ final class AutoTorchForgeClient {
     private OverlayPass overlayPass;
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
-        ClientConfig.install(ForgeConfigs.CLIENT);
+        ClientConfig.installDeferred(ForgeConfigs.CLIENT);
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
+        ModConfigEvent.Loading.getBus(context.getModBusGroup()).addListener(this::onConfigChanged);
+        ModConfigEvent.Reloading.getBus(context.getModBusGroup()).addListener(this::onConfigChanged);
         context.registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
 
         RegisterKeyMappingsEvent.BUS.addListener(this::registerKeys);
@@ -57,6 +60,12 @@ final class AutoTorchForgeClient {
 
     static void initialize(FMLJavaModLoadingContext context) {
         new AutoTorchForgeClient(context);
+    }
+
+    private void onConfigChanged(ModConfigEvent event) {
+        if (event.getConfig().getSpec() == ForgeConfigs.CLIENT.spec()) {
+            ClientConfig.reload();
+        }
     }
 
     private void registerKeys(RegisterKeyMappingsEvent event) {

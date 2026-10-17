@@ -4,6 +4,7 @@ import java.util.function.Consumer;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -59,13 +60,120 @@ public final class AutoTorchClientCommands {
                         .executes(context -> showStatus())
                         .then(AutoTorchClientCommands.<S>literal("json").executes(context -> showStatusJson())))
                 .then(AutoTorchClientCommands.<S>literal("config")
-                        .then(AutoTorchClientCommands.<S>literal("defaults")
-                                .executes(context -> resetConfigDefaults())))
+                        .then(configDefaults("defaults"))
+                        .then(configDefaults("reset"))
+                        .then(configGets())
+                        .then(configValues()))
+                .then(serverConfigPassthrough())
                 .then(AutoTorchClientCommands.<S>nearby())
                 .then(AutoTorchClientCommands.<S>overlay())
                 .then(AutoTorchClientCommands.<S>selection())
                 .then(AutoTorchClientCommands.<S>zone())
                 .then(AutoTorchClientCommands.<S>task());
+    }
+
+    /**
+     * 服务端配置命令由服务端执行，这里只保留完整语法让 Fabric 将命令转发到服务端。
+     * 这些叶节点不能绑定客户端执行器，否则 Fabric 会把同名命令截留在本地。
+     */
+    private static <S> LiteralArgumentBuilder<S> serverConfigPassthrough() {
+        return AutoTorchClientCommands.<S>literal("serverconfig")
+                .then(AutoTorchClientCommands.<S>literal("gui"))
+                .then(AutoTorchClientCommands.<S>literal("get")
+                        .then(RequiredArgumentBuilder.<S, String>argument("key", StringArgumentType.word())))
+                .then(AutoTorchClientCommands.<S>literal("set")
+                        .then(RequiredArgumentBuilder.<S, String>argument("key", StringArgumentType.word())
+                                .then(RequiredArgumentBuilder.<S, String>argument(
+                                        "value", StringArgumentType.word()))))
+                .then(AutoTorchClientCommands.<S>literal("defaults"));
+    }
+
+    /** defaults 保留兼容入口，reset 提供相同的单项、配置节与功能分组重置。 */
+    private static <S> LiteralArgumentBuilder<S> configDefaults(String name) {
+        LiteralArgumentBuilder<S> root = AutoTorchClientCommands.<S>literal(name)
+                .executes(context -> resetConfigDefaults());
+        ConfigDefinitions.CLIENT.stream().map(value -> value.key().split("\\.")[0]).distinct().forEach(section -> {
+            LiteralArgumentBuilder<S> sectionCommand = AutoTorchClientCommands.<S>literal(section)
+                    .executes(context -> {
+                        ClientConfig.resetDefaults(section);
+                        return feedback("command.autotorch.config_scope_reset", section);
+                    });
+            for (ConfigDefinitions.Value definition : ConfigDefinitions.CLIENT) {
+                if (!definition.key().startsWith(section + ".")) continue;
+                sectionCommand.then(AutoTorchClientCommands.<S>literal(definition.key().substring(section.length() + 1))
+                        .executes(context -> {
+                            ClientConfig.resetDefaults(definition);
+                            return feedback("command.autotorch.config_scope_reset", definition.key());
+                        }));
+            }
+            root.then(sectionCommand);
+        });
+        LiteralArgumentBuilder<S> groups = AutoTorchClientCommands.literal("group");
+        for (ConfigDefinitions.ClientCategory category : ConfigDefinitions.ClientCategory.values()) {
+            String group = switch (category) {
+                case LIGHTING_TASK -> "area";
+                case LIGHT_OVERLAY -> "overlay";
+                case NEARBY_AUTO_TORCH -> "nearby";
+            };
+            groups.then(AutoTorchClientCommands.<S>literal(group).executes(context -> {
+                ClientConfig.resetDefaults(category);
+                return feedback("command.autotorch.config_scope_reset", Component.translatable(category.titleKey()));
+            }));
+        }
+        return root.then(groups);
+    }
+
+    /** 查询配置项当前值；查询与设置共用同一份键路径生成逻辑。 */
+    private static <S> LiteralArgumentBuilder<S> configGets() {
+        return configTree("get", false);
+    }
+
+    /** 逐项设置配置值；必须提供 value，查询请使用 config get。 */
+    private static <S> LiteralArgumentBuilder<S> configValues() {
+        return configTree("set", true);
+    }
+
+    private static <S> LiteralArgumentBuilder<S> configTree(String name, boolean writable) {
+        LiteralArgumentBuilder<S> root = AutoTorchClientCommands.literal(name);
+        for (ConfigDefinitions.Value definition : ConfigDefinitions.CLIENT) {
+            String[] path = definition.key().split("\\.");
+            String leaf = path[path.length - 1];
+            LiteralArgumentBuilder<S> command = AutoTorchClientCommands.<S>literal(leaf);
+            if (writable) {
+                command.then(RequiredArgumentBuilder.<S, String>argument("value", StringArgumentType.greedyString())
+                        .executes(context -> setConfigValue(definition,
+                                StringArgumentType.getString(context, "value"))));
+            } else {
+                command.executes(context -> showConfigValue(definition));
+            }
+            if (path.length == 1) {
+                root.then(command);
+            } else {
+                // 按点分段生成独立子命令，例如 config get lightOverlay scanBudgetPerTick。
+                LiteralArgumentBuilder<S> nested = command;
+                for (int index = path.length - 2; index >= 1; index--) {
+                    nested = AutoTorchClientCommands.<S>literal(path[index]).then(nested);
+                }
+                root.then(AutoTorchClientCommands.<S>literal(path[0]).then(nested));
+            }
+        }
+        return root;
+    }
+
+    private static int showConfigValue(ConfigDefinitions.Value definition) {
+        chat(Component.literal(definition.key() + " = " + ClientConfig.get(definition)));
+        return 1;
+    }
+
+    private static int setConfigValue(ConfigDefinitions.Value definition, String value) {
+        try {
+            ClientConfig.set(definition, value);
+            chat(Component.literal(definition.key() + " = " + ClientConfig.get(definition)));
+            return 1;
+        } catch (IllegalArgumentException exception) {
+            chat(Component.literal("Invalid value for " + definition.key() + ": " + value));
+            return 0;
+        }
     }
 
     private static <S> LiteralArgumentBuilder<S> nearby() {
@@ -161,7 +269,6 @@ public final class AutoTorchClientCommands {
                                         IntegerArgumentType.integer(0, AreaZone.MAX_SPHERE_RADIUS))
                                         .executes(context -> setSphere(context)))))
                 .then(toolCommand("tool"))
-                .then(toolCommand("wooden_axe"))
                 .then(AutoTorchClientCommands.<S>literal("list").executes(context -> listZones()));
     }
 
@@ -237,7 +344,8 @@ public final class AutoTorchClientCommands {
         LightOverlayState.reloadConfig();
         SelectionState.reloadConfig();
         PlatformNetworking.sendToServer(new SetSelectionToolPayload(
-                ClientConfig.isWoodenAxeSelectionEnabled()));
+                ClientConfig.isSelectionToolEnabled(),
+                ClientConfig.stringValue(ConfigDefinitions.SELECTION_TOOL_ITEM)));
         return feedback("command.autotorch.config_defaults");
     }
 
@@ -357,8 +465,9 @@ public final class AutoTorchClientCommands {
     }
 
     private static int setSelectionTool(boolean enabled) {
-        ClientConfig.setWoodenAxeSelectionEnabled(enabled);
-        PlatformNetworking.sendToServer(new SetSelectionToolPayload(enabled));
+        ClientConfig.setSelectionToolEnabled(enabled);
+        PlatformNetworking.sendToServer(new SetSelectionToolPayload(enabled,
+                ClientConfig.stringValue(ConfigDefinitions.SELECTION_TOOL_ITEM)));
         return feedback("command.autotorch.selection_tool", state(enabled));
     }
 
@@ -470,7 +579,11 @@ public final class AutoTorchClientCommands {
         PlatformNetworking.sendToServer(new StartLightingPayload(
                 selection, effectiveDefaultMaxTorches(), effectiveDefaultMinSpacing(),
                 ClientConfig.defaultTaskLightThreshold(), consumesTorches(),
-                ClientConfig.isDefaultUndergroundOnly(), SelectionState.exclusions()));
+                // 服务端载荷沿用 undergroundOnly 语义：true 表示跳过有天空光的位置。
+                !ClientConfig.isDefaultIncludeSkyLight(),
+                ClientConfig.stringValue(ConfigDefinitions.TASK_DEFAULT_PLACEMENT_ITEM),
+                ClientConfig.intValue(ConfigDefinitions.TASK_PROGRESS_INTERVAL),
+                SelectionState.exclusions()));
         return feedback("command.autotorch.task_submitted");
     }
 
@@ -524,6 +637,11 @@ public final class AutoTorchClientCommands {
                 option("replace"), separator("|"), option("remove <number>"), separator("|"), option("clear"));
         helpLine(option("/autotorch task start"), separator("|"), option("cancel"), separator("|"), option("status"));
         helpLine(option("/autotorch config defaults"));
+        helpLine(option("/autotorch config reset <section> [setting]"));
+        helpLine(option("/autotorch config reset group area|overlay|nearby"));
+        helpLine(option("/autotorch config set <分类> <配置项> [值]"));
+        helpLine(option("/autotorch serverconfig gui"), separator("|"),
+                Component.translatable("command.autotorch.server.gui_hint"));
         feedbackColored("------------------------------------------------", ChatFormatting.WHITE);
         return 1;
     }
@@ -572,10 +690,10 @@ public final class AutoTorchClientCommands {
                     formatPosition(draft.second()),
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size());
             feedbackColored("command.autotorch.status.task", STATUS_DETAILS_COLOR,
-                    state(ClientConfig.isWoodenAxeSelectionEnabled()), state(consumesTorches),
+                    state(ClientConfig.isSelectionToolEnabled()), state(consumesTorches),
                     maxTorches == 0 ? Component.translatable("command.autotorch.unlimited") : maxTorches,
                     effectiveDefaultMinSpacing(), ClientConfig.defaultTaskLightThreshold(),
-                    state(ClientConfig.includesSkyLight()),
+                    state(ClientConfig.isDefaultIncludeSkyLight()),
                     Component.translatable(sphere
                             ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                     state(LightOverlayState.isEnabled()),
