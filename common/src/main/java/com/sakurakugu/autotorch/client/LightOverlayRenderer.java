@@ -26,16 +26,10 @@ public final class LightOverlayRenderer {
     private static final Identifier MEDIUM_NUMBER_TEXTURE =
             Identifier.fromNamespaceAndPath("autotorch", "textures/misc/light_level_numbers_medium.png");
     private static final int FULL_BRIGHT_LIGHT = 0xF0;
-    private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
-    private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
-    private static final int SAFE_COLOR = 0xE050E060;
-    private static final int SWAMP_SLIME_RISK_COLOR = 0xE0E050E0;
-    private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
     private static final float CROSS_LINE_WIDTH = 2.5F;
     private static final float LINE_WIDTH_REFERENCE_DISTANCE = 8.0F;
     private static final double LINE_WIDTH_REFERENCE_DISTANCE_SQUARED =
             LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE;
-    private static final float MIN_LINE_WIDTH = 0.75F;
     private static final double SURFACE_OFFSET = 0.0125D;
     private static final double CROSS_MARGIN = 0.14D;
     // 图集中的字形已在 64x64 单元格内居中。
@@ -50,95 +44,109 @@ public final class LightOverlayRenderer {
     private static Map<Long, ColumnRenderData> drownedGeometry = Map.of();
     private static volatile RenderData renderData;
     private static volatile RenderData drownedRenderData;
+    // 记录几何缓存对应的配置快照，配置变化时丢弃缓存以便按新颜色和线宽重建。
+    private static ClientConfigSnapshot geometryConfig;
     private static final RenderType SEE_THROUGH_LINES = AutoTorchRenderTypes.seeThroughLines();
 
     private LightOverlayRenderer() {
     }
 
     public static void extract() {
+        ClientConfigSnapshot config = ClientConfig.snapshot();
+        boolean configChanged = geometryConfig != config;
+        geometryConfig = config;
+        if (configChanged) {
+            columnGeometry = Map.of();
+            drownedGeometry = Map.of();
+            // 26.1.2 的溺尸几何使用独立缓存，配置变化时一并丢弃已发布结果以便重建。
+            drownedRenderData = null;
+        }
+
         List<LightOverlayState.MarkerColumn> columns = LightOverlayState.isEnabled()
                 ? LightOverlayState.markerColumns() : NO_COLUMNS;
         LightOverlayState.DisplayMode displayMode = LightOverlayState.displayMode();
         RenderData current = renderData;
         // 状态发布新的不可变列列表，因此列表身份就是无需遍历的版本标记。
-        if (current != null && current.sourceColumns() == columns && current.displayMode() == displayMode) {
+        if (!configChanged && current != null && current.sourceColumns() == columns && current.displayMode() == displayMode) {
             return;
         }
-        renderData = buildRenderData(columns, displayMode);
-        drownedRenderData = buildDrownedRenderData(columns.stream()
+        renderData = buildRenderData(config, columns, displayMode);
+        drownedRenderData = buildDrownedRenderData(config, columns.stream()
                 .map(column -> new LightOverlayState.MarkerColumn(column.key(), column.minY(), column.markers().stream()
                         .filter(marker -> marker.riskType() == LightOverlayState.RiskType.DROWNED).toList()))
                 .filter(column -> !column.markers().isEmpty()).toList(), displayMode);
     }
 
     public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
+        ClientConfigSnapshot config = ClientConfig.snapshot();
         RenderData data = renderData;
         if (data == null) {
             return;
         }
-        Direction numberDirection = ClientConfig.rotatesLightOverlayNumbers()
+        Direction numberDirection = config.lightOverlayNumberRotation
                 ? Direction.fromYRot(Minecraft.getInstance().gameRenderer.getMainCamera().yRot())
                 : Direction.NORTH;
         if (data.displayMode() != LightOverlayState.DisplayMode.CROSSES) {
             // 方框数字样式：数字平面置于方框内部，方框单独使用线段渲染以保持清晰边界。
             Identifier numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
-            RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
+            RenderType numberRenderType = config.lightOverlayRenderThrough
                     ? RenderTypes.textSeeThrough(numberTexture) : RenderTypes.text(numberTexture);
             renderGeometry(camera, poseStack,
                     (stack, geometry) -> collector.submitCustomGeometry(stack, numberRenderType, geometry::render),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera, numberDirection));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                RenderType lineRenderType = ClientConfig.isLightOverlayRenderThrough()
+                RenderType lineRenderType = config.lightOverlayRenderThrough
                         ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent();
                 renderGeometry(camera, poseStack,
                         (stack, geometry) -> collector.submitCustomGeometry(stack, lineRenderType, geometry::render),
-                        (pose, buffer) -> submitLines(pose, buffer, data, camera));
+                        (pose, buffer) -> submitLines(config, pose, buffer, data, camera));
             }
         } else {
-            RenderType lineRenderType = ClientConfig.isLightOverlayRenderThrough()
+            RenderType lineRenderType = config.lightOverlayRenderThrough
                     ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent();
             renderGeometry(camera, poseStack,
                     (stack, geometry) -> collector.submitCustomGeometry(stack, lineRenderType, geometry::render),
-                    (pose, buffer) -> submitLines(pose, buffer, data, camera));
+                    (pose, buffer) -> submitLines(config, pose, buffer, data, camera));
         }
     }
 
     public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource.BufferSource buffers) {
+        ClientConfigSnapshot config = ClientConfig.snapshot();
         RenderData data = renderData;
         if (data == null) {
             return;
         }
-        Direction numberDirection = ClientConfig.rotatesLightOverlayNumbers()
+        Direction numberDirection = config.lightOverlayNumberRotation
                 ? Direction.fromYRot(Minecraft.getInstance().gameRenderer.getMainCamera().yRot())
                 : Direction.NORTH;
         if (data.displayMode() != LightOverlayState.DisplayMode.CROSSES) {
             Identifier numberTexture = data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS
                     ? MEDIUM_NUMBER_TEXTURE : NUMBER_TEXTURE;
-            RenderType numberRenderType = ClientConfig.isLightOverlayRenderThrough()
+            RenderType numberRenderType = config.lightOverlayRenderThrough
                     ? RenderTypes.textSeeThrough(numberTexture) : RenderTypes.text(numberTexture);
             renderGeometry(camera, poseStack,
                     (stack, geometry) -> geometry.render(
                             stack.last(), buffers.getBuffer(numberRenderType)),
                     (pose, buffer) -> submitNumbers(pose, buffer, data, camera, numberDirection));
             if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                RenderType lineRenderType = ClientConfig.isLightOverlayRenderThrough()
+                RenderType lineRenderType = config.lightOverlayRenderThrough
                         ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent();
                 renderGeometry(camera, poseStack,
                         (stack, geometry) -> geometry.render(
                                 stack.last(), buffers.getBuffer(lineRenderType)),
-                        (pose, buffer) -> submitLines(pose, buffer, data, camera));
+                        (pose, buffer) -> submitLines(config, pose, buffer, data, camera));
             }
         } else {
-            RenderType lineRenderType = ClientConfig.isLightOverlayRenderThrough()
+            RenderType lineRenderType = config.lightOverlayRenderThrough
                     ? SEE_THROUGH_LINES : RenderTypes.linesTranslucent();
             renderGeometry(camera, poseStack,
                     (stack, geometry) -> geometry.render(
                             stack.last(), buffers.getBuffer(lineRenderType)),
-                    (pose, buffer) -> submitLines(pose, buffer, data, camera));
+                    (pose, buffer) -> submitLines(config, pose, buffer, data, camera));
         }
-        if (!ClientConfig.isLightOverlayRenderThrough()) {
-            RenderData drowned = visibleDrownedData(camera, data.displayMode());
+        if (!config.lightOverlayRenderThrough) {
+            RenderData drowned = visibleDrownedData(config, camera, data.displayMode());
             if (drowned != null && drowned.renderableCount() > 0) {
                 RenderType type = data.displayMode() == LightOverlayState.DisplayMode.CROSSES
                         ? SEE_THROUGH_LINES : RenderTypes.textSeeThrough(
@@ -147,13 +155,16 @@ public final class LightOverlayRenderer {
                 renderGeometry(drowned, camera, poseStack,
                         (stack, geometry) -> geometry.render(stack.last(), buffers.getBuffer(type)),
                         (pose, buffer) -> {
-                            if (data.displayMode() == LightOverlayState.DisplayMode.CROSSES) submitLines(pose, buffer, drowned, camera);
-                            else submitNumbers(pose, buffer, drowned, camera, numberDirection);
+                            if (data.displayMode() == LightOverlayState.DisplayMode.CROSSES) {
+                                submitLines(config, pose, buffer, drowned, camera);
+                            } else {
+                                submitNumbers(pose, buffer, drowned, camera, numberDirection);
+                            }
                         });
                 if (data.displayMode() == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
                     renderGeometry(drowned, camera, poseStack,
                             (stack, geometry) -> geometry.render(stack.last(), buffers.getBuffer(SEE_THROUGH_LINES)),
-                            (pose, buffer) -> submitLines(pose, buffer, drowned, camera));
+                            (pose, buffer) -> submitLines(config, pose, buffer, drowned, camera));
                 }
             }
         }
@@ -187,7 +198,9 @@ public final class LightOverlayRenderer {
         }
     }
 
-    private static RenderData visibleDrownedData(Vec3 camera, LightOverlayState.DisplayMode mode) {
+    private static RenderData visibleDrownedData(
+            ClientConfigSnapshot config, Vec3 camera, LightOverlayState.DisplayMode mode
+    ) {
         Minecraft minecraft = Minecraft.getInstance();
         RenderData source = drownedRenderData;
         if (source == null || minecraft.level == null || minecraft.player == null) return null;
@@ -197,7 +210,7 @@ public final class LightOverlayRenderer {
                                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, minecraft.player)).getType() == HitResult.Type.MISS).toList()))
                 .filter(column -> !column.markers().isEmpty()).toList();
         // 溺尸几何使用独立缓存，避免把仅含溺尸的列写进主覆盖层缓存，导致下次刷新全量重建。
-        return buildDrownedRenderData(columns, mode);
+        return buildDrownedRenderData(config, columns, mode);
     }
 
     private static void renderGeometry(
@@ -220,22 +233,25 @@ public final class LightOverlayRenderer {
     }
 
     private static RenderData buildRenderData(
+            ClientConfigSnapshot config,
             List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
     ) {
-        RenderDataBuild build = buildRenderData(columns, displayMode, columnGeometry);
+        RenderDataBuild build = buildRenderData(config, columns, displayMode, columnGeometry);
         columnGeometry = build.geometry();
         return build.data();
     }
 
     private static RenderData buildDrownedRenderData(
+            ClientConfigSnapshot config,
             List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode
     ) {
-        RenderDataBuild build = buildRenderData(columns, displayMode, drownedGeometry);
+        RenderDataBuild build = buildRenderData(config, columns, displayMode, drownedGeometry);
         drownedGeometry = build.geometry();
         return build.data();
     }
 
     private static RenderDataBuild buildRenderData(
+            ClientConfigSnapshot config,
             List<LightOverlayState.MarkerColumn> columns, LightOverlayState.DisplayMode displayMode,
             Map<Long, ColumnRenderData> previousGeometry
     ) {
@@ -248,7 +264,7 @@ public final class LightOverlayRenderer {
             // 列内容是不可变列表，按值比较即可复用几何；引用比较会因溺尸列每帧重建而永远失配。
             if (geometry == null || !geometry.sourceMarkers().equals(column.markers())
                     || geometry.displayMode() != displayMode) {
-                geometry = buildColumnRenderData(column.markers(), displayMode);
+                geometry = buildColumnRenderData(config, column.markers(), displayMode);
             }
             nextGeometry.put(column.key(), geometry);
             visibleGeometry.add(geometry);
@@ -261,19 +277,20 @@ public final class LightOverlayRenderer {
     }
 
     private static ColumnRenderData buildColumnRenderData(
+            ClientConfigSnapshot config,
             List<LightOverlayState.Marker> markers, LightOverlayState.DisplayMode displayMode
     ) {
         GeometryBuilder geometry = new GeometryBuilder(markers.size());
         for (LightOverlayState.Marker marker : markers) {
             if (displayMode == LightOverlayState.DisplayMode.NUMBERS) {
-                addNumber(geometry, marker, false);
+                addNumber(config, geometry, marker, false);
                 continue;
             }
             if (displayMode == LightOverlayState.DisplayMode.BOXED_NUMBERS) {
-                addNumber(geometry, marker, true);
+                addNumber(config, geometry, marker, true);
                 // 绿色标记表示光照已高于刷怪阈值，只显示数字，不再绘制外围边框。
                 if (marker.isRisk()) {
-                    addNumberBox(geometry, marker);
+                    addNumberBox(config, geometry, marker);
                 }
                 continue;
             }
@@ -285,44 +302,53 @@ public final class LightOverlayRenderer {
             double y = marker.pos().getY() + SURFACE_OFFSET;
             double z0 = marker.pos().getZ() + CROSS_MARGIN;
             double z1 = marker.pos().getZ() + 1.0D - CROSS_MARGIN;
-            int color = markerColor(marker);
+            int color = markerColor(config, marker);
             geometry.add(x0, y, z0, x1, y, z1, color);
             geometry.add(x1, y, z0, x0, y, z1, color);
         }
         return geometry.build(markers, displayMode);
     }
 
-    private static void addNumber(GeometryBuilder geometry, LightOverlayState.Marker marker, boolean boxed) {
+    private static void addNumber(
+            ClientConfigSnapshot config, GeometryBuilder geometry, LightOverlayState.Marker marker, boolean boxed
+    ) {
         geometry.addNumber(marker.pos().getX() + NUMBER_OFFSET_X,
                 marker.pos().getY() + SURFACE_OFFSET,
                 marker.pos().getZ() + BOXED_NUMBER_OFFSET_Z,
-                marker.blockLight(), markerColor(marker), boxed ? (float) NUMBER_SIZE : 1.0F,
+                marker.blockLight(), markerColor(config, marker), boxed ? (float) NUMBER_SIZE : 1.0F,
                 boxed ? 0.0F : (float) NUMBER_OFFSET_Z);
     }
 
-    private static void addNumberBox(GeometryBuilder geometry, LightOverlayState.Marker marker) {
+    private static void addNumberBox(
+            ClientConfigSnapshot config, GeometryBuilder geometry, LightOverlayState.Marker marker
+    ) {
         double x0 = marker.pos().getX() + NUMBER_MARGIN;
         double x1 = marker.pos().getX() + 1.0D - NUMBER_MARGIN;
         double y = marker.pos().getY() + SURFACE_OFFSET;
         double z0 = marker.pos().getZ() + NUMBER_MARGIN;
         double z1 = marker.pos().getZ() + 1.0D - NUMBER_MARGIN;
-        int color = markerColor(marker);
+        int color = markerColor(config, marker);
         geometry.add(x0, y, z0, x0, y, z1, color);
         geometry.add(x0, y, z1, x1, y, z1, color);
         geometry.add(x1, y, z1, x1, y, z0, color);
         geometry.add(x1, y, z0, x0, y, z0, color);
     }
 
-    private static int markerColor(LightOverlayState.Marker marker) {
+    private static int markerColor(ClientConfigSnapshot config, LightOverlayState.Marker marker) {
         return switch (marker.riskType()) {
-            case SWAMP_SLIME -> SWAMP_SLIME_RISK_COLOR;
-            case DROWNED -> DROWNED_RISK_COLOR;
-            case NORMAL -> marker.blockLight() > 0 ? SAFE_COLOR
-                    : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
+            case SWAMP_SLIME -> ((config.lightOverlayMarkerAlpha << 24) | config.lightOverlaySwampSlimeColorRgb);
+            case DROWNED -> ((config.lightOverlayMarkerAlpha << 24) | config.lightOverlayDrownedColorRgb);
+            case NORMAL -> marker.blockLight() > 0
+                    ? ((config.lightOverlayMarkerAlpha << 24) | config.lightOverlaySafeColorRgb)
+                    : marker.nightOnly()
+                            ? ((config.lightOverlayMarkerAlpha << 24) | config.lightOverlayNightRiskColorRgb)
+                            : ((config.lightOverlayMarkerAlpha << 24) | config.lightOverlayAlwaysRiskColorRgb);
         };
     }
 
-    private static void submitLines(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
+    private static void submitLines(
+            ClientConfigSnapshot config, PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera
+    ) {
         for (ColumnRenderData column : data.columns()) {
             double[] coordinates = column.coordinates();
             int[] colors = column.colors();
@@ -335,12 +361,13 @@ public final class LightOverlayRenderer {
                 double z2 = coordinates[offset + 5] - camera.z();
                 line(pose, buffer,
                         x1, y1, z1, x2, y2, z2,
-                        colors[line], scaledLineWidth(CROSS_LINE_WIDTH, x1, y1, z1, x2, y2, z2));
+                        colors[line], scaledLineWidth(config, (float) config.lightOverlayNearLineWidth,
+                                x1, y1, z1, x2, y2, z2));
             }
         }
     }
 
-    private static float scaledLineWidth(float baseWidth,
+    private static float scaledLineWidth(ClientConfigSnapshot config, float baseWidth,
                                          double x1, double y1, double z1,
                                          double x2, double y2, double z2) {
         double x = (x1 + x2) * 0.5D;
@@ -351,7 +378,7 @@ public final class LightOverlayRenderer {
             return baseWidth;
         }
         double distance = Math.sqrt(distanceSquared);
-        return Math.max(MIN_LINE_WIDTH,
+        return Math.max((float) config.lightOverlayFarLineWidth,
                 (float) (baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / distance));
     }
 
