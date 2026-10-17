@@ -21,25 +21,11 @@ import net.minecraft.world.phys.Vec3;
 
 /** 在世界中持续绘制选区草稿、照明范围和所有排除范围。 */
 public final class SelectionRenderer {
-    private static final int DRAFT_LINE_COLOR = 0xD070A0FF;
-    private static final int SELECTION_LINE_COLOR = 0xD050FF70;
-    private static final int EXCLUSION_LINE_COLOR = 0xD0FF5050;
-    private static final int DRAFT_FACE_COLOR = 0x2870A0FF;
-    private static final int SELECTION_FACE_COLOR = 0x2850FF70;
-    private static final int EXCLUSION_FACE_COLOR = 0x30FF5050;
     private static final float LINE_WIDTH_REFERENCE_DISTANCE = 8.0F;
     private static final double LINE_WIDTH_REFERENCE_DISTANCE_SQUARED =
             LINE_WIDTH_REFERENCE_DISTANCE * LINE_WIDTH_REFERENCE_DISTANCE;
-    private static final float MIN_LINE_WIDTH = 0.75F;
-    private static final int SPHERE_LONGITUDE_SEGMENTS = 24;
-    /** 平滑球体线框中相邻圆环的目标间距（方块）。 */
-    private static final double SMOOTH_SPHERE_LINE_SPACING = 8.0D;
+    /** 平滑球体线框的最大圆环数，限制高精度配置的绘制开销。 */
     private static final int MAX_SMOOTH_SPHERE_RINGS = 41;
-    private static final int SPHERE_LATITUDE_SEGMENTS = 12;
-    private static final double[] SPHERE_LONGITUDE_COS = new double[SPHERE_LONGITUDE_SEGMENTS + 1];
-    private static final double[] SPHERE_LONGITUDE_SIN = new double[SPHERE_LONGITUDE_SEGMENTS + 1];
-    private static final double[] SPHERE_LATITUDE_COS = new double[SPHERE_LATITUDE_SEGMENTS + 1];
-    private static final double[] SPHERE_LATITUDE_SIN = new double[SPHERE_LATITUDE_SEGMENTS + 1];
     private static final int BLOCK_OFFSET_BITS = 9;
     private static final int BLOCK_OFFSET_MASK = (1 << BLOCK_OFFSET_BITS) - 1;
     private static final int BLOCK_OFFSET_BIAS = AreaZone.MAX_SPHERE_RADIUS;
@@ -56,19 +42,6 @@ public final class SelectionRenderer {
     };
     private static volatile RenderData renderData;
     private static long renderRevision = Long.MIN_VALUE;
-
-    static {
-        for (int longitude = 0; longitude <= SPHERE_LONGITUDE_SEGMENTS; longitude++) {
-            double angle = Math.PI * 2.0 * longitude / SPHERE_LONGITUDE_SEGMENTS;
-            SPHERE_LONGITUDE_COS[longitude] = Math.cos(angle);
-            SPHERE_LONGITUDE_SIN[longitude] = Math.sin(angle);
-        }
-        for (int latitude = 0; latitude <= SPHERE_LATITUDE_SEGMENTS; latitude++) {
-            double angle = -Math.PI / 2.0 + Math.PI * latitude / SPHERE_LATITUDE_SEGMENTS;
-            SPHERE_LATITUDE_COS[latitude] = Math.cos(angle);
-            SPHERE_LATITUDE_SIN[latitude] = Math.sin(angle);
-        }
-    }
 
     private SelectionRenderer() {
     }
@@ -101,16 +74,18 @@ public final class SelectionRenderer {
     }
 
     public static void submit(Vec3 camera, PoseStack poseStack, SubmitNodeCollector collector) {
-        renderGeometry(camera, poseStack,
+        ClientConfigSnapshot config = ClientConfig.snapshot();
+        renderGeometry(config, camera, poseStack,
                 (stack, renderType, renderer) -> collector.submitCustomGeometry(stack, renderType, renderer::render));
     }
 
     public static void render(Vec3 camera, PoseStack poseStack, MultiBufferSource.BufferSource buffers) {
-        renderGeometry(camera, poseStack,
+        ClientConfigSnapshot config = ClientConfig.snapshot();
+        renderGeometry(config, camera, poseStack,
                 (stack, renderType, renderer) -> renderer.render(stack.last(), buffers.getBuffer(renderType)));
     }
 
-    private static void renderGeometry(Vec3 camera, PoseStack poseStack, GeometrySink sink) {
+    private static void renderGeometry(ClientConfigSnapshot config, Vec3 camera, PoseStack poseStack, GeometrySink sink) {
         RenderData data = renderData;
         if (data == null || data.draft() == null && data.lightingZone() == null && data.exclusions().isEmpty()) {
             return;
@@ -119,24 +94,33 @@ public final class SelectionRenderer {
         // 顶点在提交时转换为相机相对坐标，避免大世界坐标分别转 float 后再相减造成精度损失。
         RenderType renderType = data.displayMode() == SelectionState.DisplayMode.LINES
                 ? RenderTypes.linesTranslucent() : RenderTypes.debugFilledBox();
-        sink.submit(poseStack, renderType, (pose, buffer) -> renderZones(pose, buffer, data, camera));
+        sink.submit(poseStack, renderType, (pose, buffer) -> renderZones(config, pose, buffer, data, camera));
         poseStack.popPose();
     }
 
-    private static void renderZones(PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
+    private static void renderZones(ClientConfigSnapshot config, PoseStack.Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
         if (data.draft() != null) {
-            renderZone(pose, buffer, data, data.draft(), DRAFT_LINE_COLOR, DRAFT_FACE_COLOR, 3.0F, camera);
+            renderZone(config, pose, buffer, data, data.draft(), ((208 << 24) | config.selectionOverlayDraftColorRgb),
+                    ((config.selectionOverlayFaceAlpha << 24) | config.selectionOverlayDraftColorRgb), selectionWidth(config), camera);
         }
         if (data.lightingZone() != null) {
-            renderZone(pose, buffer, data, data.lightingZone(),
-                    SELECTION_LINE_COLOR, SELECTION_FACE_COLOR, 3.0F, camera);
+            renderZone(config, pose, buffer, data, data.lightingZone(),
+                    ((208 << 24) | config.selectionOverlayMainColorRgb),
+                    ((config.selectionOverlayFaceAlpha << 24) | config.selectionOverlayMainColorRgb), selectionWidth(config), camera);
         }
         for (AreaZone exclusion : data.exclusions()) {
-            renderZone(pose, buffer, data, exclusion, EXCLUSION_LINE_COLOR, EXCLUSION_FACE_COLOR, 2.0F, camera);
+            renderZone(config, pose, buffer, data, exclusion,
+                    ((208 << 24) | config.selectionOverlayExclusionColorRgb),
+                    ((config.selectionOverlayExclusionFaceAlpha << 24) | config.selectionOverlayExclusionColorRgb), selectionWidth(config), camera);
         }
     }
 
-    private static void renderZone(
+    private static float selectionWidth(ClientConfigSnapshot config) {
+        return (float) config.selectionOverlayNearLineWidth;
+    }
+
+
+    private static void renderZone(ClientConfigSnapshot config,
             PoseStack.Pose pose,
             VertexConsumer buffer,
             RenderData data,
@@ -152,13 +136,13 @@ public final class SelectionRenderer {
         if (data.displayMode() == SelectionState.DisplayMode.LINES) {
             if (zone.shape() == AreaShape.SPHERE) {
                 if (data.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY) {
-                    renderBlockySphereLines(pose, buffer, zone,
+                    renderBlockySphereLines(config, pose, buffer, zone,
                             data.blockySphereMeshes().get(zone.radiusSquared()), lineColor, width, camera);
                 } else {
-                    renderSphereLines(pose, buffer, zone, lineColor, width, camera);
+                    renderSphereLines(config, pose, buffer, zone, lineColor, width, camera);
                 }
             } else {
-                renderBoxLines(pose, buffer,
+                renderBoxLines(config, pose, buffer,
                         AABB.encapsulatingFullBlocks(zone.min(), zone.max()), lineColor, width, camera);
             }
         } else if (zone.shape() == AreaShape.SPHERE) {
@@ -166,27 +150,27 @@ public final class SelectionRenderer {
                 renderBlockySphereFaces(pose, buffer, zone,
                         data.blockySphereMeshes().get(zone.radiusSquared()), faceColor, camera);
             } else {
-                renderSphereFaces(pose, buffer, zone, faceColor, camera);
+                renderSphereFaces(config, pose, buffer, zone, faceColor, camera);
             }
         } else {
             renderBoxFaces(pose, buffer, AABB.encapsulatingFullBlocks(zone.min(), zone.max()), faceColor, camera);
         }
     }
 
-    private static void renderBoxLines(PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color, float width,
+    private static void renderBoxLines(ClientConfigSnapshot config, PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color, float width,
                                        Vec3 camera) {
-        line(pose, buffer, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ, color, width, camera);
-        line(pose, buffer, box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ, color, width, camera);
-        line(pose, buffer, box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color, width, camera);
-        line(pose, buffer, box.minX, box.minY, box.maxZ, box.minX, box.minY, box.minZ, color, width, camera);
-        line(pose, buffer, box.minX, box.maxY, box.minZ, box.maxX, box.maxY, box.minZ, color, width, camera);
-        line(pose, buffer, box.maxX, box.maxY, box.minZ, box.maxX, box.maxY, box.maxZ, color, width, camera);
-        line(pose, buffer, box.maxX, box.maxY, box.maxZ, box.minX, box.maxY, box.maxZ, color, width, camera);
-        line(pose, buffer, box.minX, box.maxY, box.maxZ, box.minX, box.maxY, box.minZ, color, width, camera);
-        line(pose, buffer, box.minX, box.minY, box.minZ, box.minX, box.maxY, box.minZ, color, width, camera);
-        line(pose, buffer, box.maxX, box.minY, box.minZ, box.maxX, box.maxY, box.minZ, color, width, camera);
-        line(pose, buffer, box.maxX, box.minY, box.maxZ, box.maxX, box.maxY, box.maxZ, color, width, camera);
-        line(pose, buffer, box.minX, box.minY, box.maxZ, box.minX, box.maxY, box.maxZ, color, width, camera);
+        line(config, pose, buffer, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ, color, width, camera);
+        line(config, pose, buffer, box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ, color, width, camera);
+        line(config, pose, buffer, box.maxX, box.minY, box.maxZ, box.minX, box.minY, box.maxZ, color, width, camera);
+        line(config, pose, buffer, box.minX, box.minY, box.maxZ, box.minX, box.minY, box.minZ, color, width, camera);
+        line(config, pose, buffer, box.minX, box.maxY, box.minZ, box.maxX, box.maxY, box.minZ, color, width, camera);
+        line(config, pose, buffer, box.maxX, box.maxY, box.minZ, box.maxX, box.maxY, box.maxZ, color, width, camera);
+        line(config, pose, buffer, box.maxX, box.maxY, box.maxZ, box.minX, box.maxY, box.maxZ, color, width, camera);
+        line(config, pose, buffer, box.minX, box.maxY, box.maxZ, box.minX, box.maxY, box.minZ, color, width, camera);
+        line(config, pose, buffer, box.minX, box.minY, box.minZ, box.minX, box.maxY, box.minZ, color, width, camera);
+        line(config, pose, buffer, box.maxX, box.minY, box.minZ, box.maxX, box.maxY, box.minZ, color, width, camera);
+        line(config, pose, buffer, box.maxX, box.minY, box.maxZ, box.maxX, box.maxY, box.maxZ, color, width, camera);
+        line(config, pose, buffer, box.minX, box.minY, box.maxZ, box.minX, box.maxY, box.maxZ, color, width, camera);
     }
 
     private static void renderBoxFaces(PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color, Vec3 camera) {
@@ -204,33 +188,34 @@ public final class SelectionRenderer {
                 box.maxX, box.maxY, box.minZ, box.maxX, box.maxY, box.maxZ, color, camera);
     }
 
-    private static void renderSphereLines(
+    private static void renderSphereLines(ClientConfigSnapshot config,
             PoseStack.Pose pose, VertexConsumer buffer, AreaZone zone, int color, float width, Vec3 camera
     ) {
         double cx = zone.first().getX() + 0.5;
         double cy = zone.first().getY() + 0.5;
         double cz = zone.first().getZ() + 0.5;
         double radius = Math.sqrt(zone.radiusSquared()) + 0.5;
-        int rings = smoothSphereRingCount(radius);
+        int segments = config.selectionOverlaySphereLongitudeSegments;
+        int rings = smoothSphereRingCount(config, radius);
         double ringStep = radius / (rings / 2 + 1.0D);
         int middle = rings / 2;
         for (int plane = 0; plane < 3; plane++) {
             for (int ring = 0; ring < rings; ring++) {
                 double offset = (ring - middle) * ringStep;
                 double circleRadius = Math.sqrt(Math.max(0.0D, radius * radius - offset * offset));
-                for (int segment = 0; segment < SPHERE_LONGITUDE_SEGMENTS; segment++) {
-                    double a1 = SPHERE_LONGITUDE_COS[segment] * circleRadius;
-                    double b1 = SPHERE_LONGITUDE_SIN[segment] * circleRadius;
-                    double a2 = SPHERE_LONGITUDE_COS[segment + 1] * circleRadius;
-                    double b2 = SPHERE_LONGITUDE_SIN[segment + 1] * circleRadius;
+                for (int segment = 0; segment < segments; segment++) {
+                    double a1 = config.longitudeCos(segment) * circleRadius;
+                    double b1 = config.longitudeSin(segment) * circleRadius;
+                    double a2 = config.longitudeCos(segment + 1) * circleRadius;
+                    double b2 = config.longitudeSin(segment + 1) * circleRadius;
                     if (plane == 0) {
-                        line(pose, buffer, cx + a1, cy + b1, cz + offset,
+                        line(config, pose, buffer, cx + a1, cy + b1, cz + offset,
                                 cx + a2, cy + b2, cz + offset, color, width, camera);
                     } else if (plane == 1) {
-                        line(pose, buffer, cx + a1, cy + offset, cz + b1,
+                        line(config, pose, buffer, cx + a1, cy + offset, cz + b1,
                                 cx + a2, cy + offset, cz + b2, color, width, camera);
                     } else {
-                        line(pose, buffer, cx + offset, cy + a1, cz + b1,
+                        line(config, pose, buffer, cx + offset, cy + a1, cz + b1,
                                 cx + offset, cy + a2, cz + b2, color, width, camera);
                     }
                 }
@@ -238,20 +223,22 @@ public final class SelectionRenderer {
         }
     }
 
-    private static int smoothSphereRingCount(double radius) {
-        int additionalRings = (int) (radius / SMOOTH_SPHERE_LINE_SPACING);
+    private static int smoothSphereRingCount(ClientConfigSnapshot config, double radius) {
+        int additionalRings = (int) (radius / (96.0D / config.selectionOverlaySphereLatitudeSegments));
         return Math.min(MAX_SMOOTH_SPHERE_RINGS, additionalRings * 2 + 1);
     }
 
-    private static void renderSphereFaces(PoseStack.Pose pose, VertexConsumer buffer, AreaZone zone, int color,
+    private static void renderSphereFaces(ClientConfigSnapshot config, PoseStack.Pose pose, VertexConsumer buffer, AreaZone zone, int color,
                                           Vec3 camera) {
         double cx = zone.first().getX() + 0.5;
         double cy = zone.first().getY() + 0.5;
         double cz = zone.first().getZ() + 0.5;
         double radius = Math.sqrt(zone.radiusSquared()) + 0.5;
-        for (int latitude = 0; latitude < SPHERE_LATITUDE_SEGMENTS; latitude++) {
-            for (int longitude = 0; longitude < SPHERE_LONGITUDE_SEGMENTS; longitude++) {
-                sphereQuad(pose, buffer, cx, cy, cz, radius, latitude, longitude, color, camera);
+        int longitudeSegments = config.selectionOverlaySphereLongitudeSegments;
+        int latitudeSegments = config.selectionOverlaySphereLatitudeSegments;
+        for (int latitude = 0; latitude < latitudeSegments; latitude++) {
+            for (int longitude = 0; longitude < longitudeSegments; longitude++) {
+                sphereQuad(config, pose, buffer, cx, cy, cz, radius, latitude, longitude, color, camera);
             }
         }
     }
@@ -265,13 +252,13 @@ public final class SelectionRenderer {
         }
     }
 
-    private static void renderBlockySphereLines(
+    private static void renderBlockySphereLines(ClientConfigSnapshot config,
             PoseStack.Pose pose, VertexConsumer buffer, AreaZone zone, BlockySphereMesh mesh, int color, float width,
             Vec3 camera
     ) {
         BlockPos center = zone.first();
         for (int edge : mesh.edges()) {
-            blockEdge(pose, buffer, center, edge, color, width, camera);
+            blockEdge(config, pose, buffer, center, edge, color, width, camera);
         }
     }
 
@@ -399,7 +386,7 @@ public final class SelectionRenderer {
                 | axis << BLOCK_EDGE_AXIS_SHIFT;
     }
 
-    private static void blockEdge(
+    private static void blockEdge(ClientConfigSnapshot config,
             PoseStack.Pose pose, VertexConsumer buffer, BlockPos center, int encodedEdge, int color, float width,
             Vec3 camera
     ) {
@@ -407,7 +394,7 @@ public final class SelectionRenderer {
         int y = center.getY() + ((encodedEdge >> BLOCK_OFFSET_BITS) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
         int z = center.getZ() + ((encodedEdge >> (BLOCK_OFFSET_BITS * 2)) & BLOCK_OFFSET_MASK) - BLOCK_OFFSET_BIAS;
         int axis = encodedEdge >>> BLOCK_EDGE_AXIS_SHIFT;
-        line(pose, buffer, x, y, z,
+        line(config, pose, buffer, x, y, z,
                 x + (axis == 0 ? 1 : 0), y + (axis == 1 ? 1 : 0), z + (axis == 2 ? 1 : 0),
                 color, width, camera);
     }
@@ -436,25 +423,25 @@ public final class SelectionRenderer {
         }
     }
 
-    private static void sphereQuad(
+    private static void sphereQuad(ClientConfigSnapshot config,
             PoseStack.Pose pose, VertexConsumer buffer, double cx, double cy, double cz, double radius,
             int latitude, int longitude, int color, Vec3 camera
     ) {
-        sphereVertex(pose, buffer, cx, cy, cz, radius, latitude, longitude, color, camera);
-        sphereVertex(pose, buffer, cx, cy, cz, radius, latitude, longitude + 1, color, camera);
-        sphereVertex(pose, buffer, cx, cy, cz, radius, latitude + 1, longitude + 1, color, camera);
-        sphereVertex(pose, buffer, cx, cy, cz, radius, latitude + 1, longitude, color, camera);
+        sphereVertex(config, pose, buffer, cx, cy, cz, radius, latitude, longitude, color, camera);
+        sphereVertex(config, pose, buffer, cx, cy, cz, radius, latitude, longitude + 1, color, camera);
+        sphereVertex(config, pose, buffer, cx, cy, cz, radius, latitude + 1, longitude + 1, color, camera);
+        sphereVertex(config, pose, buffer, cx, cy, cz, radius, latitude + 1, longitude, color, camera);
     }
 
-    private static void sphereVertex(
+    private static void sphereVertex(ClientConfigSnapshot config,
             PoseStack.Pose pose, VertexConsumer buffer, double cx, double cy, double cz, double radius,
             int latitude, int longitude, int color, Vec3 camera
     ) {
-        double horizontal = SPHERE_LATITUDE_COS[latitude] * radius;
+        double horizontal = config.latitudeCos(latitude) * radius;
         buffer.addVertex(pose,
-                (float) (cx + SPHERE_LONGITUDE_COS[longitude] * horizontal - camera.x()),
-                (float) (cy + SPHERE_LATITUDE_SIN[latitude] * radius - camera.y()),
-                (float) (cz + SPHERE_LONGITUDE_SIN[longitude] * horizontal - camera.z())).setColor(color);
+                (float) (cx + config.longitudeCos(longitude) * horizontal - camera.x()),
+                (float) (cy + config.latitudeSin(latitude) * radius - camera.y()),
+                (float) (cz + config.longitudeSin(longitude) * horizontal - camera.z())).setColor(color);
     }
 
     private static void quad(
@@ -473,7 +460,7 @@ public final class SelectionRenderer {
         buffer.addVertex(pose, (float) (x1 - camera.x()), (float) (y1 - camera.y()), (float) (z1 - camera.z())).setColor(color);
     }
 
-    private static void line(
+    private static void line(ClientConfigSnapshot config,
             PoseStack.Pose pose, VertexConsumer buffer,
             double x1, double y1, double z1, double x2, double y2, double z2,
             int color, float width, Vec3 camera
@@ -500,14 +487,14 @@ public final class SelectionRenderer {
             ny /= length;
             nz /= length;
         }
-        float lineWidth = scaledLineWidth(width, x1, y1, z1, x2, y2, z2);
+        float lineWidth = scaledLineWidth(config, width, x1, y1, z1, x2, y2, z2);
         buffer.addVertex(pose, (float) x1, (float) y1, (float) z1)
                 .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
         buffer.addVertex(pose, (float) x2, (float) y2, (float) z2)
                 .setColor(color).setNormal(pose, nx, ny, nz).setLineWidth(lineWidth);
     }
 
-    private static float scaledLineWidth(float baseWidth,
+    private static float scaledLineWidth(ClientConfigSnapshot config, float baseWidth,
                                          double x1, double y1, double z1,
                                          double x2, double y2, double z2) {
         double x = (x1 + x2) * 0.5D;
@@ -518,7 +505,7 @@ public final class SelectionRenderer {
             return baseWidth;
         }
         double distance = Math.sqrt(distanceSquared);
-        return Math.max(MIN_LINE_WIDTH,
+        return Math.max((float) config.selectionOverlayFarLineWidth,
                 (float) (baseWidth * LINE_WIDTH_REFERENCE_DISTANCE / distance));
     }
 
