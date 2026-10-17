@@ -27,10 +27,8 @@ import org.jspecify.annotations.Nullable;
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
     private static final int MAX_VERTICAL_RANGE = 64;
-    private static final int SCAN_BUDGET_PER_TICK = 12_000;
     private static final int LIGHT_CHANGE_RADIUS = 15;
     private static final int CACHE_MARGIN = 16;
-    private static final int VERIFICATION_INTERVAL_TICKS = 100;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
     private static boolean swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
@@ -43,7 +41,7 @@ public final class LightOverlayState {
     private static @Nullable BlockPos scanCenter;
     private static int minY;
     private static int maxY;
-    private static int ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
+    private static int ticksUntilVerification = ClientConfig.intValue(ConfigDefinitions.LIGHT_OVERLAY_REFRESH_INTERVAL);
     private static final Long2ObjectOpenHashMap<MarkerColumn> columnCache = new Long2ObjectOpenHashMap<>();
     private static final LongLinkedOpenHashSet urgentColumns = new LongLinkedOpenHashSet();
     private static final LongLinkedOpenHashSet lightUpdateColumns = new LongLinkedOpenHashSet();
@@ -192,6 +190,7 @@ public final class LightOverlayState {
 
     /** 使用当前相机所在方块推进扫描；其他依赖玩家实体的功能不会受相机切换影响。 */
     public static void tick(Minecraft minecraft, BlockPos viewCenter) {
+        ClientConfigSnapshot config = ClientConfig.snapshot();
         ClientLevel currentLevel = minecraft.level;
         if (currentLevel != level) {
             level = currentLevel;
@@ -204,13 +203,14 @@ public final class LightOverlayState {
         boolean visibleAreaChanged = updateVisibleArea(viewCenter);
         if (--ticksUntilVerification <= 0) {
             enqueueVisibleColumns(verificationColumns);
-            ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
+            ticksUntilVerification = config.lightOverlayRefreshInterval;
         }
 
         LongLinkedOpenHashSet activeQueue = !urgentColumns.isEmpty() ? urgentColumns
                 : !lightUpdateColumns.isEmpty() ? lightUpdateColumns
                 : !backgroundColumns.isEmpty() ? backgroundColumns : verificationColumns;
-        boolean cacheChanged = scanQueuedColumns(currentLevel, activeQueue, SCAN_BUDGET_PER_TICK);
+        boolean cacheChanged = scanQueuedColumns(currentLevel, activeQueue,
+                config.lightOverlayScanBudget);
         if (visibleAreaChanged || cacheChanged) {
             publishVisibleMarkers();
         }
@@ -220,7 +220,7 @@ public final class LightOverlayState {
         scanCenter = null;
         minY = 0;
         maxY = 0;
-        ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
+        ticksUntilVerification = ClientConfig.intValue(ConfigDefinitions.LIGHT_OVERLAY_REFRESH_INTERVAL);
         columnCache.clear();
         urgentColumns.clear();
         lightUpdateColumns.clear();

@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class NearbyAutoTorchTest {
-    private static final int WINDOW_TICKS = NearbyAutoTorch.DARK_CONFIRM_TICKS;
+    private static final int WINDOW_TICKS = com.sakurakugu.autotorch.config.ConfigDefinitions.NEARBY_AUTO_TORCH_DARK_CONFIRM.defaultValue();
     private static final int THRESHOLD = 4;
 
     @Test
@@ -35,8 +35,15 @@ final class NearbyAutoTorchTest {
     }
 
     @Test
-    void darkWindowLastsOneScanInterval() {
-        assertEquals(NearbyAutoTorch.SCAN_INTERVAL_TICKS, NearbyAutoTorch.DARK_CONFIRM_TICKS);
+    void darkWindowCanExceedScanInterval() {
+        NearbyAutoTorch.LightStability stability = new NearbyAutoTorch.LightStability();
+        BlockPos position = new BlockPos(1, 2, 3);
+        for (int tick = 0; tick < 40; tick += 5) {
+            stability.prune(tick, 40, 5);
+            assertFalse(stability.confirm(position, 0, THRESHOLD, tick, 40));
+        }
+        stability.prune(40, 40, 5);
+        assertTrue(stability.confirm(position, 0, THRESHOLD, 40, 40));
     }
 
     @Test
@@ -60,7 +67,7 @@ final class NearbyAutoTorchTest {
         assertFalse(stability.confirm(stale, 0, THRESHOLD, 100L, WINDOW_TICKS));
         assertFalse(stability.confirm(fresh, 0, THRESHOLD, 130L, WINDOW_TICKS));
         // 只清掉远早于窗口的残留记录，扫描框内的坐标不受影响。
-        stability.prune(130L, WINDOW_TICKS);
+        stability.prune(130L, WINDOW_TICKS, 10);
         // stale 的记录被清掉，需要重新计时。
         assertFalse(stability.confirm(stale, 0, THRESHOLD, 131L, WINDOW_TICKS));
         // fresh 的记录还在，够窗口就通过。
