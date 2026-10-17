@@ -19,6 +19,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
@@ -35,8 +36,10 @@ public final class AutoTorchNeoForgeClient {
     private OverlayRenderer overlayRenderer;
 
     public AutoTorchNeoForgeClient(IEventBus modBus, ModContainer container) {
-        ClientConfig.install(NeoForgeConfigs.CLIENT);
+        ClientConfig.installDeferred(NeoForgeConfigs.CLIENT);
         PlatformNetworking.installSender(ClientPacketDistributor::sendToServer);
+        modBus.addListener((ModConfigEvent.Loading event) -> onConfigChanged(event));
+        modBus.addListener((ModConfigEvent.Reloading event) -> onConfigChanged(event));
         container.registerConfig(ModConfig.Type.CLIENT, NeoForgeConfigs.CLIENT.spec());
         modBus.addListener(this::registerKeys);
         NeoForge.EVENT_BUS.addListener(this::onTick);
@@ -46,6 +49,12 @@ public final class AutoTorchNeoForgeClient {
         NeoForge.EVENT_BUS.addListener(this::onExtract);
         NeoForge.EVENT_BUS.addListener(this::onRender);
         NeoForge.EVENT_BUS.addListener(this::onStopping);
+    }
+
+    private void onConfigChanged(ModConfigEvent event) {
+        if (event.getConfig().getSpec() == NeoForgeConfigs.CLIENT.spec()) {
+            ClientConfig.reload();
+        }
     }
 
     private void registerKeys(RegisterKeyMappingsEvent event) {
