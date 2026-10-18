@@ -60,6 +60,8 @@ public final class LightingScreen extends Screen {
     private String selectionToolItemId;
     private int scrollOffset;
     private boolean draggingScrollbar;
+    /** 整屏背景（世界模糊与压暗）是否已经绘制；用于避免 super.render 在裁剪区内重复绘制背景。 */
+    private boolean backgroundRendered;
     private boolean selectionInRange = true;
     private Component error = Component.empty();
     private Component rangeMessage = Component.empty();
@@ -991,8 +993,13 @@ public final class LightingScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // 1.21.1 的背景模糊与压暗是在 Screen.render 里绘制的；若一并放进滚动视口的裁剪范围，
+        // 屏幕上下各 4 像素（GUI 缩放 2 时为 8 像素）就会缺少虚化效果，因此先按整屏绘制背景。
+        renderBackground(graphics, mouseX, mouseY, partialTick);
+        backgroundRendered = true;
         graphics.enableScissor(0, VIEWPORT_MARGIN, width, height - VIEWPORT_MARGIN);
         super.render(graphics, mouseX, mouseY, partialTick);
+        backgroundRendered = false;
         int left = panelLeft();
         int offset = scrollOffset;
         graphics.drawCenteredString(font, title, width / 2, 6 - offset, 0xFFFFFFFF);
@@ -1041,6 +1048,18 @@ public final class LightingScreen extends Screen {
             graphics.fill(x, VIEWPORT_MARGIN, x + SCROLLBAR_WIDTH, height - VIEWPORT_MARGIN, 0x80000000);
             graphics.fill(x, y, x + SCROLLBAR_WIDTH, y + scrollbarHeight(), thumbColor);
         }
+    }
+
+    /**
+     * super.render 会在裁剪区内再次调用背景渲染；背景已按整屏画过一次，这里跳过，
+     * 避免视口内被压暗两次产生明显色差。
+     */
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        if (backgroundRendered) {
+            return;
+        }
+        super.renderBackground(graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
