@@ -5,6 +5,7 @@ import tempfile
 import threading
 import sys
 import unittest
+import zipfile
 from unittest.mock import patch
 
 
@@ -47,6 +48,36 @@ class InstanceTests(unittest.TestCase):
 
 
 class PipelineTests(unittest.TestCase):
+    def test_install_accepts_all_loader_metadata(self):
+        metadata = {
+            "forge": "META-INF/mods.toml",
+            "neoforge": "META-INF/neoforge.mods.toml",
+            "fabric": "fabric.mod.json",
+        }
+        for loader, metadata_name in metadata.items():
+            with self.subTest(loader=loader), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                artifact = root / f"autotorch-v1.9.0-mc26.3-{loader}.jar"
+                with zipfile.ZipFile(artifact, "w") as archive:
+                    archive.writestr(metadata_name, "metadata")
+                    archive.writestr("com/sakurakugu/autotorch/AutoTorch.class", b"class")
+                logic.install(("26.3", loader, artifact, root))
+                self.assertTrue((root / "mods" / artifact.name).is_file())
+
+    def test_install_rejects_resource_only_jar_without_removing_existing_mod(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            mods = root / "mods"
+            mods.mkdir()
+            existing = mods / "autotorch-old.jar"
+            existing.write_bytes(b"existing")
+            artifact = root / "autotorch-v1.9.0-mc26.3-forge.jar"
+            with zipfile.ZipFile(artifact, "w") as archive:
+                archive.writestr("META-INF/mods.toml", "[[mods]]")
+            with self.assertRaisesRegex(RuntimeError, "缺少模组元数据或 class 文件"):
+                logic.install(("26.3", "forge", artifact, root))
+            self.assertTrue(existing.is_file())
+
     def test_launch_first_version_while_remaining_version_builds(self):
         first_launched = threading.Event()
         second_built = threading.Event()
