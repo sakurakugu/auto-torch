@@ -1,6 +1,6 @@
 """Auto Torch Minecraft 构建/启动工具（PCL-CE CLI 版本）。"""
 from __future__ import annotations
-import json, os, queue, re, shutil, signal, subprocess, sys, threading, time
+import json, os, queue, re, shutil, signal, subprocess, sys, threading, time, zipfile
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -280,8 +280,33 @@ def release_clients(build_roots, task, release, loader_filter=None):
 
 def install(item):
     _,_,artifact,root=item; mods=root / "mods"; mods.mkdir(parents=True,exist_ok=True)
-    for old in mods.glob("autotorch-*.jar"): old.unlink()
-    shutil.copy2(artifact, mods / artifact.name); print(f"已部署 [{root.name}] {artifact.name}")
+    # Forge 启动时会立即扫描 mods 目录；直接复制到目标文件名可能让它读到半成品。
+    # 先确认产物完整，再在同一目录中写临时文件并原子替换，避免启动竞态。
+    try:
+        with zipfile.ZipFile(artifact) as archive:
+            if archive.testzip() is not None:
+                raise RuntimeError("JAR 压缩内容校验失败")
+            names = set(archive.namelist())
+            metadata = {
+                "META-INF/mods.toml",
+                "META-INF/neoforge.mods.toml",
+                "mcmod.info",
+                "fabric.mod.json",
+            }
+            if not names.intersection(metadata) or not any(name.endswith(".class") for name in names):
+                raise RuntimeError("JAR 缺少模组元数据或 class 文件")
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise RuntimeError(f"无效的模组 JAR：{artifact}（{exc}）") from exc
+    destination = mods / artifact.name
+    temporary = destination.with_name(f".{destination.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    try:
+        shutil.copy2(artifact, temporary)
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+    for old in mods.glob("autotorch-*.jar"):
+        if old != destination: old.unlink()
+    print(f"已部署 [{root.name}] {artifact.name}")
 
 def pcl_processes(root):
     if os.name != "nt": return []
