@@ -2,11 +2,56 @@ package com.sakurakugu.autotorch.client;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.tree.CommandNode;
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class AutoTorchClientCommandsTest {
+    @Test
+    void resetCommandsCoverEverySettingSectionAndFeatureGroup() {
+        CommandDispatcher<Object> dispatcher = new CommandDispatcher<>();
+        AutoTorchClientCommands.register(dispatcher);
+        CommandNode<Object> config = child(child(dispatcher.getRoot(), "autotorch"), "config");
+        for (String alias : new String[] {"defaults", "reset"}) {
+            CommandNode<Object> root = child(config, alias);
+            assertNotNull(root.getCommand());
+            for (var definition : ConfigDefinitions.CLIENT) {
+                String[] path = definition.key().split("\\.");
+                CommandNode<Object> section = child(root, path[0]);
+                assertNotNull(section.getCommand(), path[0]);
+                assertNotNull(child(section, path[1]).getCommand(), definition.key());
+                assertFalse(dispatcher.parse("autotorch config " + alias + " "
+                        + definition.key().replace('.', ' '), new Object()).getReader().canRead());
+            }
+            CommandNode<Object> group = child(root, "group");
+            assertNull(group.getCommand());
+            for (String name : new String[] {"area", "overlay", "nearby"}) {
+                assertNotNull(child(group, name).getCommand());
+            }
+        }
+    }
+
+    @Test
+    void everyClientSettingHasGetAndSetCommands() {
+        CommandDispatcher<Object> dispatcher = new CommandDispatcher<>();
+        AutoTorchClientCommands.register(dispatcher);
+        for (var definition : ConfigDefinitions.CLIENT) {
+            CommandNode<Object> query = child(child(child(dispatcher.getRoot(), "autotorch"), "config"), "get");
+            CommandNode<Object> setter = child(child(child(dispatcher.getRoot(), "autotorch"), "config"), "set");
+            for (String segment : definition.key().split("\\.")) {
+                query = child(query, segment);
+                setter = child(setter, segment);
+            }
+            assertNotNull(query.getCommand(), definition.key());
+            // set 必须带 value，节点本身不再承担查询。
+            assertNull(setter.getCommand(), definition.key());
+            assertNotNull(child(setter, "value").getCommand(), definition.key());
+        }
+    }
+
     @Test
     void registersClientCommandTree() {
         CommandDispatcher<Object> dispatcher = new CommandDispatcher<>();
@@ -49,7 +94,6 @@ class AutoTorchClientCommandsTest {
         child(child(child(selection, "box"), "first"), "second");
         child(child(child(selection, "sphere"), "center"), "radius");
         assertToggle(child(selection, "tool"));
-        assertToggle(child(selection, "wooden_axe"));
         child(selection, "list");
 
         CommandNode<Object> zone = child(root, "zone");
