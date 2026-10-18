@@ -67,7 +67,7 @@ final class ColorPickerScreen extends Screen {
         int totalLeft = left + Math.max(0, (contentWidth - totalWidth) / 2);
         int rgbLeft = totalLeft;
         int groupLeft = rgbLeft + rgbGroupWidth + RGB_GROUP_GAP;
-        hex = new EditBox(font, left, PANEL_TOP + PREVIEW_HEIGHT + 6, contentWidth, 18,
+        hex = new EditBox(font, left, PANEL_TOP + PREVIEW_HEIGHT + 7, contentWidth, 16,
                 Component.translatable("screen.autotorch.color_picker_hex"));
         hex.setMaxLength(6);
         hex.setValue(text);

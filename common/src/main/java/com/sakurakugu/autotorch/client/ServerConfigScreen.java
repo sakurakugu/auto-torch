@@ -232,7 +232,7 @@ public final class ServerConfigScreen extends Screen {
 
     /** 大范围整数用输入框：手填准确值，点击保存后按当前服务端配置校验。 */
     private void addIntegerInputRow(int valueX, int y, IntValue definition) {
-        EditBox input = new EditBox(font, valueX, y + 1, 168, 18,
+        EditBox input = new EditBox(font, valueX, y + 2, 168, 16,
                 Component.literal(rowLabel(definition)));
         input.setMaxLength(16);
         input.setValue(Integer.toString(ServerConfigState.intValue(definition)));
