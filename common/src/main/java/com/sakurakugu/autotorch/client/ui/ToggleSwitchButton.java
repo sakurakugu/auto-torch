@@ -4,13 +4,9 @@ import java.util.function.BooleanSupplier;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 
 /** 只绘制中间的开关轨道与滑块；配置名称与状态保留在读屏信息中。 */
 public final class ToggleSwitchButton extends Button {
-    private static final ResourceLocation BUTTON = ResourceLocation.tryBuild("minecraft", "widget/button");
-    private static final ResourceLocation BUTTON_HIGHLIGHTED = ResourceLocation.tryBuild("minecraft", "widget/button_highlighted");
-    private static final ResourceLocation BUTTON_DISABLED = ResourceLocation.tryBuild("minecraft", "widget/button_disabled");
     private final Component label;
     private final BooleanSupplier enabled;
 
@@ -32,9 +28,8 @@ public final class ToggleSwitchButton extends Button {
 
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        // 1.21.1 没有单独的“内容”渲染钩子，需要自己补上按钮底图。
-        ResourceLocation sprite = !active ? BUTTON_DISABLED : isHoveredOrFocused() ? BUTTON_HIGHLIGHTED : BUTTON;
-        graphics.blitSprite(sprite, getX(), getY(), getWidth(), getHeight());
+        // 1.20.6 的 AbstractButton 会在 renderWidget 里绘制按钮底图；这里只画滑动条风格的开关本体，
+        // 不再额外自绘底图，避免开关外面多出一圈按钮框。
         refreshMessage();
         PixelControls.toggle(graphics, getX() + (getWidth() - 24) / 2, getY() + (getHeight() - 12) / 2,
                 enabled.getAsBoolean(), isHovered(), isFocused(), active);
