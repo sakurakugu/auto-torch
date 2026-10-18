@@ -306,16 +306,16 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    /** 输入框上下各内缩 1 像素，与同行的 20 像素高按钮保持视觉居中。 */
+    /** 输入框上下各内缩 2 像素，与同行的 20 像素高按钮保持视觉居中。 */
     private EditBox integerBox(int x, int y, int boxWidth, String value) {
-        EditBox box = new EditBox(font, x, y + 1, boxWidth, 18, Component.empty());
+        EditBox box = new EditBox(font, x, y + 2, boxWidth, 16, Component.empty());
         box.setMaxLength(9);
         box.setValue(value);
         return addRenderableWidget(box);
     }
 
     private EditBox sizeBox(int x, int y, int boxWidth) {
-        EditBox box = new EditBox(font, x, y + 1, boxWidth, 18, Component.empty());
+        EditBox box = new EditBox(font, x, y + 2, boxWidth, 16, Component.empty());
         box.setMaxLength(9);
         return addRenderableWidget(box);
     }

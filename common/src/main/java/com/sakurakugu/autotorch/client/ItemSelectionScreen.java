@@ -62,7 +62,7 @@ final class ItemSelectionScreen extends Screen {
         gridRows = Math.max(1, (height - 126) / CELL_SIZE);
         int left = (width - columns * CELL_SIZE) / 2;
         int contentWidth = columns * CELL_SIZE;
-        EditBox search = new EditBox(font, left, 34, contentWidth, 18,
+        EditBox search = new EditBox(font, left, 35, contentWidth, 16,
                 Component.translatable("screen.autotorch.item_picker_search"));
         search.setMaxLength(128);
         search.setHint(Component.translatable("screen.autotorch.item_picker_search"));

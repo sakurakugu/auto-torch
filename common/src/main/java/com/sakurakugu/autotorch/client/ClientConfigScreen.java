@@ -105,7 +105,7 @@ public final class ClientConfigScreen extends Screen {
                     || definition == ConfigDefinitions.SELECTION_TOOL_ITEM
                     || definition == ConfigDefinitions.TASK_DEFAULT_PLACEMENT_ITEM;
             boolean colorPicker = definition instanceof ConfigDefinitions.StringValue && definition.key().endsWith("Color");
-            EditBox value = new EditBox(font, valueX, y + 1, itemPicker || colorPicker ? 144 : 168, 18,
+            EditBox value = new EditBox(font, valueX, y + 2, itemPicker || colorPicker ? 144 : 168, 16,
                     Component.literal(rowLabel(definition)));
             value.setMaxLength(128);
             value.setValue(drafts.getOrDefault(definition, String.valueOf(ClientConfig.get(definition))));
