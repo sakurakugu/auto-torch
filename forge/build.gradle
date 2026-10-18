@@ -70,6 +70,13 @@ dependencies {
     commonNamedMinecraft project(path: ':common', configuration: 'namedMinecraftElements')
 }
 
+// ForgeGradle 会把公共源码直接加入 Forge 的 source set。显式等待 common
+// 完成清理和编译，避免根项目并行构建时 common:clean 删除 Forge 正在使用的
+// 编译输出，最终生成只有资源、没有 class 的空 JAR。
+tasks.named('compileJava').configure {
+    dependsOn ':common:classes'
+}
+
 def extractLoomMappings = tasks.register('extractLoomMappings', Sync) {
     from({ zipTree(project(':common').configurations.getByName('mappings').singleFile) })
     include 'mappings/mappings.tiny'
