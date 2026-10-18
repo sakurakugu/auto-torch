@@ -13,9 +13,12 @@ import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.item.BlockItem;
 
 /** 按玩家管理照明任务，并在每个服务端刻推进任务。 */
 public final class LightingTaskManager {
@@ -92,6 +95,17 @@ public final class LightingTaskManager {
             player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
             return;
         }
+        BlockItem placementItem = resolveBlockItem(payload.placementItem());
+        if (placementItem == null) {
+            player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
+            return;
+        }
+        if (payload.progressIntervalTicks() < ConfigDefinitions.TASK_PROGRESS_INTERVAL.minValue()
+                || payload.progressIntervalTicks() > ConfigDefinitions.TASK_PROGRESS_INTERVAL.maxValue()
+                || !ConfigDefinitions.TASK_PROGRESS_INTERVAL.accepts(payload.progressIntervalTicks())) {
+            player.sendSystemMessage(Component.translatable("message.autotorch.invalid_settings"));
+            return;
+        }
         if (!TASKS.containsKey(player.getUUID()) && TASKS.size() >= ServerConfig.maxConcurrentTasks()) {
             player.sendSystemMessage(Component.translatable("message.autotorch.server_busy"));
             return;
@@ -108,6 +122,8 @@ public final class LightingTaskManager {
                 player.getLevel(), selection, scanMin, scanMax, maxTorches, minSpacing, secondPassMinimumSpacing,
                 lightThreshold,
                 consumeTorches, payload.undergroundOnly(),
+                placementItem,
+                payload.progressIntervalTicks(),
                 payload.exclusions(), player.getUUID()
         );
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
@@ -121,6 +137,16 @@ public final class LightingTaskManager {
                     secondPassMinimumSpacing, lightThreshold));
         }
         task.showInitialProgress(player);
+    }
+
+    private static BlockItem resolveBlockItem(String id) {
+        try {
+            ResourceLocation resourceId = ResourceLocation.tryParse(id);
+            var item = resourceId == null ? null : BuiltInRegistries.ITEM.getOptional(resourceId).orElse(null);
+            return item instanceof BlockItem blockItem ? blockItem : null;
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
     private static boolean isValidZone(AreaZone zone) {

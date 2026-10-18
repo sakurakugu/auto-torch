@@ -1,0 +1,30 @@
+package com.sakurakugu.autotorch.network;
+
+import com.sakurakugu.autotorch.AutoTorch;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+
+/**
+ * 客户端请求恢复服务端配置默认值；scope 为空表示全部，
+ * 分组枚举名表示一个分组，配置键表示单项，也兼容 TOML 配置节前缀。
+ */
+public record ServerConfigResetPayload(String scope) implements AutoTorchPayload {
+    public static final ResourceLocation ID = ResourceLocation.tryBuild(AutoTorch.MOD_ID, "server_config_reset");
+
+    public static ServerConfigResetPayload decode(FriendlyByteBuf buffer) {
+        return new ServerConfigResetPayload(buffer);
+    }
+
+    private ServerConfigResetPayload(FriendlyByteBuf buffer) {
+        this(buffer.readUtf());
+    }
+
+    public void write(FriendlyByteBuf buffer) {
+        buffer.writeUtf(scope);
+    }
+
+    @Override
+    public ResourceLocation id() {
+        return ID;
+    }
+}

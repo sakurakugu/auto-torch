@@ -20,6 +20,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 final class AutoTorchForgeClient {
@@ -27,8 +28,10 @@ final class AutoTorchForgeClient {
     private BlockPos selectionClickPos;
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
-        ClientConfig.install(ForgeConfigs.CLIENT);
+        ClientConfig.installDeferred(ForgeConfigs.CLIENT);
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
+        // 1.19.4 的 Forge 将配置事件发在模组事件总线上，注册一次即可同时接收加载与重载事件。
+        context.getModEventBus().addListener(this::onConfigChanged);
         context.registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
 
         context.getModEventBus().addListener(this::registerKeys);
@@ -41,6 +44,12 @@ final class AutoTorchForgeClient {
 
     static void initialize(FMLJavaModLoadingContext context) {
         new AutoTorchForgeClient(context);
+    }
+
+    private void onConfigChanged(ModConfigEvent event) {
+        if (event.getConfig().getSpec() == ForgeConfigs.CLIENT.spec()) {
+            ClientConfig.reload();
+        }
     }
 
     private void registerKeys(RegisterKeyMappingsEvent event) {
