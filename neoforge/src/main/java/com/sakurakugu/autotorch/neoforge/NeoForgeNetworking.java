@@ -1,15 +1,22 @@
 package com.sakurakugu.autotorch.neoforge;
 
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
+import com.sakurakugu.autotorch.network.OpenServerConfigScreenPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResetPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
+import com.sakurakugu.autotorch.network.ServerConfigSetPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
+import com.sakurakugu.autotorch.server.ServerConfigNetwork;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -19,7 +26,7 @@ final class NeoForgeNetworking {
     }
 
     static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("6");
+        PayloadRegistrar registrar = event.registrar("8");
         registrar.playToServer(StartLightingPayload.TYPE, StartLightingPayload.STREAM_CODEC, (payload, context) -> {
             if (context.player() instanceof ServerPlayer player) LightingTaskManager.start(player, payload);
         });
@@ -27,7 +34,13 @@ final class NeoForgeNetworking {
             if (context.player() instanceof ServerPlayer player) LightingTaskManager.cancel(player);
         });
         registrar.playToServer(SetSelectionToolPayload.TYPE, SetSelectionToolPayload.STREAM_CODEC, (payload, context) -> {
-            if (context.player() instanceof ServerPlayer player) SelectionToolEvents.setEnabled(player, payload.enabled());
+            if (context.player() instanceof ServerPlayer player) SelectionToolEvents.setEnabled(player, payload.enabled(), payload.toolItem());
+        });
+        registrar.playToServer(ServerConfigSetPayload.TYPE, ServerConfigSetPayload.STREAM_CODEC, (payload, context) -> {
+            if (context.player() instanceof ServerPlayer player) ServerConfigNetwork.handleSet(player, payload);
+        });
+        registrar.playToServer(ServerConfigResetPayload.TYPE, ServerConfigResetPayload.STREAM_CODEC, (payload, context) -> {
+            if (context.player() instanceof ServerPlayer player) ServerConfigNetwork.handleReset(player, payload);
         });
         registrar.playToServer(TaskStatusRequestPayload.TYPE, TaskStatusRequestPayload.STREAM_CODEC, (payload, context) -> {
             if (context.player() instanceof ServerPlayer player) {
@@ -36,6 +49,10 @@ final class NeoForgeNetworking {
         });
         registrar.playToClient(ServerConfigPayload.TYPE, ServerConfigPayload.STREAM_CODEC, (payload, context) ->
                 ServerConfigState.update(payload));
+        registrar.playToClient(OpenServerConfigScreenPayload.TYPE, OpenServerConfigScreenPayload.STREAM_CODEC,
+                (payload, context) -> AutoTorchClient.requestOpenServerConfigScreen());
+        registrar.playToClient(ServerConfigResultPayload.TYPE, ServerConfigResultPayload.STREAM_CODEC,
+                (payload, context) -> ServerConfigScreen.receiveResult(payload));
         registrar.playToClient(TaskStatusPayload.TYPE, TaskStatusPayload.STREAM_CODEC, (payload, context) ->
                 AutoTorchClientCommands.receiveTaskStatus(payload));
     }

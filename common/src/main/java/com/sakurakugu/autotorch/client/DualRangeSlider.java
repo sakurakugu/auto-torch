@@ -18,6 +18,7 @@ public final class DualRangeSlider extends Button {
     private final int maxSpan;
     private final BiFunction<Integer, Integer, Component> messageFactory;
     private final BiConsumer<Integer, Integer> changeListener;
+    private final BiConsumer<Integer, Integer> commitListener;
     private int lowerValue;
     private int upperValue;
     private int draggingThumb;
@@ -26,6 +27,16 @@ public final class DualRangeSlider extends Button {
             int maxSpan, int lowerValue, int upperValue,
             BiFunction<Integer, Integer, Component> messageFactory,
             BiConsumer<Integer, Integer> changeListener) {
+        this(x, y, width, height, minValue, maxValue, maxSpan, lowerValue, upperValue,
+                messageFactory, changeListener, (lower, upper) -> { });
+    }
+
+    /** 额外接收松开鼠标时的回调，供只在拖动结束后才写配置的界面使用。 */
+    public DualRangeSlider(int x, int y, int width, int height, int minValue, int maxValue,
+            int maxSpan, int lowerValue, int upperValue,
+            BiFunction<Integer, Integer, Component> messageFactory,
+            BiConsumer<Integer, Integer> changeListener,
+            BiConsumer<Integer, Integer> commitListener) {
         super(x, y, width, height, Component.empty(), button -> { }, DEFAULT_NARRATION);
         if (minValue >= maxValue || maxSpan < 0) throw new IllegalArgumentException("Invalid slider range");
         this.minValue = minValue;
@@ -33,6 +44,7 @@ public final class DualRangeSlider extends Button {
         this.maxSpan = maxSpan;
         this.messageFactory = messageFactory;
         this.changeListener = changeListener;
+        this.commitListener = commitListener;
         setValues(lowerValue, upperValue, false);
     }
 
@@ -57,7 +69,8 @@ public final class DualRangeSlider extends Button {
         int lowX = position(lowerValue);
         int highX = position(upperValue);
         graphics.blitSprite(SLIDER, getX(), getY(), getWidth(), getHeight());
-        graphics.fill(lowX, getY() + 1, highX, getBottom() - 1, 0xFF3A5F8A);
+        // 半透明蓝色标出选中区间，保留滑动条底层的滑块纹理。
+        graphics.fill(lowX, getY() + 1, highX, getBottom() - 1, 0x803A5F8A);
         drawThumb(graphics, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(graphics, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
         graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(),
@@ -91,6 +104,7 @@ public final class DualRangeSlider extends Button {
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         draggingThumb = 0;
+        commitListener.accept(lowerValue, upperValue);
         return true;
     }
 

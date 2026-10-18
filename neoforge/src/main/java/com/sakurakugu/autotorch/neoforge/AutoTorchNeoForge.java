@@ -5,7 +5,7 @@ import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
-import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.server.ServerConfigNetwork;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -26,10 +26,9 @@ public final class AutoTorchNeoForge {
         ServerConfig.install(NeoForgeConfigs.SERVER);
         container.registerConfig(ModConfig.Type.SERVER, NeoForgeConfigs.SERVER.spec());
         modBus.addListener(NeoForgeNetworking::register);
+        ServerConfigNetwork.installSender((player, payload) -> PacketDistributor.sendToPlayer(player, payload));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) ->
-                AutoTorchServerCommands.register(event.getDispatcher(),
-                        server -> server.getPlayerList().getPlayers().forEach(player ->
-                                PacketDistributor.sendToPlayer(player, ServerConfigPayload.current()))));
+                AutoTorchServerCommands.register(event.getDispatcher(), ServerConfigNetwork::broadcast));
         NeoForge.EVENT_BUS.addListener(this::onServerTick);
         NeoForge.EVENT_BUS.addListener(this::onLeftClick);
         NeoForge.EVENT_BUS.addListener(this::onRightClick);
@@ -63,8 +62,7 @@ public final class AutoTorchNeoForge {
 
     private void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            PacketDistributor.sendToPlayer(player,
-                    ServerConfigPayload.current());
+            ServerConfigNetwork.sendConfig(player);
         }
     }
 }

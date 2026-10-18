@@ -8,10 +8,13 @@ import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
+import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
+import com.sakurakugu.autotorch.network.OpenServerConfigScreenPayload;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -45,6 +48,10 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
         PlatformNetworking.installSender(ClientPlayNetworking::send);
         ClientPlayNetworking.registerGlobalReceiver(ServerConfigPayload.TYPE, (payload, context) ->
                 ServerConfigState.update(payload));
+        ClientPlayNetworking.registerGlobalReceiver(OpenServerConfigScreenPayload.TYPE, (payload, context) ->
+                AutoTorchClient.requestOpenServerConfigScreen());
+        ClientPlayNetworking.registerGlobalReceiver(ServerConfigResultPayload.TYPE, (payload, context) ->
+                ServerConfigScreen.receiveResult(payload));
         ClientPlayNetworking.registerGlobalReceiver(TaskStatusPayload.TYPE, (payload, context) ->
                 AutoTorchClientCommands.receiveTaskStatus(payload));
 
