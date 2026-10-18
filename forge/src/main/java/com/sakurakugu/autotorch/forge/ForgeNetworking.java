@@ -3,14 +3,21 @@ package com.sakurakugu.autotorch.forge;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.network.AutoTorchPayload;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
+import com.sakurakugu.autotorch.network.OpenServerConfigScreenPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResetPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
+import com.sakurakugu.autotorch.network.ServerConfigSetPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
+import com.sakurakugu.autotorch.server.ServerConfigNetwork;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkDirection;
@@ -21,7 +28,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import java.util.Optional;
 
 final class ForgeNetworking {
-    private static final String PROTOCOL_VERSION = "6";
+    private static final String PROTOCOL_VERSION = "8";
     private static final SimpleChannel CHANNEL = NetworkRegistry.ChannelBuilder
             .named(ResourceLocation.tryBuild(AutoTorch.MOD_ID, "main"))
             .networkProtocolVersion(() -> PROTOCOL_VERSION)
@@ -54,7 +61,7 @@ final class ForgeNetworking {
                     var context = supplier.get();
                     context.enqueueWork(() -> {
                         if (context.getSender() != null) {
-                            SelectionToolEvents.setEnabled(context.getSender(), payload.enabled());
+                            SelectionToolEvents.setEnabled(context.getSender(), payload.enabled(), payload.toolItem());
                         }
                     });
                     context.setPacketHandled(true);
@@ -79,6 +86,34 @@ final class ForgeNetworking {
                 TaskStatusPayload::write, TaskStatusPayload::decode, (payload, supplier) -> {
                     var context = supplier.get();
                     context.enqueueWork(() -> AutoTorchClientCommands.receiveTaskStatus(payload));
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(6, ServerConfigSetPayload.class,
+                ServerConfigSetPayload::write, ServerConfigSetPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(() -> {
+                        if (context.getSender() != null) ServerConfigNetwork.handleSet(context.getSender(), payload);
+                    });
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(7, ServerConfigResetPayload.class,
+                ServerConfigResetPayload::write, ServerConfigResetPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(() -> {
+                        if (context.getSender() != null) ServerConfigNetwork.handleReset(context.getSender(), payload);
+                    });
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(8, OpenServerConfigScreenPayload.class,
+                OpenServerConfigScreenPayload::write, OpenServerConfigScreenPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(AutoTorchClient::requestOpenServerConfigScreen);
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(9, ServerConfigResultPayload.class,
+                ServerConfigResultPayload::write, ServerConfigResultPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(() -> ServerConfigScreen.receiveResult(payload));
                     context.setPacketHandled(true);
                 }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }

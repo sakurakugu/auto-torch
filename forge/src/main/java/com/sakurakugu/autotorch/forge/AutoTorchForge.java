@@ -5,7 +5,7 @@ import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
-import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.server.ServerConfigNetwork;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -26,9 +26,9 @@ public final class AutoTorchForge {
         ServerConfig.install(ForgeConfigs.SERVER);
         context.registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
         ForgeNetworking.initialize();
+        ServerConfigNetwork.installSender(ForgeNetworking::sendToPlayer);
         MinecraftForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> AutoTorchServerCommands.register(event.getDispatcher(),
-                server -> server.getPlayerList().getPlayers().forEach(player ->
-                        ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current()))));
+                ServerConfigNetwork::broadcast));
 
         MinecraftForge.EVENT_BUS.addListener(this::onServerTick);
         MinecraftForge.EVENT_BUS.addListener(this::onLeftClick);
@@ -69,7 +69,7 @@ public final class AutoTorchForge {
 
     private void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current());
+            ServerConfigNetwork.sendConfig(player);
         }
     }
 }
