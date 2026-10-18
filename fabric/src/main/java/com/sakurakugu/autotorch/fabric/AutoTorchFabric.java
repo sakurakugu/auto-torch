@@ -2,8 +2,12 @@ package com.sakurakugu.autotorch.fabric;
 
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
+import com.sakurakugu.autotorch.network.OpenServerConfigScreenPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResetPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
+import com.sakurakugu.autotorch.network.ServerConfigSetPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
@@ -11,6 +15,7 @@ import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
+import com.sakurakugu.autotorch.server.ServerConfigNetwork;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -32,9 +37,8 @@ public final class AutoTorchFabric implements ModInitializer {
     public void onInitialize() {
         // 单机、局域网和专用服务器都注册，客户端才能拿到服务端命令树并补全 serverconfig。
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-                AutoTorchServerCommands.register(dispatcher, server ->
-                        server.getPlayerList().getPlayers().forEach(player ->
-                                ServerPlayNetworking.send(player, ServerConfigPayload.current()))));
+                AutoTorchServerCommands.register(dispatcher, ServerConfigNetwork::broadcast));
+        ServerConfigNetwork.installSender((player, payload) -> ServerPlayNetworking.send(player, payload));
         serverConfig = new TomlConfigBackend(
                 FabricLoader.getInstance().getConfigDir().resolve("autotorch-server.toml"),
                 ConfigDefinitions.SERVER);
@@ -45,14 +49,24 @@ public final class AutoTorchFabric implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(CancelLightingPayload.TYPE, CancelLightingPayload.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(SetSelectionToolPayload.TYPE, SetSelectionToolPayload.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(TaskStatusRequestPayload.TYPE, TaskStatusRequestPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playC2S().register(ServerConfigSetPayload.TYPE, ServerConfigSetPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playC2S().register(ServerConfigResetPayload.TYPE, ServerConfigResetPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(ServerConfigPayload.TYPE, ServerConfigPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(OpenServerConfigScreenPayload.TYPE,
+                OpenServerConfigScreenPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(ServerConfigResultPayload.TYPE,
+                ServerConfigResultPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(TaskStatusPayload.TYPE, TaskStatusPayload.STREAM_CODEC);
         ServerPlayNetworking.registerGlobalReceiver(StartLightingPayload.TYPE,
                 (payload, context) -> LightingTaskManager.start(context.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(CancelLightingPayload.TYPE,
                 (payload, context) -> LightingTaskManager.cancel(context.player()));
         ServerPlayNetworking.registerGlobalReceiver(SetSelectionToolPayload.TYPE,
-                (payload, context) -> SelectionToolEvents.setEnabled(context.player(), payload.enabled()));
+                (payload, context) -> SelectionToolEvents.setEnabled(context.player(), payload.enabled(), payload.toolItem()));
+        ServerPlayNetworking.registerGlobalReceiver(ServerConfigSetPayload.TYPE,
+                (payload, context) -> ServerConfigNetwork.handleSet(context.player(), payload));
+        ServerPlayNetworking.registerGlobalReceiver(ServerConfigResetPayload.TYPE,
+                (payload, context) -> ServerConfigNetwork.handleReset(context.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(TaskStatusRequestPayload.TYPE,
                 (payload, context) -> ServerPlayNetworking.send(context.player(),
                         LightingTaskManager.status(context.player())));
@@ -70,8 +84,7 @@ public final class AutoTorchFabric implements ModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 SelectionToolEvents.onLogout(handler.getPlayer()));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                ServerPlayNetworking.send(handler.getPlayer(),
-                        ServerConfigPayload.current()));
+                ServerConfigNetwork.sendConfig(handler.getPlayer()));
     }
 
     static void closeServerConfig() {

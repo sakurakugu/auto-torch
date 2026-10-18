@@ -17,15 +17,13 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 /** 单个玩家的增量照明任务，通过每刻预算避免大选区阻塞服务端线程。 */
 final class LightingTask {
-    private static final int PROGRESS_UPDATE_INTERVAL_TICKS = 10;
     private static final int PROGRESS_BAR_LENGTH = 20;
 
     private final ServerLevel level;
@@ -43,6 +41,8 @@ final class LightingTask {
     private final int lightThreshold;
     private final boolean consumeTorches;
     private final boolean undergroundOnly;
+    private final BlockItem placementItem;
+    private final int progressUpdateIntervalTicks;
     private final AreaZoneIndex exclusions;
     private final Random random;
     private final Map<Long, List<BlockPos>> placedByCell = new HashMap<>();
@@ -52,7 +52,7 @@ final class LightingTask {
     private int pass;
     private int placed;
     private int skippedUnloaded;
-    private int ticksUntilProgressUpdate = PROGRESS_UPDATE_INTERVAL_TICKS;
+    private int ticksUntilProgressUpdate;
 
     LightingTask(
             ServerLevel level,
@@ -65,6 +65,8 @@ final class LightingTask {
             int lightThreshold,
             boolean consumeTorches,
             boolean undergroundOnly,
+            BlockItem placementItem,
+            int progressUpdateIntervalTicks,
             List<AreaZone> exclusions,
             UUID playerId
     ) {
@@ -81,6 +83,9 @@ final class LightingTask {
         this.lightThreshold = lightThreshold;
         this.consumeTorches = consumeTorches;
         this.undergroundOnly = undergroundOnly;
+        this.placementItem = placementItem;
+        this.progressUpdateIntervalTicks = progressUpdateIntervalTicks;
+        this.ticksUntilProgressUpdate = progressUpdateIntervalTicks;
         this.exclusions = new AreaZoneIndex(exclusions.stream().filter(selection::intersects).toList());
 
         // 使用稳定种子生成伪随机遍历，使结果可复现，同时避免总从选区同一角开始。
@@ -134,7 +139,7 @@ final class LightingTask {
             if (consumeTorches && !hasTorch(player)) {
                 return finish(player, "message.autotorch.out_of_torches", scannedThisTick, placedThisTick, placed);
             }
-            if (!level.setBlock(torchPos, Blocks.TORCH.defaultBlockState(), Block.UPDATE_ALL)) {
+            if (!level.setBlock(torchPos, placementItem.getBlock().defaultBlockState(), Block.UPDATE_ALL)) {
                 continue;
             }
             if (consumeTorches) {
@@ -159,7 +164,7 @@ final class LightingTask {
         if (--ticksUntilProgressUpdate > 0) {
             return;
         }
-        ticksUntilProgressUpdate = PROGRESS_UPDATE_INTERVAL_TICKS;
+        ticksUntilProgressUpdate = progressUpdateIntervalTicks;
         sendProgress(player);
     }
 
@@ -249,7 +254,7 @@ final class LightingTask {
                 continue;
             }
 
-            BlockState torch = Blocks.TORCH.defaultBlockState();
+            BlockState torch = placementItem.getBlock().defaultBlockState();
             if (torch.canSurvive(level, candidate) && player.mayInteract(level, candidate)) {
                 return candidate.immutable();
             }
@@ -306,14 +311,14 @@ final class LightingTask {
         placedByCell.computeIfAbsent(BlockPos.asLong(cellX, cellY, cellZ), ignored -> new ArrayList<>()).add(pos);
     }
 
-    private static boolean hasTorch(ServerPlayer player) {
-        return player.getInventory().contains(stack -> stack.is(Items.TORCH));
+    private boolean hasTorch(ServerPlayer player) {
+        return player.getInventory().contains(stack -> stack.is(placementItem));
     }
 
-    private static void consumeTorch(ServerPlayer player) {
+    private void consumeTorch(ServerPlayer player) {
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            if (stack.is(Items.TORCH)) {
+            if (stack.is(placementItem)) {
                 stack.shrink(1);
                 player.getInventory().setChanged();
                 return;
