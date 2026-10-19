@@ -4,6 +4,7 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.text.ITextComponent;
 
 /** 集中适配 1.13 GuiScreen 与后续版本界面生命周期的差异。 */
@@ -22,7 +23,10 @@ public abstract class Screen extends GuiScreen {
 
     protected abstract void init();
     protected void renderBackground() { drawDefaultBackground(); }
-    protected void renderTooltip(java.util.List<String> lines, int x, int y) { drawHoveringText(lines, x, y); }
+    protected void renderTooltip(java.util.List<String> lines, int x, int y) {
+        drawHoveringText(lines, x, y);
+        restoreGuiRenderState();
+    }
     protected EditBox addButton(EditBox box) { children.add(box); return box; }
     protected void setInitialFocus(EditBox box) { setFocused(box); box.setFocused(true); }
 
@@ -52,7 +56,22 @@ public abstract class Screen extends GuiScreen {
     public boolean isPauseScreen() { return true; }
     @Override public boolean doesGuiPauseGame() { return isPauseScreen(); }
     protected List<? extends net.minecraft.client.gui.IGuiEventListener> children() { return getChildren(); }
-    protected void renderTooltip(String text, int mouseX, int mouseY) { drawHoveringText(text, mouseX, mouseY); }
+    protected void renderTooltip(String text, int mouseX, int mouseY) {
+        drawHoveringText(text, mouseX, mouseY);
+        restoreGuiRenderState();
+    }
+
+    /**
+     * 1.13.2 的 Forge 提示框绘制结束时会重新开启标准物品光照与深度测试，
+     * 而全部设置界面会在提示框之后继续画文字和图标，必须恢复 2D GUI 状态，
+     * 否则后续文字会被光照压暗（鼠标悬停时更明显）。
+     */
+    private static void restoreGuiRenderState() {
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepthTest();
+        GlStateManager.enableTexture2D();
+        GlStateManager.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+    }
     @Override
     public boolean mouseScrolled(double amount) {
         // 将 1.13 的单参数滚轮事件转交给界面使用的新版形式。
