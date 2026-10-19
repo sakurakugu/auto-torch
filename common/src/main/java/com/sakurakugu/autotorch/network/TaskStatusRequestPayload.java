@@ -21,3 +21,4 @@ public final class TaskStatusRequestPayload implements AutoTorchPayload {
         return ID;
     }
 }
+

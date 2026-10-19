@@ -18,3 +18,4 @@ final class LineWidthScaler {
                 baseWidth * REFERENCE_DISTANCE / Math.sqrt(distanceSquared));
     }
 }
+

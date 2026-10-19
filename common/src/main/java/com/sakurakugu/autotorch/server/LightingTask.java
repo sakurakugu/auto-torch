@@ -20,6 +20,7 @@ import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
@@ -48,6 +49,8 @@ final class LightingTask {
     private final int lightThreshold;
     private final boolean consumeTorches;
     private final boolean undergroundOnly;
+    private final BlockItem placementItem;
+    private final int progressUpdateIntervalTicks;
     private final AreaZoneIndex exclusions;
     private final Random random;
     private final Map<Long, List<BlockPos>> placedByCell = new HashMap<>();
@@ -57,7 +60,7 @@ final class LightingTask {
     private int pass;
     private int placed;
     private int skippedUnloaded;
-    private int ticksUntilProgressUpdate = PROGRESS_UPDATE_INTERVAL_TICKS;
+    private int ticksUntilProgressUpdate;
 
     LightingTask(
             ServerLevel level,
@@ -70,6 +73,8 @@ final class LightingTask {
             int lightThreshold,
             boolean consumeTorches,
             boolean undergroundOnly,
+            BlockItem placementItem,
+            int progressUpdateIntervalTicks,
             List<AreaZone> exclusions,
             UUID playerId
     ) {
@@ -86,6 +91,8 @@ final class LightingTask {
         this.lightThreshold = lightThreshold;
         this.consumeTorches = consumeTorches;
         this.undergroundOnly = undergroundOnly;
+        this.placementItem = placementItem;
+        this.progressUpdateIntervalTicks = progressUpdateIntervalTicks;
         this.exclusions = new AreaZoneIndex(exclusions.stream()
                 .filter(selection::intersects).collect(Collectors.toList()));
 
@@ -165,7 +172,7 @@ final class LightingTask {
         if (--ticksUntilProgressUpdate > 0) {
             return;
         }
-        ticksUntilProgressUpdate = PROGRESS_UPDATE_INTERVAL_TICKS;
+        ticksUntilProgressUpdate = progressUpdateIntervalTicks;
         sendProgress(player);
     }
 
@@ -386,3 +393,6 @@ final class LightingTask {
         int placed() { return placed; }
     }
 }
+
+
+

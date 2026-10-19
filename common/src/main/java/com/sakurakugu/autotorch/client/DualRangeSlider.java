@@ -6,8 +6,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 
 /** 可复用的双端点范围滑动条。 */
@@ -18,6 +18,7 @@ public class DualRangeSlider extends Button {
     private final int maxSpan;
     private final BiFunction<Integer, Integer, Component> messageFactory;
     private final BiConsumer<Integer, Integer> changeListener;
+    private final BiConsumer<Integer, Integer> commitListener;
     private int lowerValue;
     private int upperValue;
     private int draggingThumb;
@@ -26,13 +27,24 @@ public class DualRangeSlider extends Button {
             int maxSpan, int lowerValue, int upperValue,
             BiFunction<Integer, Integer, Component> messageFactory,
             BiConsumer<Integer, Integer> changeListener) {
-        super(x, y, width, height, TextComponent.EMPTY, button -> { });
+        this(x, y, width, height, minValue, maxValue, maxSpan, lowerValue, upperValue,
+                messageFactory, changeListener, (lower, upper) -> { });
+    }
+
+    /** 额外接收松开鼠标时的回调，供只在拖动结束后才写配置的界面使用。 */
+    public DualRangeSlider(int x, int y, int width, int height, int minValue, int maxValue,
+            int maxSpan, int lowerValue, int upperValue,
+            BiFunction<Integer, Integer, Component> messageFactory,
+            BiConsumer<Integer, Integer> changeListener,
+            BiConsumer<Integer, Integer> commitListener) {
+        super(x, y, width, height, new net.minecraft.network.chat.TextComponent(""), button -> { });
         if (minValue >= maxValue || maxSpan < 0) throw new IllegalArgumentException("Invalid slider range");
         this.minValue = minValue;
         this.maxValue = maxValue;
         this.maxSpan = maxSpan;
         this.messageFactory = messageFactory;
         this.changeListener = changeListener;
+        this.commitListener = commitListener;
         setValues(lowerValue, upperValue, false);
     }
 
@@ -52,17 +64,13 @@ public class DualRangeSlider extends Button {
         if (notify) changeListener.accept(this.lowerValue, this.upperValue);
     }
 
-    // 1.16.5 里设置顶点颜色只有 RenderSystem.color4f 一种写法（setShaderColor 要 1.17 才有），
-    // 这个版本没有替代 API，只能集中在这里抑制。
-    @SuppressWarnings("deprecation")
     @Override
     public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        Minecraft.getInstance().getTextureManager().bind(SLIDER_LOCATION);
-        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F); RenderSystem.enableBlend(); RenderSystem.defaultBlendFunc(); RenderSystem.enableDepthTest();
+        applySliderTexture();
         drawNineSliced(poseStack, x, y, getWidth(), getHeight(), 20, 4, 200, 20, 0, isFocused() ? 20 : 0);
-        fill(poseStack, lowX, y + 1, highX, y + getHeight() - 1, 0xFF3A5F8A);
+        fill(poseStack, lowX, y + 1, highX, y + getHeight() - 1, 0x803A5F8A);
         drawThumb(poseStack, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(poseStack, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
         ScrollingText.render(poseStack, Minecraft.getInstance().font, getMessage(),
@@ -70,16 +78,74 @@ public class DualRangeSlider extends Button {
     }
 
     private void drawThumb(PoseStack poseStack, int thumbX, boolean highlighted) {
+        applySliderTexture();
         drawNineSliced(poseStack, thumbX - 4, y, 8, getHeight(), 20, 4, 200, 20, 0, highlighted ? 60 : 40);
     }
 
-    private static void drawNineSliced(PoseStack p, int x, int y, int w, int h, int cw, int ch, int tw, int th, int u, int v) {
-        int l=Math.min(cw,w/2),r=Math.min(cw,w-l),t=Math.min(ch,h/2),b=Math.min(ch,h-t),mw=w-l-r,mh=h-t-b,sw=Math.max(1,tw-cw*2),sh=Math.max(1,th-ch*2);
-        blitPatch(p,x,y,l,t,u,v,l,t); blitPatch(p,x+w-r,y,r,t,u+tw-r,v,r,t); blitPatch(p,x,y+h-b,l,b,u,v+th-b,l,b); blitPatch(p,x+w-r,y+h-b,r,b,u+tw-r,v+th-b,r,b);
-        if(mw>0){blitRepeatingPatch(p,x+l,y,mw,t,u+cw,v,sw,t);blitRepeatingPatch(p,x+l,y+h-b,mw,b,u+cw,v+th-b,sw,b);} if(mh>0){blitRepeatingPatch(p,x,y+t,l,mh,u,v+ch,l,sh);blitRepeatingPatch(p,x+w-r,y+t,r,mh,u+tw-r,v+ch,r,sh);} if(mw>0&&mh>0)blitRepeatingPatch(p,x+l,y+t,mw,mh,u+cw,v+ch,sw,sh);
+    /** 旧版没有 GuiGraphics 自动管理着色器状态，绘制原版贴图前需要手动绑定。 */
+    private static void applySliderTexture() {
+        Minecraft.getInstance().getTextureManager().bind(SLIDER_LOCATION);
+        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
     }
-    private static void blitPatch(PoseStack p,int x,int y,int w,int h,int u,int v,int sw,int sh){if(w>0&&h>0)blit(p,x,y,w,h,u,v,sw,sh,256,256);}
-    private static void blitRepeatingPatch(PoseStack p,int x,int y,int w,int h,int u,int v,int sw,int sh){if(w<=0||h<=0||sw<=0||sh<=0)return;for(int oy=0;oy<h;oy+=sh)for(int ox=0;ox<w;ox+=sw){int tw=Math.min(sw,w-ox),th=Math.min(sh,h-oy);blitPatch(p,x+ox,y+oy,tw,th,u,v,tw,th);}}
+
+    private static void drawNineSliced(PoseStack poseStack, int x, int y, int width, int height,
+            int cornerWidth, int cornerHeight, int textureWidth, int textureHeight, int u, int v) {
+        int left = Math.min(cornerWidth, width / 2);
+        int right = Math.min(cornerWidth, width - left);
+        int top = Math.min(cornerHeight, height / 2);
+        int bottom = Math.min(cornerHeight, height - top);
+        int centerWidth = width - left - right;
+        int centerHeight = height - top - bottom;
+        int sourceCenterWidth = Math.max(1, textureWidth - cornerWidth * 2);
+        int sourceCenterHeight = Math.max(1, textureHeight - cornerHeight * 2);
+
+        blitPatch(poseStack, x, y, left, top, u, v, left, top);
+        blitPatch(poseStack, x + width - right, y, right, top,
+                u + textureWidth - right, v, right, top);
+        blitPatch(poseStack, x, y + height - bottom, left, bottom,
+                u, v + textureHeight - bottom, left, bottom);
+        blitPatch(poseStack, x + width - right, y + height - bottom, right, bottom,
+                u + textureWidth - right, v + textureHeight - bottom, right, bottom);
+        if (centerWidth > 0) {
+            blitRepeatingPatch(poseStack, x + left, y, centerWidth, top,
+                    u + cornerWidth, v, sourceCenterWidth, top);
+            blitRepeatingPatch(poseStack, x + left, y + height - bottom, centerWidth, bottom,
+                    u + cornerWidth, v + textureHeight - bottom, sourceCenterWidth, bottom);
+        }
+        if (centerHeight > 0) {
+            blitRepeatingPatch(poseStack, x, y + top, left, centerHeight,
+                    u, v + cornerHeight, left, sourceCenterHeight);
+            blitRepeatingPatch(poseStack, x + width - right, y + top, right, centerHeight,
+                    u + textureWidth - right, v + cornerHeight, right, sourceCenterHeight);
+        }
+        if (centerWidth > 0 && centerHeight > 0) {
+            blitRepeatingPatch(poseStack, x + left, y + top, centerWidth, centerHeight,
+                    u + cornerWidth, v + cornerHeight, sourceCenterWidth, sourceCenterHeight);
+        }
+    }
+
+    private static void blitPatch(PoseStack poseStack, int x, int y, int width, int height,
+            int u, int v, int sourceWidth, int sourceHeight) {
+        if (width > 0 && height > 0) {
+            blit(poseStack, x, y, width, height, u, v, sourceWidth, sourceHeight, 256, 256);
+        }
+    }
+
+    private static void blitRepeatingPatch(PoseStack poseStack, int x, int y, int width, int height,
+            int u, int v, int sourceWidth, int sourceHeight) {
+        if (width <= 0 || height <= 0 || sourceWidth <= 0 || sourceHeight <= 0) return;
+        for (int offsetY = 0; offsetY < height; offsetY += sourceHeight) {
+            int tileHeight = Math.min(sourceHeight, height - offsetY);
+            for (int offsetX = 0; offsetX < width; offsetX += sourceWidth) {
+                int tileWidth = Math.min(sourceWidth, width - offsetX);
+                blitPatch(poseStack, x + offsetX, y + offsetY, tileWidth, tileHeight,
+                        u, v, tileWidth, tileHeight);
+            }
+        }
+    }
 
     private boolean isThumbHovered(int mouseX, int mouseY, int x) {
         return mouseY >= y && mouseY < y + getHeight() && Math.abs(mouseX - x) <= 6;
@@ -103,6 +169,7 @@ public class DualRangeSlider extends Button {
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         draggingThumb = 0;
+        commitListener.accept(lowerValue, upperValue);
         return true;
     }
 
@@ -128,3 +195,4 @@ public class DualRangeSlider extends Button {
 
     private int clamp(int value) { return Math.max(minValue, Math.min(maxValue, value)); }
 }
+

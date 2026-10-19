@@ -40,11 +40,15 @@ public final class AutoTorchRenderTypes {
     }
 
     /** 返回显式关闭深度测试的数字纹理渲染类型。 */
+    public static RenderType numbers(ResourceLocation texture, boolean seeThrough) { return seeThroughNumbers(texture); }
+
     public static RenderType seeThroughNumbers(ResourceLocation texture) {
         return SEE_THROUGH_NUMBERS.computeIfAbsent(texture, AutoTorchRenderTypes::createSeeThroughNumbers);
     }
 
     /** 在相机模型视图矩阵仍有效时结束全部数字透视批次。 */
+    public static void endNumberBatches(MultiBufferSource.BufferSource buffers) { endSeeThroughNumberBatches(buffers); }
+
     public static void endSeeThroughNumberBatches(MultiBufferSource.BufferSource buffers) {
         for (RenderType renderType : SEE_THROUGH_NUMBERS.values()) {
             buffers.endBatch(renderType);

@@ -21,3 +21,4 @@ public final class CancelLightingPayload implements AutoTorchPayload {
         return ID;
     }
 }
+

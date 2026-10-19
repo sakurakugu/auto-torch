@@ -58,6 +58,13 @@ dependencies {
     forgeRuntimeMappings "net.minecraft:mappings_official:${forge_mappings_version}:map2srg@tsrg.gz"
     fabricIntermediary "net.fabricmc:intermediary:${minecraft_version}:v2"
     commonNamedMinecraft project(path: ':common', configuration: 'namedMinecraftElements')
+    testImplementation platform('org.junit:junit-bom:5.12.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
 }
 
 // ForgeGradle 会把公共源码直接加入 Forge 的 source set。显式等待 common
@@ -121,7 +128,35 @@ def unpackCommonSources = tasks.register('unpackCommonSources', Sync) {
     into layout.buildDirectory.dir('generated/sources/forgeCommon')
 }
 
-sourceSets.main.java.srcDir(unpackCommonSources.map { it.destinationDir })
+// Forge 1.16.5 使用旧的 Forge 命名空间。重命名器对新增源码中部分
+// 仅存在于 1.17+ 的官方类型无法建立绑定，这里在解包后补齐确定的类型映射。
+def patchLegacyCommonSources = tasks.register('patchLegacyCommonSources') {
+    dependsOn unpackCommonSources
+    doLast {
+        def root = unpackCommonSources.get().destinationDir.toPath()
+        def replacements = [
+                'net.minecraft.network.chat.MutableComponent' : 'net.minecraft.util.text.IFormattableTextComponent',
+                'net.minecraft.network.chat.TextComponent' : 'net.minecraft.util.text.StringTextComponent',
+                'net.minecraft.network.chat.TranslatableComponent' : 'net.minecraft.util.text.TranslationTextComponent',
+                'net.minecraft.network.chat.ClickEvent' : 'net.minecraft.util.text.event.ClickEvent',
+                'net.minecraft.network.chat.HoverEvent' : 'net.minecraft.util.text.event.HoverEvent',
+                'net.minecraft.network.chat.Component' : 'net.minecraft.util.text.ITextComponent',
+                'net.minecraft.world.item.Items' : 'net.minecraft.item.Items',
+                'net.minecraft.world.item.ItemStack' : 'net.minecraft.item.ItemStack',
+                'net.minecraft.world.item.Item' : 'net.minecraft.item.Item',
+                'net.minecraft.client.gui.components.AbstractSliderButton' : 'net.minecraft.client.gui.widget.AbstractSlider',
+                'com.mojang.blaze3d.platform.InputConstants' : 'net.minecraft.client.util.InputMappings',
+                'com.mojang.blaze3d.vertex.VertexFormat' : 'net.minecraft.client.renderer.vertex.VertexFormat'
+        ]
+        java.nio.file.Files.walk(root).filter { it.toString().endsWith('.java') }.forEach { path ->
+            def text = java.nio.file.Files.readString(path)
+            replacements.each { from, to -> text = text.replace(from, to) }
+            java.nio.file.Files.writeString(path, text)
+        }
+    }
+}
+
+sourceSets.main.java.srcDir(patchLegacyCommonSources.map { unpackCommonSources.get().destinationDir })
 
 def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
     def values = [

@@ -6,12 +6,19 @@ import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.network.ServerConfigSetPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResetPayload;
+import com.sakurakugu.autotorch.network.OpenServerConfigScreenPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.client.AutoTorchClient;
+import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
+import com.sakurakugu.autotorch.server.ServerConfigNetwork;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.network.NetworkDirection;
 import net.minecraftforge.fml.network.NetworkRegistry;
@@ -22,7 +29,7 @@ import net.minecraftforge.fml.network.simple.SimpleChannel;
 import java.util.Optional;
 
 final class ForgeNetworking {
-    private static final String PROTOCOL_VERSION = "6";
+    private static final String PROTOCOL_VERSION = "8";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(AutoTorch.MOD_ID + ":main"),
             () -> PROTOCOL_VERSION,
@@ -82,6 +89,34 @@ final class ForgeNetworking {
                     context.enqueueWork(() -> AutoTorchClientCommands.receiveTaskStatus(payload));
                     context.setPacketHandled(true);
                 }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(6, ServerConfigSetPayload.class,
+                ServerConfigSetPayload::write, ServerConfigSetPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(() -> {
+                        if (context.getSender() != null) ServerConfigNetwork.handleSet(context.getSender(), payload);
+                    });
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(7, ServerConfigResetPayload.class,
+                ServerConfigResetPayload::write, ServerConfigResetPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(() -> {
+                        if (context.getSender() != null) ServerConfigNetwork.handleReset(context.getSender(), payload);
+                    });
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(8, OpenServerConfigScreenPayload.class,
+                OpenServerConfigScreenPayload::write, OpenServerConfigScreenPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(AutoTorchClient::requestOpenServerConfigScreen);
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(9, ServerConfigResultPayload.class,
+                ServerConfigResultPayload::write, ServerConfigResultPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(() -> ServerConfigScreen.receiveResult(payload));
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     static void sendToServer(AutoTorchPayload payload) {
@@ -92,3 +127,4 @@ final class ForgeNetworking {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), payload);
     }
 }
+

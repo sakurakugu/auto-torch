@@ -19,6 +19,8 @@ public final class SelectionToolEvents {
         return isEnabled(player.getUUID()) && stack.getItem() == Items.WOODEN_AXE;
     }
 
+    public static void setEnabled(ServerPlayer player, boolean enabled, String itemId) { setEnabled(player, enabled); }
+
     public static void setEnabled(ServerPlayer player, boolean enabled) {
         if (enabled) {
             DISABLED_PLAYERS.remove(player.getUUID());

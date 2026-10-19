@@ -9,6 +9,8 @@ import com.sakurakugu.autotorch.config.ConfigBackend;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.DoubleValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.StringValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 import net.minecraftforge.common.ForgeConfigSpec;
 
@@ -42,6 +44,13 @@ final class ForgeConfigs {
                 IntValue value = (IntValue) definition;
                 values.put(value.key(), builder.defineInRange(
                         path, value.defaultValue(), value.minValue(), value.maxValue()));
+            } else if (definition instanceof DoubleValue) {
+                DoubleValue value = (DoubleValue) definition;
+                values.put(value.key(), builder.defineInRange(
+                        path, value.defaultValue(), value.minValue(), value.maxValue()));
+            } else if (definition instanceof StringValue) {
+                StringValue value = (StringValue) definition;
+                values.put(value.key(), builder.define(path, value.defaultValue()));
             }
         }
         void finish() { spec = builder.build(); }
@@ -55,8 +64,12 @@ final class ForgeConfigs {
             ForgeConfigSpec.ConfigValue<?> value = values.get(key);
             return value == null ? fallback : (Integer) value.get();
         }
+        @Override public double getDouble(String key, double fallback) { ForgeConfigSpec.ConfigValue<?> value = values.get(key); return value == null ? fallback : (Double) value.get(); }
+        @Override public String getString(String key, String fallback) { ForgeConfigSpec.ConfigValue<?> value = values.get(key); return value == null ? fallback : (String) value.get(); }
         @Override public void setBoolean(String key, boolean value) { set(key, value); }
         @Override public void setInt(String key, int value) { set(key, value); }
+        @Override public void setDouble(String key, double value) { set(key, value); }
+        @Override public void setString(String key, String value) { set(key, value); }
         @SuppressWarnings({"rawtypes", "unchecked"})
         private void set(String key, Object value) { ((ForgeConfigSpec.ConfigValue) values.get(key)).set(value); }
         @Override public void save() { spec.save(); }

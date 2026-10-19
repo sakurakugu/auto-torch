@@ -18,6 +18,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 /** 仅注册在服务端的管理员配置命令。 */
 public final class AutoTorchServerCommands {
@@ -34,6 +35,7 @@ public final class AutoTorchServerCommands {
                 .executes(context -> showHelp(context))
                 .then(literal("help").executes(AutoTorchServerCommands::showHelp))
                 .then(literal("serverconfig")
+                        .then(literal("gui").executes(AutoTorchServerCommands::openGui))
                         .then(literal("get")
                                 .then(argument("key", StringArgumentType.word())
                                         .suggests(AutoTorchServerCommands::suggestKeys)
@@ -47,8 +49,19 @@ public final class AutoTorchServerCommands {
                                 .executes(context -> defaults(context, configChanged)))));
     }
 
+    /** 打开管理员设置界面；控制台没有客户端界面，只提示改用 get/set/defaults。 */
+    private static int openGui(CommandContext<CommandSourceStack> context) {
+        if (!(context.getSource().getEntity() instanceof ServerPlayer player)) {
+            return error(context, "command.autotorch.server.gui_player_only");
+        }
+        ServerConfigNetwork.sendOpenScreen(player);
+        context.getSource().sendSuccess(new net.minecraft.network.chat.TranslatableComponent(
+                "command.autotorch.server.gui_opened"), false);
+        return 1;
+    }
+
     private static int showHelp(CommandContext<CommandSourceStack> context) {
-        context.getSource().sendSuccess(new TranslatableComponent("command.autotorch.server.help"), false);
+        context.getSource().sendSuccess(new net.minecraft.network.chat.TranslatableComponent("command.autotorch.server.help"), false);
         return 1;
     }
 
@@ -120,3 +133,4 @@ public final class AutoTorchServerCommands {
         return RequiredArgumentBuilder.argument(name, type);
     }
 }
+

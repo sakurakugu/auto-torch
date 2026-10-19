@@ -8,3 +8,4 @@ import net.minecraft.world.phys.Vec3;
 public interface DrownedMarkerVisibility {
     boolean isVisible(ClientLevel level, Vec3 camera, LightOverlayState.Marker marker);
 }
+
