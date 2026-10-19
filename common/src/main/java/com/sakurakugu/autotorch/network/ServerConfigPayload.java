@@ -1,104 +1,79 @@
 package com.sakurakugu.autotorch.network;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.server.ServerConfig;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.util.ResourceLocation;
 
-/** 服务端在玩家登录后同步会影响客户端显示的权威配置。 */
-public final class ServerConfigPayload implements AutoTorchPayload {
-    public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID + ":server_config");
-    private final boolean lightingTaskEnabled;
-    private final boolean survivalConsumesTorches;
-    private final int maxBoxAxisLength;
-    private final int maxSphereRadius;
-    private final int maxExclusions;
-    private final int maxTorchesPerTask;
-    private final boolean allowsUnlimitedTorches;
-    private final int minSpacing;
-    private final int maxSpacing;
+/**
+ * 服务端向客户端同步的权威配置快照，覆盖全部服务端配置项。
+ * 用键值对传输，新增服务端配置时不需要再改载荷结构。
+ */
+public final class ServerConfigPayload implements AutoTorchPayload  {
+    private final Map<String, String> values;
+    public ServerConfigPayload(Map<String, String> values) {
+        values = com.google.common.collect.ImmutableMap.copyOf(values);
 
-    public ServerConfigPayload(
-            boolean lightingTaskEnabled, boolean survivalConsumesTorches,
-            int maxBoxAxisLength, int maxSphereRadius,
-            int maxExclusions, int maxTorchesPerTask, boolean allowsUnlimitedTorches,
-            int minSpacing, int maxSpacing
-    ) {
-        this.lightingTaskEnabled = lightingTaskEnabled;
-        this.survivalConsumesTorches = survivalConsumesTorches;
-        this.maxBoxAxisLength = maxBoxAxisLength;
-        this.maxSphereRadius = maxSphereRadius;
-        this.maxExclusions = maxExclusions;
-        this.maxTorchesPerTask = maxTorchesPerTask;
-        this.allowsUnlimitedTorches = allowsUnlimitedTorches;
-        this.minSpacing = minSpacing;
-        this.maxSpacing = maxSpacing;
+        this.values = values;
     }
+    public Map<String, String> values() { return values; }
+    @Override public boolean equals(Object other) {
+        if (this == other) return true;
+        if (!(other instanceof ServerConfigPayload)) return false;
+        ServerConfigPayload that = (ServerConfigPayload) other;
+        return java.util.Objects.equals(values, that.values);
+    }
+    @Override public int hashCode() { return java.util.Objects.hash(values); }
 
-    public boolean lightingTaskEnabled() { return lightingTaskEnabled; }
-    public boolean survivalConsumesTorches() { return survivalConsumesTorches; }
-    public int maxBoxAxisLength() { return maxBoxAxisLength; }
-    public int maxSphereRadius() { return maxSphereRadius; }
-    public int maxExclusions() { return maxExclusions; }
-    public int maxTorchesPerTask() { return maxTorchesPerTask; }
-    public boolean allowsUnlimitedTorches() { return allowsUnlimitedTorches; }
-    public int minSpacing() { return minSpacing; }
-    public int maxSpacing() { return maxSpacing; }
+    public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID, "server_config");
+
+
 
     public static ServerConfigPayload decode(PacketBuffer buffer) {
-        return new ServerConfigPayload(
-                buffer.readBoolean(),
-                buffer.readBoolean(),
-                buffer.readVarInt(),
-                buffer.readVarInt(),
-                buffer.readVarInt(),
-                buffer.readVarInt(),
-                buffer.readBoolean(),
-                buffer.readVarInt(),
-                buffer.readVarInt()
-        );
+        return new ServerConfigPayload(buffer);
     }
 
-    @Override
+    private ServerConfigPayload(PacketBuffer buffer) {
+        this(readValues(buffer));
+    }
+
+    private static Map<String, String> readValues(PacketBuffer buffer) {
+        int size = buffer.readVarInt();
+        Map<String, String> read = new LinkedHashMap<>(Math.max(1, size));
+        for (int index = 0; index < size; index++) {
+            read.put(buffer.readString(32767), buffer.readString(32767));
+        }
+        return read;
+    }
+
     public void write(PacketBuffer buffer) {
-        buffer.writeBoolean(lightingTaskEnabled);
-        buffer.writeBoolean(survivalConsumesTorches);
-        buffer.writeVarInt(maxBoxAxisLength);
-        buffer.writeVarInt(maxSphereRadius);
-        buffer.writeVarInt(maxExclusions);
-        buffer.writeVarInt(maxTorchesPerTask);
-        buffer.writeBoolean(allowsUnlimitedTorches);
-        buffer.writeVarInt(minSpacing);
-        buffer.writeVarInt(maxSpacing);
+        buffer.writeVarInt(values.size());
+        values.forEach((key, value) -> {
+            buffer.writeString(key);
+            buffer.writeString(value);
+        });
     }
 
+    /** 当前服务端实际生效的配置（包含间距上下限的归一化结果）。 */
     public static ServerConfigPayload current() {
-        return new ServerConfigPayload(
-                ServerConfig.lightingTaskEnabled(),
-                ServerConfig.survivalConsumesTorches(),
-                ServerConfig.maxBoxAxisLength(),
-                ServerConfig.maxSphereRadius(),
-                ServerConfig.maxExclusions(),
-                ServerConfig.maxTorchesPerTask(),
-                ServerConfig.allowsUnlimitedTorches(),
-                ServerConfig.minSpacing(),
-                ServerConfig.maxSpacing()
-        );
+        Map<String, String> values = new LinkedHashMap<>();
+        for (ConfigDefinitions.Value definition : ServerConfig.definitions()) {
+            values.put(definition.key(), String.valueOf(ServerConfig.get(definition.key())));
+        }
+        return new ServerConfigPayload(values);
     }
 
+    /** 全部服务端配置的默认值，用于客户端在登录前显示。 */
     public static ServerConfigPayload defaults() {
-        return new ServerConfigPayload(
-                ConfigDefinitions.LIGHTING_TASK_ENABLED.defaultValue(),
-                ConfigDefinitions.GAMEPLAY_SURVIVAL_CONSUMES_TORCHES.defaultValue(),
-                ConfigDefinitions.LIMIT_MAX_BOX_AXIS_LENGTH.defaultValue(),
-                ConfigDefinitions.LIMIT_MAX_SPHERE_RADIUS.defaultValue(),
-                ConfigDefinitions.LIMIT_MAX_EXCLUSIONS.defaultValue(),
-                ConfigDefinitions.LIMIT_MAX_TORCHES_PER_TASK.defaultValue(),
-                ConfigDefinitions.LIMIT_ALLOW_UNLIMITED_TORCHES.defaultValue(),
-                ConfigDefinitions.LIMIT_MIN_SPACING.defaultValue(),
-                ConfigDefinitions.LIMIT_MAX_SPACING.defaultValue()
-        );
+        Map<String, String> values = new LinkedHashMap<>();
+        for (ConfigDefinitions.Value definition : ServerConfig.definitions()) {
+            values.put(definition.key(), definition.defaultValueText());
+        }
+        return new ServerConfigPayload(values);
     }
 
     @Override

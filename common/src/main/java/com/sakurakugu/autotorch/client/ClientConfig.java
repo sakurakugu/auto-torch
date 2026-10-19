@@ -3,22 +3,58 @@ package com.sakurakugu.autotorch.client;
 import com.sakurakugu.autotorch.config.ConfigBackend;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.DoubleValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.StringValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 
-import java.util.Arrays;
 import java.util.List;
+import net.minecraft.item.Item;
+import net.minecraft.init.Items;
+import net.minecraft.init.Blocks;
+import net.minecraft.item.ItemBlock;
+import net.minecraft.util.ResourceLocation;
+// 1.11.2 的 ForgeRegistries 位于 net.minecraftforge.fml.common.registry 包。
+import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
 import static com.sakurakugu.autotorch.config.ConfigDefinitions.*;
 
-/** Loader-neutral facade for persistent client settings. */
+/** 各加载器共用的客户端配置读写入口。 */
 public final class ClientConfig {
     private static ConfigBackend backend = new MemoryConfigBackend();
+    private static volatile ClientConfigSnapshot cached = ClientConfigSnapshot.defaults();
+    private static volatile ClientConfigSnapshot applied;
+    private static volatile ItemCache itemCache;
 
     private ClientConfig() {
     }
 
     public static void install(ConfigBackend value) {
         backend = value;
+        reload();
+    }
+
+    /** Forge 配置在注册后才加载，由加载事件发布第一个快照。 */
+    public static void installDeferred(ConfigBackend value) {
+        backend = value;
+        cached = ClientConfigSnapshot.defaults();
+        itemCache = null;
+    }
+
+    public static ClientConfigSnapshot snapshot() { return cached; }
+
+    /** 重载可来自文件监听线程；只发布不可变快照，世界状态在客户端 tick 更新。 */
+    public static synchronized void reload() {
+        cached = ClientConfigSnapshot.load(backend);
+        itemCache = null;
+    }
+
+    public static void applyPendingReload() {
+        ClientConfigSnapshot current = cached;
+        if (applied != current) {
+            applied = current;
+            LightOverlayState.reloadConfig();
+            SelectionState.reloadConfig();
+        }
     }
 
     /** 恢复全部客户端配置并立即持久化。 */
@@ -27,38 +63,81 @@ public final class ClientConfig {
     }
 
     public static void resetNearbyAutoTorchDefaults() {
-        reset(Arrays.<Value>asList(NEARBY_AUTO_TORCH_ENABLED, NEARBY_AUTO_TORCH_LIGHT_THRESHOLD,
-                NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT));
+        resetDefaults(ClientCategory.NEARBY_AUTO_TORCH);
     }
 
     public static void resetLightOverlayDefaults() {
-        reset(Arrays.<Value>asList(LIGHT_OVERLAY_ENABLED, LIGHT_OVERLAY_HORIZONTAL_RANGE,
-                LIGHT_OVERLAY_RENDER_THROUGH, LIGHT_OVERLAY_NUMBER_ROTATION,
-                LIGHT_OVERLAY_DOWN_RANGE, LIGHT_OVERLAY_UP_RANGE,
-                LIGHT_OVERLAY_MODE,
-                LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED));
+        resetDefaults(ClientCategory.LIGHT_OVERLAY);
     }
 
     public static void resetLightingTaskDefaults() {
-        reset(Arrays.<Value>asList(SELECTION_OVERLAY_ENABLED, SELECTION_OVERLAY_LINES_ONLY,
-                SELECTION_OVERLAY_SMOOTH_SPHERES, TASK_DEFAULT_MAX_TORCHES,
-                TASK_DEFAULT_MIN_SPACING, TASK_DEFAULT_LIGHT_THRESHOLD,
-                TASK_DEFAULT_UNDERGROUND_ONLY, TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES,
-                TASK_DEFAULT_SURVIVAL_CONSUMES_TORCHES,
-                TASK_DEFAULT_WOODEN_AXE_SELECTION_ENABLED));
+        resetDefaults(ClientCategory.LIGHTING_TASK);
+    }
+
+    public static void resetDefaults(ClientCategory category) {
+        reset(category.definitions());
+    }
+
+    /** 只恢复一个客户端配置项。 */
+    public static void resetDefaults(Value definition) {
+        if (!CLIENT.contains(definition)) throw new IllegalArgumentException("Unknown client setting");
+        reset(java.util.Arrays.asList(definition));
+    }
+
+    /** 只恢复指定 TOML 配置节，未知节名不会触发全部重置。 */
+    public static void resetDefaults(String section) {
+        List<Value> definitions = CLIENT.stream().filter(value -> value.key().startsWith(section + ".")).collect(java.util.stream.Collectors.toList());
+        if (definitions.isEmpty()) throw new IllegalArgumentException("Unknown client section: " + section);
+        reset(definitions);
     }
 
     private static void reset(List<Value> definitions) {
         for (Value definition : definitions) {
-            if (definition instanceof BooleanValue) {
-                BooleanValue value = (BooleanValue) definition;
-                backend.setBoolean(value.key(), value.defaultValue());
-            } else if (definition instanceof IntValue) {
-                IntValue value = (IntValue) definition;
-                backend.setInt(value.key(), value.defaultValue());
-            }
+            if (definition instanceof BooleanValue) backend.setBoolean(((BooleanValue) definition).key(), ((BooleanValue) definition).defaultValue());
+            else if (definition instanceof IntValue) backend.setInt(((IntValue) definition).key(), ((IntValue) definition).defaultValue());
+            else if (definition instanceof DoubleValue) backend.setDouble(((DoubleValue) definition).key(), ((DoubleValue) definition).defaultValue());
+            else if (definition instanceof StringValue) backend.setString(((StringValue) definition).key(), ((StringValue) definition).defaultValue());
         }
         backend.save();
+        reload();
+        LightOverlayState.reloadConfig();
+        SelectionState.reloadConfig();
+    }
+
+    public static Object get(Value definition) {
+        return cached.get(definition);
+    }
+
+    public static void set(Value definition, String rawValue) {
+        try {
+            if (definition instanceof BooleanValue) {
+                if (!rawValue.equalsIgnoreCase("true") && !rawValue.equalsIgnoreCase("false")) throw new IllegalArgumentException();
+                backend.setBoolean(((BooleanValue) definition).key(), Boolean.parseBoolean(rawValue));
+            } else if (definition instanceof IntValue) {
+                int parsed = Integer.parseInt(rawValue);
+                if (!((IntValue) definition).accepts(parsed)) throw new IllegalArgumentException();
+                backend.setInt(((IntValue) definition).key(), parsed);
+            } else if (definition instanceof DoubleValue) {
+                double parsed = Double.parseDouble(rawValue);
+                if (!Double.isFinite(parsed) || parsed < ((DoubleValue) definition).minValue() || parsed > ((DoubleValue) definition).maxValue()) throw new IllegalArgumentException();
+                backend.setDouble(((DoubleValue) definition).key(), parsed);
+            } else if (definition instanceof StringValue) {
+                if (!((StringValue) definition).accepts(rawValue)) throw new IllegalArgumentException();
+                if (((StringValue) definition) == SELECTION_TOOL_ITEM || ((StringValue) definition) == NEARBY_AUTO_TORCH_ITEM || ((StringValue) definition) == TASK_DEFAULT_PLACEMENT_ITEM) {
+                    Item item = resolveItem(rawValue);
+                    if (item == null || item == Items.AIR || (((StringValue) definition) != SELECTION_TOOL_ITEM && !(item instanceof ItemBlock))) {
+                        throw new IllegalArgumentException();
+                    }
+                }
+                backend.setString(((StringValue) definition).key(), rawValue);
+            }
+            backend.save();
+            reload();
+            if (definition.key().startsWith("lightOverlay.")) LightOverlayState.reloadConfig();
+            if (definition.key().startsWith("selectionOverlay.")) SelectionState.reloadConfig();
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException("Invalid value for " + definition.key(), exception);
+        }
     }
 
     public static boolean isNearbyAutoTorchEnabled() { return bool(NEARBY_AUTO_TORCH_ENABLED); }
@@ -97,39 +176,111 @@ public final class ClientConfig {
     public static void setDefaultMinSpacing(int value) { setInt(TASK_DEFAULT_MIN_SPACING, value); }
     public static int defaultTaskLightThreshold() { return integer(TASK_DEFAULT_LIGHT_THRESHOLD); }
     public static void setDefaultTaskLightThreshold(int value) { setInt(TASK_DEFAULT_LIGHT_THRESHOLD, value); }
-    public static boolean isDefaultUndergroundOnly() { return bool(TASK_DEFAULT_UNDERGROUND_ONLY); }
-    public static void setDefaultUndergroundOnly(boolean value) { setBool(TASK_DEFAULT_UNDERGROUND_ONLY, value); }
+    public static boolean isDefaultIncludeSkyLight() { return bool(TASK_DEFAULT_INCLUDE_SKY_LIGHT); }
+    public static void setDefaultIncludeSkyLight(boolean value) { setBool(TASK_DEFAULT_INCLUDE_SKY_LIGHT, value); }
     public static boolean creativeConsumesTorches() { return bool(TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES); }
     public static void setCreativeConsumesTorches(boolean value) { setBool(TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES, value); }
     public static boolean survivalConsumesTorches() { return bool(TASK_DEFAULT_SURVIVAL_CONSUMES_TORCHES); }
     public static void setSurvivalConsumesTorches(boolean value) { setBool(TASK_DEFAULT_SURVIVAL_CONSUMES_TORCHES, value); }
-    public static boolean isWoodenAxeSelectionEnabled() { return bool(TASK_DEFAULT_WOODEN_AXE_SELECTION_ENABLED); }
-    public static void setWoodenAxeSelectionEnabled(boolean value) { setBool(TASK_DEFAULT_WOODEN_AXE_SELECTION_ENABLED, value); }
+    public static boolean isSelectionToolEnabled() { return bool(SELECTION_TOOL_ENABLED); }
+    public static void setSelectionToolEnabled(boolean value) { setBool(SELECTION_TOOL_ENABLED, value); }
+    public static boolean isWoodenAxeSelectionEnabled() { return isSelectionToolEnabled(); }
+    public static void setWoodenAxeSelectionEnabled(boolean value) { setSelectionToolEnabled(value); }
+    public static boolean isDefaultUndergroundOnly() { return !isDefaultIncludeSkyLight(); }
+    public static void setDefaultUndergroundOnly(boolean value) { setDefaultIncludeSkyLight(!value); }
+    /** 区间插火把界面的转换与互换按钮是否用符号显示；关闭时显示文字。 */
+    public static boolean usesSymbolButtons() { return bool(SELECTION_OVERLAY_SYMBOL_BUTTONS); }
+
+    public static int nearbyScanInterval() { return integer(NEARBY_AUTO_TORCH_SCAN_INTERVAL); }
+    public static int nearbyDarkConfirmTicks() { return integer(NEARBY_AUTO_TORCH_DARK_CONFIRM); }
+    public static int nearbyRetryDelay() { return integer(NEARBY_AUTO_TORCH_RETRY_DELAY); }
+    public static int nearbyHorizontalRadius() { return integer(NEARBY_AUTO_TORCH_HORIZONTAL_RADIUS); }
+    public static String nearbyItemId() { return string(NEARBY_AUTO_TORCH_ITEM); }
+    public static double doubleValue(DoubleValue value) {
+        return cached.decimal(value);
+    }
+    public static String stringValue(StringValue value) { return string(value); }
+    public static Item selectionToolItem() {
+        return items(cached).selectionTool;
+    }
+    public static ItemBlock nearbyPlacementItem() {
+        return (ItemBlock) items(cached).nearbyPlacement;
+    }
+    private static Item resolveItem(String rawId) {
+        if (rawId == null || rawId.trim().isEmpty()) return null;
+        try {
+            return ForgeRegistries.ITEMS.getValue(new ResourceLocation(rawId));
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+    public static int intValue(IntValue value) {
+        return cached.integer(value);
+    }
 
     private static boolean bool(BooleanValue definition) {
-        return backend.getBoolean(definition.key(), definition.defaultValue());
+        return cached.bool(definition);
     }
 
     private static int integer(IntValue definition) {
-        return definition.clamp(backend.getInt(definition.key(), definition.defaultValue()));
+        return cached.integer(definition);
+    }
+
+    private static String string(StringValue definition) {
+        return cached.string(definition);
     }
 
     private static void setBool(BooleanValue definition, boolean value) {
         backend.setBoolean(definition.key(), value);
         backend.save();
+        reload();
     }
 
     private static void setInt(IntValue definition, int value) {
         backend.setInt(definition.key(), value);
         backend.save();
+        reload();
+    }
+
+    public static ItemBlock nearbyPlacementItem(ClientConfigSnapshot config) {
+        return (ItemBlock) items(config).nearbyPlacement;
+    }
+
+    private static ItemCache items(ClientConfigSnapshot config) {
+        ItemCache current = itemCache;
+        if (current == null || current.config != config) {
+            // 首次实际交互时注册表已经就绪；之后只在配置变化时重新解析 ID。
+            current = new ItemCache(config);
+            itemCache = current;
+        }
+        return current;
+    }
+
+    private static final class ItemCache {
+        private final ClientConfigSnapshot config;
+        private final Item selectionTool;
+        private final Item nearbyPlacement;
+
+        private ItemCache(ClientConfigSnapshot config) {
+            this.config = config;
+            Item tool = resolveItem(config.selectionToolItem);
+            selectionTool = tool == null || tool == Items.AIR ? Items.WOODEN_AXE : tool;
+            Item placement = resolveItem(config.nearbyAutoTorchItem);
+            // 1.11.2 没有 Block#asItem()，统一用 Item.getItemFromBlock 取物品形态。
+            nearbyPlacement = placement instanceof ItemBlock ? placement : Item.getItemFromBlock(Blocks.TORCH);
+        }
     }
 
     private static final class MemoryConfigBackend implements ConfigBackend {
         private final java.util.Map<String, Object> values = new java.util.HashMap<>();
         public boolean getBoolean(String key, boolean fallback) { return (boolean) values.getOrDefault(key, fallback); }
         public int getInt(String key, int fallback) { return (int) values.getOrDefault(key, fallback); }
+        public double getDouble(String key, double fallback) { return (double) values.getOrDefault(key, fallback); }
+        public String getString(String key, String fallback) { return (String) values.getOrDefault(key, fallback); }
         public void setBoolean(String key, boolean value) { values.put(key, value); }
         public void setInt(String key, int value) { values.put(key, value); }
+        public void setDouble(String key, double value) { values.put(key, value); }
+        public void setString(String key, String value) { values.put(key, value); }
         public void save() { }
     }
 }

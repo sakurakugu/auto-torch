@@ -103,6 +103,11 @@ public final class LightingTaskManager {
             sendSystemMessage(player, new TextComponentTranslation("message.autotorch.invalid_settings"));
             return;
         }
+        net.minecraft.item.ItemBlock placementItem = resolveBlockItem(payload.placementItem());
+        if (placementItem == null || !ConfigDefinitions.TASK_PROGRESS_INTERVAL.accepts(payload.progressIntervalTicks())) {
+            sendSystemMessage(player, new TextComponentTranslation("message.autotorch.invalid_settings"));
+            return;
+        }
         if (!TASKS.containsKey(player.getUniqueID()) && TASKS.size() >= ServerConfig.maxConcurrentTasks()) {
             sendSystemMessage(player, new TextComponentTranslation("message.autotorch.server_busy"));
             return;
@@ -120,7 +125,7 @@ public final class LightingTaskManager {
         LightingTask task = new LightingTask(
                 player.getServerWorld(), selection, scanMin, scanMax, maxTorches, minSpacing, secondPassMinimumSpacing,
                 lightThreshold,
-                consumeTorches, payload.undergroundOnly(),
+                consumeTorches, payload.undergroundOnly(), placementItem, payload.progressIntervalTicks(),
                 payload.exclusions(), player.getUniqueID()
         );
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
@@ -134,6 +139,17 @@ public final class LightingTaskManager {
                     secondPassMinimumSpacing, lightThreshold));
         }
         task.showInitialProgress(player);
+    }
+
+    private static net.minecraft.item.ItemBlock resolveBlockItem(String id) {
+        try {
+            // 1.11.2 的 ForgeRegistries 位于 net.minecraftforge.fml.common.registry 包。
+            net.minecraft.item.Item item = net.minecraftforge.fml.common.registry.ForgeRegistries.ITEMS
+                    .getValue(new net.minecraft.util.ResourceLocation(id));
+            return item instanceof net.minecraft.item.ItemBlock ? (net.minecraft.item.ItemBlock) item : null;
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
     private static boolean isValidZone(AreaZone zone) {
