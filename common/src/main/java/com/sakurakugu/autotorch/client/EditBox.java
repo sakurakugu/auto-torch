@@ -8,6 +8,7 @@ import net.minecraft.client.gui.GuiTextField;
 final class EditBox extends GuiTextField implements Widget {
     public boolean visible = true;
     private Consumer<String> responder = value -> {};
+
     EditBox(FontRenderer font, int x, int y, int width, int height, String ignored) {
         super(0, font, x, y, width, height);
     }
@@ -17,19 +18,27 @@ final class EditBox extends GuiTextField implements Widget {
     String getValue() { return getText(); }
     void setResponder(Consumer<String> responder) { this.responder = responder; }
     void setX(int x) { this.xPosition = x; }
+
+    /** 1.13 的文本框有 tick()，1.10.2 用 updateCursorCounter 维护光标闪烁。 */
+    void tick() { updateCursorCounter(); }
+
     void render(int mouseX, int mouseY, float partialTicks) {
         if (visible) drawTextBox();
     }
+
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (!visible) return false;
         super.mouseClicked((int) mouseX, (int) mouseY, button);
         return isMouseOver(mouseX, mouseY);
     }
-    @Override public boolean textboxKeyTyped(char typedChar, int keyCode) {
+
+    @Override
+    public boolean textboxKeyTyped(char typedChar, int keyCode) {
         boolean handled = visible && super.textboxKeyTyped(typedChar, keyCode);
         if (handled) responder.accept(getText());
         return handled;
     }
+
     @Override public int y() { return yPosition; }
     @Override public void setY(int y) { this.yPosition = y; }
     @Override public boolean isVisible() { return visible; }
