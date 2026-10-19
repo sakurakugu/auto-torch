@@ -9,6 +9,8 @@ import org.lwjgl.input.Keyboard;
 abstract class AbstractSliderButton extends Button {
     private static final ResourceLocation WIDGETS_LOCATION = new ResourceLocation("minecraft", "textures/gui/widgets.png");
     protected double value;
+    /** 1.12.2 的 GuiButton.drawButton 每帧都会调用 mouseDragged，必须自己记录是否正在拖动。 */
+    private boolean dragging;
 
     AbstractSliderButton(int x, int y, int width, int height, double value) {
         super(x, y, width, height, "", button -> { });
@@ -17,12 +19,22 @@ abstract class AbstractSliderButton extends Button {
 
     @Override
     public void onClick(double mouseX, double mouseY) {
+        dragging = true;
         updateFromMouse(mouseX);
     }
 
     @Override
     protected void onDrag(double mouseX, double mouseY, double deltaX, double deltaY) {
-        updateFromMouse(mouseX);
+        // 只有真正按住滑块时才跟随鼠标，否则绘制阶段的 mouseDragged 会让滑块自己滑动。
+        if (dragging) {
+            updateFromMouse(mouseX);
+        }
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        dragging = false;
+        return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override

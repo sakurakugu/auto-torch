@@ -9,6 +9,8 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.util.text.ITextComponent;
 import org.lwjgl.input.Mouse;
 
@@ -50,16 +52,31 @@ abstract class Screen extends GuiScreen {
 
     protected List<Object> children() { return children; }
 
-    /** 1.12.2 的 drawScreen 会统一绘制背景；保持空实现避免新版界面重复压暗背景。 */
-    protected void renderBackground() { }
+    /** 1.13 的界面在 render 开头调用本方法；1.12.2 必须自己绘制默认背景。 */
+    protected void renderBackground() { drawDefaultBackground(); }
 
     protected void renderTooltip(String text, int mouseX, int mouseY) {
         // 旧版 .lang 无法直接保存多行值，构建时会把换行写成字面量 \n。
         drawHoveringText(Arrays.asList(text.replace("\\n", "\n").split("\n")), mouseX, mouseY);
+        restoreGuiRenderState();
     }
 
     protected void renderTooltip(List<String> lines, int mouseX, int mouseY) {
         drawHoveringText(lines, mouseX, mouseY);
+        restoreGuiRenderState();
+    }
+
+    /**
+     * 1.12.2 的 Forge 提示框绘制结束时会重新开启标准物品光照与深度测试，
+     * 而新版界面会在提示框之后继续画文字和图标，必须恢复 GUI 的 2D 状态，
+     * 否则后续文字会被光照压暗（鼠标悬停时更明显）。
+     */
+    private static void restoreGuiRenderState() {
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        GlStateManager.enableTexture2D();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
     protected void setInitialFocus(EditBox box) { box.setFocused(true); }
@@ -182,6 +199,11 @@ abstract class Screen extends GuiScreen {
     public void render(int mouseX, int mouseY, float partialTicks) {
         lastMouseX = mouseX;
         lastMouseY = mouseY;
+        // 1.12.2 的按钮绘制、世界渲染与提示框都可能留下光照/深度状态，
+        // 进入 2D 界面绘制前统一关闭，避免文字或控件被压暗、被深度测试遮挡。
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 

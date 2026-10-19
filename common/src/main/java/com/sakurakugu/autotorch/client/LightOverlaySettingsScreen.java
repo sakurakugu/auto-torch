@@ -42,6 +42,7 @@ public final class LightOverlaySettingsScreen extends Screen {
 
     @Override
     public void render(int mouseX, int mouseY, float partialTick) {
+        renderBackground();
         super.render(mouseX, mouseY, partialTick);
         drawCenteredString(font, title.getFormattedText(), width / 2, 16, 0xFFFFFFFF);
     }

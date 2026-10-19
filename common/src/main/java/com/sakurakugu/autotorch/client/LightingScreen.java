@@ -1013,8 +1013,7 @@ public final class LightingScreen extends Screen {
     @Override
     public void render(int mouseX, int mouseY, float partialTick) {
         // 背景先按整屏绘制，再裁剪滚动内容，避免屏幕上下留出未压暗区域。
-        // 注意 1.12.2 的 drawScreen 会在裁剪区内自动再画一次背景，这里先补画整屏背景。
-        drawDefaultBackground();
+        renderBackground();
         enableViewportScissor();
         super.render(mouseX, mouseY, partialTick);
         for (Object child : children()) {
