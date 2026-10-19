@@ -1,34 +1,30 @@
 package com.sakurakugu.autotorch.client;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
+import com.sakurakugu.autotorch.client.ui.IconButton;
+import com.sakurakugu.autotorch.client.ui.PixelGlyph;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
 
-/** 列出照明范围和所有排除区，并提供分页、原位修改和单条删除。 */
+/** 列出照明范围和所有排除区，并提供分页、原位修改、单条删除和一键清空。 */
 public final class ExclusionListScreen extends Screen {
     private static final int PAGE_SIZE = 6;
     private static final int LIGHTING_TEXT_COLOR = 0xFF50FF70;
     private static final int EXCLUSION_TEXT_COLOR = 0xFFFF5050;
-    private final Map<AbstractWidget, Component> tooltips = new LinkedHashMap<>();
     private int page;
+    private Component status = new net.minecraft.network.chat.TextComponent("");
 
     public ExclusionListScreen() {
-        super(new TranslatableComponent("screen.autotorch.exclusions_title"));
+        super(new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.exclusions_title"));
     }
 
     @Override
     protected void init() {
-        tooltips.clear();
         AreaZone lightingZone = SelectionState.lightingZone();
         List<AreaZone> exclusions = SelectionState.exclusions();
         int total = exclusions.size() + (lightingZone == null ? 0 : 1);
@@ -41,59 +37,69 @@ public final class ExclusionListScreen extends Screen {
 
         for (int index = firstIndex; index < lastIndex; index++) {
             int row = index - firstIndex;
-            int y = 34 + row * 24;
+            int y = 36 + row * 24;
             int selectedIndex = index;
             boolean lightingEntry = lightingZone != null && index == 0;
-            Button editButton = addRenderableWidget(new ScrollingButton(left + panelWidth - 108, y, 50, 20,
-                    new TranslatableComponent(lightingEntry
-                            ? "screen.autotorch.edit_lighting" : "screen.autotorch.edit_exclusion"), button -> {
-                int exclusionIndex = selectedIndex - (SelectionState.lightingZone() == null ? 0 : 1);
-                boolean editing = lightingEntry
-                        ? SelectionState.beginEditingLightingZone()
-                        : SelectionState.beginEditingExclusion(exclusionIndex);
-                if (editing) {
-                    minecraft.setScreen(new LightingScreen());
-                }
-            }));
-            tooltips.put(editButton, new TranslatableComponent(lightingEntry
+            // 每行右侧依次放置修改和删除图标，与“全部设置”页的按钮列保持一致。
+            IconButton edit = addRenderableWidget(new IconButton(left + panelWidth - 44, y, 20, 20,
+                    PixelGlyph.PENCIL,
+                    new net.minecraft.network.chat.TranslatableComponent(lightingEntry
+                            ? "screen.autotorch.edit_lighting" : "screen.autotorch.edit_exclusion"),
+                    button -> {
+                        int exclusionIndex = selectedIndex - (SelectionState.lightingZone() == null ? 0 : 1);
+                        boolean editing = lightingEntry
+                                ? SelectionState.beginEditingLightingZone()
+                                : SelectionState.beginEditingExclusion(exclusionIndex);
+                        if (editing) {
+                            minecraft.setScreen(new LightingScreen());
+                        }
+                    }));
+            LegacyTooltips.set(edit, new net.minecraft.network.chat.TranslatableComponent(lightingEntry
                     ? "screen.autotorch.edit_lighting.tooltip" : "screen.autotorch.edit_exclusion.tooltip"));
-            addRenderableWidget(new ColoredButton(left + panelWidth - 54, y, 54, 20,
-                    new TranslatableComponent("screen.autotorch.delete_zone"), button -> {
+            addRenderableWidget(new IconButton(left + panelWidth - 20, y, 20, 20, PixelGlyph.TRASH,
+                    new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.delete_zone"), button -> {
                         if (lightingEntry) {
                             SelectionState.removeLightingZone();
                         } else {
                             int exclusionIndex = selectedIndex - (SelectionState.lightingZone() == null ? 0 : 1);
                             SelectionState.removeExclusion(exclusionIndex);
                         }
-                        rebuildWidgets();
-                    }, 0xDDA52B2B, 0xEEC83C3C));
+                        clearWidgets();
+                        init(minecraft, width, height);
+                    }));
         }
 
-        Button previous = addRenderableWidget(new ScrollingButton(left, 184, 80, 20,
-                new TranslatableComponent("screen.autotorch.previous_page"), button -> {
+        // 左上返回、右上键清空全部照明范围和排除区。
+        addRenderableWidget(new IconButton(left, 8, 20, 20, PixelGlyph.BACK,
+                new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.back"), button -> onClose()));
+        addRenderableWidget(new IconButton(left + panelWidth - 20, 8, 20, 20, PixelGlyph.RESET,
+                new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.clear_all_zones"), button -> {
+                    SelectionState.clearZones();
+                    status = new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.zones_cleared");
+                    page = 0;
+                    clearWidgets();
+                    init(minecraft, width, height);
+                }));
+
+        // 底部上一页、下一页同样改用图标，页码居中显示在两者之间。
+        int pageHalfWidth = (font.width(pageSummary()) + 1) / 2;
+        addRenderableWidget(new IconButton(width / 2 - pageHalfWidth - 28, height - 32, 20, 20,
+                PixelGlyph.ARROW_LEFT, new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.previous_page"), button -> {
             page--;
-            rebuildWidgets();
-        }));
-        previous.active = page > 0;
-
-        addRenderableWidget(new ScrollingButton(width / 2 - 50, 184, 100, 20,
-                new TranslatableComponent("screen.autotorch.back"), button -> onClose()));
-
-        Button next = addRenderableWidget(new ScrollingButton(left + panelWidth - 80, 184, 80, 20,
-                new TranslatableComponent("screen.autotorch.next_page"), button -> {
+            clearWidgets();
+            init(minecraft, width, height);
+        })).active = page > 0;
+        addRenderableWidget(new IconButton(width / 2 + pageHalfWidth + 8, height - 32, 20, 20,
+                PixelGlyph.ARROW_RIGHT, new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.next_page"), button -> {
             page++;
-            rebuildWidgets();
-        }));
-        next.active = page < maxPage;
-    }
-
-    private void rebuildWidgets() {
-        clearWidgets();
-        init();
+            clearWidgets();
+            init(minecraft, width, height);
+        })).active = page < maxPage;
     }
 
     @Override
     public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
+        renderBackground(poseStack);
         super.render(poseStack, mouseX, mouseY, partialTick);
         AreaZone lightingZone = SelectionState.lightingZone();
         List<AreaZone> exclusions = SelectionState.exclusions();
@@ -103,50 +109,52 @@ public final class ExclusionListScreen extends Screen {
         int firstIndex = page * PAGE_SIZE;
         int lastIndex = Math.min(firstIndex + PAGE_SIZE, total);
 
-        drawCenteredString(poseStack, font, title, width / 2, 12, 0xFFFFFFFF);
+        drawCenteredString(poseStack, font, title, width / 2, 14, 0xFFFFFFFF);
+        if (!status.getString().isEmpty()) {
+            drawCenteredString(poseStack, font, status, width / 2, height - 46, 0xFFB0B0B0);
+        }
         if (total == 0) {
-            drawCenteredString(poseStack, font, new TranslatableComponent("screen.autotorch.no_zone"),
-                    width / 2, 82, 0xFFA0A0A0);
+            drawCenteredString(poseStack, font, new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.no_zone"), width / 2, 82, 0xFFA0A0A0);
         }
         for (int index = firstIndex; index < lastIndex; index++) {
-            int y = 40 + (index - firstIndex) * 24;
+            int y = 42 + (index - firstIndex) * 24;
             boolean lightingEntry = lightingZone != null && index == 0;
             int exclusionIndex = index - (lightingZone == null ? 0 : 1);
             String description = lightingEntry
                     ? describeLighting(lightingZone).getString()
                     : describeExclusion(exclusionIndex, exclusions.get(exclusionIndex)).getString();
-            int availableWidth = panelWidth - 116;
+            int availableWidth = panelWidth - 52;
             if (font.width(description) > availableWidth) {
                 description = font.plainSubstrByWidth(description, Math.max(0, availableWidth - font.width("..."))) + "...";
             }
             drawString(poseStack, font, description, left + 4, y,
                     lightingEntry ? LIGHTING_TEXT_COLOR : EXCLUSION_TEXT_COLOR);
         }
-        drawCenteredString(poseStack, font, new TranslatableComponent("screen.autotorch.page_summary",
-                page + 1, maxPage(total) + 1, lightingZone == null ? 0 : 1, exclusions.size()),
-                width / 2, 212, 0xFFA0A0A0);
-        for (Map.Entry<AbstractWidget, Component> entry : tooltips.entrySet()) {
-            if (entry.getKey().visible && entry.getKey().isMouseOver(mouseX, mouseY)) {
-                renderTooltip(poseStack,
-                        TooltipRenderer.split(font, entry.getValue(), width, mouseX), mouseX, mouseY);
-                break;
-            }
-        }
+        drawCenteredString(poseStack, font, pageSummary(), width / 2, height - 25, 0xFFB0B0B0);
+        LegacyTooltips.render(this, poseStack, font, mouseX, mouseY);
+    }
+
+    private Component pageSummary() {
+        int lightingCount = SelectionState.lightingZone() == null ? 0 : 1;
+        int exclusionCount = SelectionState.exclusions().size();
+        int total = lightingCount + exclusionCount;
+        return new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.page_summary",
+                page + 1, maxPage(total) + 1, lightingCount, exclusionCount);
     }
 
     private static Component describeLighting(AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
-            return new TranslatableComponent("screen.autotorch.lighting_sphere_row", format(zone.first()), zone.radius());
+            return new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.lighting_sphere_row", format(zone.first()), zone.radius());
         }
-        return new TranslatableComponent("screen.autotorch.lighting_box_row", format(zone.first()), format(zone.second()));
+        return new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.lighting_box_row", format(zone.first()), format(zone.second()));
     }
 
     private static Component describeExclusion(int index, AreaZone zone) {
         if (zone.shape() == AreaShape.SPHERE) {
-            return new TranslatableComponent("screen.autotorch.exclusion_sphere_row",
+            return new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.exclusion_sphere_row",
                     index + 1, format(zone.first()), zone.radius());
         }
-        return new TranslatableComponent("screen.autotorch.exclusion_box_row",
+        return new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.exclusion_box_row",
                 index + 1, format(zone.first()), format(zone.second()));
     }
 

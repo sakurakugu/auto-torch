@@ -16,6 +16,8 @@ public record StartLightingPayload(
         int lightThreshold,
         boolean consumeTorches,
         boolean undergroundOnly,
+        String placementItem,
+        int progressIntervalTicks,
         List<AreaZone> exclusions
 ) implements AutoTorchPayload {
     public static final int MAX_EXCLUSIONS = 32;
@@ -33,6 +35,8 @@ public record StartLightingPayload(
                 buffer.readVarInt(),
                 buffer.readBoolean(),
                 buffer.readBoolean(),
+                buffer.readUtf(256),
+                buffer.readVarInt(),
                 readExclusions(buffer)
         );
     }
@@ -50,6 +54,8 @@ public record StartLightingPayload(
         buffer.writeVarInt(lightThreshold);
         buffer.writeBoolean(consumeTorches);
         buffer.writeBoolean(undergroundOnly);
+        buffer.writeUtf(placementItem, 256);
+        buffer.writeVarInt(progressIntervalTicks);
         buffer.writeVarInt(exclusions.size());
         for (AreaZone exclusion : exclusions) {
             writeZone(buffer, exclusion);

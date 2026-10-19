@@ -2,6 +2,7 @@ package com.sakurakugu.autotorch.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
@@ -20,7 +21,11 @@ import net.minecraft.world.item.ItemStack;
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
     private static boolean openScreenRequested;
+    /** 由网络回调写入、客户端 tick 读取，需要保证可见性。 */
+    private static volatile boolean openServerConfigRequested;
     private ClientLevel selectionToolSyncedLevel;
+    private boolean selectionToolSyncedEnabled;
+    private String selectionToolSyncedItem;
     public static final String CATEGORY = "key.category.autotorch.main";
     public static final KeyMapping OPEN_SCREEN = new KeyMapping(
             "key.autotorch.open_screen",
@@ -41,12 +46,20 @@ public final class AutoTorchClient {
             CATEGORY
     );
     public void tick(BlockPos lightOverlayCenter) {
+        ClientConfig.applyPendingReload();
         Minecraft minecraft = Minecraft.getInstance();
         // 处理打开选区面板的请求，避免在 tick 中直接打开 GUI 导致的异常。(仅限 Fabric 端的bug)
         if (openScreenRequested) {
             openScreenRequested = false;
             if (minecraft.player != null && minecraft.screen == null) {
                 minecraft.setScreen(new LightingScreen());
+            }
+        }
+        // 管理员界面由服务端命令触发；同样延迟到 tick 中打开，避免在网络回调里切换界面。
+        if (openServerConfigRequested) {
+            openServerConfigRequested = false;
+            if (minecraft.player != null && minecraft.screen == null) {
+                minecraft.setScreen(new ServerConfigScreen());
             }
         }
 
@@ -82,10 +95,15 @@ public final class AutoTorchClient {
         openScreenRequested = true;
     }
 
+    /** 服务端命令 /autotorch serverconfig gui 请求客户端打开管理员界面。 */
+    public static void requestOpenServerConfigScreen() {
+        openServerConfigRequested = true;
+    }
+
     public boolean onLeftClick(ClientLevel level, ItemStack stack, BlockPos pos, boolean start) {
-        if (!ClientConfig.isWoodenAxeSelectionEnabled()
+        if (!ClientConfig.isSelectionToolEnabled()
                 || !level.isClientSide()
-                || !stack.is(Items.WOODEN_AXE)) {
+                || !stack.is(ClientConfig.selectionToolItem())) {
             return false;
         }
         // 长按破坏方块会连续触发事件，只在 START 阶段记录一次 A 点。
@@ -101,10 +119,10 @@ public final class AutoTorchClient {
     }
 
     public boolean onRightClick(ClientLevel level, InteractionHand hand, ItemStack stack, BlockPos pos) {
-        if (!ClientConfig.isWoodenAxeSelectionEnabled()
+        if (!ClientConfig.isSelectionToolEnabled()
                 || !level.isClientSide()
                 || hand != InteractionHand.MAIN_HAND
-                || !stack.is(Items.WOODEN_AXE)) {
+                || !stack.is(ClientConfig.selectionToolItem())) {
             return false;
         }
         SelectionState.setSecond(pos);
@@ -132,12 +150,17 @@ public final class AutoTorchClient {
     }
 
     private void syncSelectionToolSetting(Minecraft minecraft) {
+        boolean enabled = ClientConfig.isSelectionToolEnabled();
+        String item = ClientConfig.stringValue(ConfigDefinitions.SELECTION_TOOL_ITEM);
         if (minecraft.level == null) {
             selectionToolSyncedLevel = null;
-        } else if (minecraft.player != null && minecraft.level != selectionToolSyncedLevel) {
+        } else if (minecraft.player != null && (minecraft.level != selectionToolSyncedLevel
+                || enabled != selectionToolSyncedEnabled || !item.equals(selectionToolSyncedItem))) {
             PlatformNetworking.sendToServer(
-                    new SetSelectionToolPayload(ClientConfig.isWoodenAxeSelectionEnabled()));
+                    new SetSelectionToolPayload(enabled, item));
             selectionToolSyncedLevel = minecraft.level;
+            selectionToolSyncedEnabled = enabled;
+            selectionToolSyncedItem = item;
         }
     }
 }
