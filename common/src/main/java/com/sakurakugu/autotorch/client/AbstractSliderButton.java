@@ -46,6 +46,13 @@ abstract class AbstractSliderButton extends Button {
                 x + width / 2, y + (height - 8) / 2, 0xFFFFFFFF);
     }
 
+    @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == 263 || keyCode == 262) {
+            value = clamp(value + (keyCode == 263 ? -1.0 : 1.0) / Math.max(1, width - 8));
+            applyValue(); updateMessage(); return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
     private void updateFromMouse(double mouseX) {
         value = clamp((mouseX - (x + 4)) / (width - 8.0));
         applyValue();

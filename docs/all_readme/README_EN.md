@@ -41,7 +41,7 @@ Digging out an area is tedious, and placing torches by hand makes it easy to mis
 - Nearby automatic torch placement:
   Searches for valid positions within two blocks of the player and uses right-click interaction to place torches from the inventory. A torch is placed only when the light level is below the threshold; you can choose whether sky light is included in the calculation.
 - Area automatic torch placement:
-  Select points A and B to define a cuboid (opposite corners) or sphere (center and radius), with wooden axe selection support. Set the selection as a lighting area (green) or exclusion area (red), adjust the block-light threshold, and click `Start Task`. One lighting area and multiple exclusion areas are supported.
+  Select points A and B to define a cuboid (opposite corners) or sphere (center and radius), with selection-tool support. Set the selection as a lighting area (green) or exclusion area (red), adjust the block-light threshold, and click `Start Task`. One lighting area and multiple exclusion areas are supported.
 - All features are available in the settings panel shown above.
 
 ## Building
@@ -104,7 +104,7 @@ When contributing a translation, submit the `.json` file in a pull request targe
 
 ### Area Automatic Torch Placement
 
-- Enter coordinates or select two points by left- and right-clicking with a wooden axe.
+- Enter coordinates or select two points by left- and right-clicking with the selection tool.
 - A cuboid uses A and B as opposite corners. A sphere uses A as its center and the straight-line distance from A to B as its radius.
 - You can configure one green lighting area and multiple red exclusion areas. Several display modes are available.
 - Set the task's maximum block light (0-15). The task processes positions whose block light is at or below that value, with air at two blocks of height, a block that can be stood on, and block light 0 at the placement position. Positions with sky light can be skipped.
@@ -122,6 +122,10 @@ Boolean options in configuration files use `true` or `false` without quotation m
 
 File: `config/autotorch-client.toml`
 
+Open each feature’s full settings from the main panel. Administrators can open server settings with `/autotorch serverconfig gui`.
+
+Use `/autotorch config set <section> <setting> <value>` to edit a setting, or `/autotorch config get <section> <setting>` to query it. For example: `/autotorch config set nearbyAutoTorch scanIntervalTicks 20`. Use `/autotorch config reset <section> [setting]` to reset one setting or section, or `/autotorch config reset group area|overlay|nearby` to reset a feature group. Without a scope, all client settings are reset. `defaults` is an alias for `reset`. See the [command guide (Chinese)](../命令使用.md). The complete client configuration and defaults follow:
+
 ```toml
 [nearbyAutoTorch]
 # Whether nearby automatic torch placement is enabled.
@@ -130,6 +134,16 @@ enabled = false
 lightThreshold = 4
 # true: use the greater of block light and sky light; false: use block light only.
 includeSkyLight = false
+# Scan interval: 1-40 ticks.
+scanIntervalTicks = 10
+# Continuous darkness confirmation: 5-40 ticks, step 5.
+darkConfirmTicks = 10
+# Retry delay for the same position: 10-100 ticks, step 10.
+retryDelayTicks = 40
+# Horizontal scan radius: 1-4 blocks; vertical range is fixed at -2 to +1.
+horizontalRadius = 2
+# Block item to place; keep it in your offhand or hotbar.
+item = "minecraft:torch"
 
 [lightOverlay]
 # Whether the light level overlay is enabled.
@@ -146,10 +160,27 @@ downRange = 16
 upRange = 4
 # Display style: 0 = X markers, 1 = numbers, 2 = boxed numbers.
 mode = 0
-# Whether to mark locations that meet the vanilla spawning conditions for swamp slimes.
+# Swamp slime detection is unavailable on 1.13.2; standard spawn markers are used.
 detectSwampSlimes = false
 # Whether to mark locations that meet the vanilla spawning conditions for drowned.
 detectDrowned = false
+# Scan budget per tick: 2000-48000, step 2000.
+scanBudgetPerTick = 12000
+# Periodic refresh interval: 20-400 ticks, step 20.
+refreshIntervalTicks = 100
+# Drowned occlusion checks per frame: 16-256, step 16; unused on this version.
+drownedBudgetPerFrame = 64
+# Near line width: 0.25-8.0; minimum far line width: 0.75-2.5.
+nearLineWidth = 2.5
+farLineWidth = 0.75
+# Marker colors: six-digit hexadecimal RGB, without #.
+alwaysRiskColor = "FF3030"
+nightRiskColor = "FFD23C"
+safeColor = "50E060"
+swampSlimeColor = "E050E0"
+drownedColor = "40D8E8"
+# Marker opacity: 0-255.
+markerAlpha = 224
 
 [selectionOverlay]
 # Whether to display the lighting area and exclusion areas.
@@ -158,23 +189,44 @@ enabled = true
 linesOnly = false
 # Whether to use smoother rendering for spherical selections.
 smoothSpheres = false
+# Near line width: 0.25-8.0; minimum far line width: 0.75-3.0.
+nearLineWidth = 3.0
+farLineWidth = 0.75
+# Draft, lighting area and exclusion colors: six-digit hexadecimal RGB.
+draftColor = "70A0FF"
+mainColor = "50FF70"
+exclusionColor = "FF5050"
+# Selection face and exclusion face opacity: 0-255.
+faceAlpha = 40
+exclusionFaceAlpha = 48
+# Sphere longitude and latitude segments: 12-48, step 4.
+sphereLongitudeSegments = 24
+sphereLatitudeSegments = 12
+# Selection tool: any valid non-air item ID.
+toolItem = "minecraft:wooden_axe"
+# Whether left- and right-clicking with the selection tool selects points A and B; when disabled, the item regains its normal interaction.
+selectionToolEnabled = true
+# Whether the convert and swap buttons in the interval screen use symbols; false shows text.
+symbolButtons = false
 
 [lightingTaskDefaults]
-# Default maximum number of torches per task. Range: 0-4096; 0 means unlimited.
+# Default maximum number of torches per task. Range: 0-4096, step 128; 0 means unlimited.
 maxTorches = 0
 # Default minimum spacing between torches. Range: 1-12 blocks.
 minSpacing = 8
 # Process positions whose block light is at or below this value. Range: 0-15; 0 means block light 0 only.
 lightThreshold = 0
-# Whether to process only positions without sky light by default.
-undergroundOnly = true
+# Whether positions with sky light are included by default; false means only positions without sky light.
+includeSkyLight = false
 # Whether Creative mode consumes torches from the inventory by default.
 creativeConsumeTorches = false
 # Whether Survival mode consumes torches from the inventory by default in single-player.
 # In multiplayer, the server's gameplay.survivalConsumesTorches setting takes precedence.
 survivalConsumeTorches = true
-# Whether left- and right-clicking with a wooden axe selects points A and B.
-woodenAxeSelectionEnabled = true
+# Progress update interval: 10-40 ticks, step 10.
+progressIntervalTicks = 10
+# Block item placed by area tasks.
+placementItem = "minecraft:torch"
 ```
 
 ### Server Configuration
@@ -183,6 +235,10 @@ File: `<world directory>/serverconfig/autotorch-server.toml`
 Single-player location: `config/autotorch-server.toml`
 
 ```toml
+[lightingTask]
+# Allow area placement tasks; disabling this stops existing tasks and rejects new ones.
+enabled = true
+
 [limits]
 # Maximum allowed length of any side of a cuboid. Range: 1-321 blocks.
 maxBoxAxisLength = 321

@@ -33,6 +33,7 @@ public final class AutoTorchServerCommands {
                 .executes(context -> showHelp(context))
                 .then(literal("help").executes(AutoTorchServerCommands::showHelp))
                 .then(literal("serverconfig")
+                        .then(literal("gui").executes(AutoTorchServerCommands::openGui))
                         .then(literal("get")
                                 .then(argument("key", StringArgumentType.word())
                                         .suggests(AutoTorchServerCommands::suggestKeys)
@@ -44,6 +45,15 @@ public final class AutoTorchServerCommands {
                                                 .executes(context -> set(context, configChanged)))))
                         .then(literal("defaults")
                                 .executes(context -> defaults(context, configChanged)))));
+    }
+
+    private static int openGui(CommandContext<CommandSource> context) {
+        if (!(context.getSource().getEntity() instanceof net.minecraft.entity.player.EntityPlayerMP)) {
+            return error(context, "command.autotorch.server.gui_player_only");
+        }
+        ServerConfigNetwork.sendOpenScreen((net.minecraft.entity.player.EntityPlayerMP) context.getSource().getEntity());
+        context.getSource().sendFeedback(new TextComponentTranslation("command.autotorch.server.gui_opened"), false);
+        return 1;
     }
 
     private static int showHelp(CommandContext<CommandSource> context) {

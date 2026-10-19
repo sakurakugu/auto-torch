@@ -1,6 +1,10 @@
 package com.sakurakugu.autotorch.forge;
 
 import com.sakurakugu.autotorch.AutoTorch;
+import com.sakurakugu.autotorch.network.*;
+import com.sakurakugu.autotorch.server.ServerConfigNetwork;
+import com.sakurakugu.autotorch.client.AutoTorchClient;
+import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.network.AutoTorchPayload;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
@@ -20,7 +24,7 @@ import net.minecraftforge.fml.network.simple.SimpleChannel;
 
 
 final class ForgeNetworking {
-    private static final String PROTOCOL_VERSION = "6";
+    private static final String PROTOCOL_VERSION = "7";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(AutoTorch.MOD_ID + ":main"),
             () -> PROTOCOL_VERSION,
@@ -53,7 +57,7 @@ final class ForgeNetworking {
                     NetworkEvent.Context context = supplier.get();
                     context.enqueueWork(() -> {
                         if (context.getSender() != null) {
-                            SelectionToolEvents.setEnabled(context.getSender(), payload.enabled());
+                            SelectionToolEvents.setEnabled(context.getSender(), payload.enabled(), payload.itemId());
                         }
                     });
                     context.setPacketHandled(true);
@@ -83,6 +87,39 @@ final class ForgeNetworking {
                     NetworkEvent.Context context = supplier.get();
                     if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
                         context.enqueueWork(() -> AutoTorchClientCommands.receiveTaskStatus(payload));
+                    }
+                    context.setPacketHandled(true);
+                });
+        ServerConfigNetwork.installSender(ForgeNetworking::sendToPlayer);
+        CHANNEL.registerMessage(6, OpenServerConfigScreenPayload.class,
+                OpenServerConfigScreenPayload::write, OpenServerConfigScreenPayload::decode, (payload, supplier) -> {
+                    NetworkEvent.Context context = supplier.get();
+                    if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
+                        context.enqueueWork(() -> { AutoTorchClient.requestOpenServerConfigScreen(); });
+                    }
+                    context.setPacketHandled(true);
+                });
+        CHANNEL.registerMessage(7, ServerConfigSetPayload.class,
+                ServerConfigSetPayload::write, ServerConfigSetPayload::decode, (payload, supplier) -> {
+                    NetworkEvent.Context context = supplier.get();
+                    if (context.getDirection() == NetworkDirection.PLAY_TO_SERVER) {
+                        context.enqueueWork(() -> { if (context.getSender() != null) ServerConfigNetwork.handleSet(context.getSender(), payload); });
+                    }
+                    context.setPacketHandled(true);
+                });
+        CHANNEL.registerMessage(8, ServerConfigResetPayload.class,
+                ServerConfigResetPayload::write, ServerConfigResetPayload::decode, (payload, supplier) -> {
+                    NetworkEvent.Context context = supplier.get();
+                    if (context.getDirection() == NetworkDirection.PLAY_TO_SERVER) {
+                        context.enqueueWork(() -> { if (context.getSender() != null) ServerConfigNetwork.handleReset(context.getSender(), payload); });
+                    }
+                    context.setPacketHandled(true);
+                });
+        CHANNEL.registerMessage(9, ServerConfigResultPayload.class,
+                ServerConfigResultPayload::write, ServerConfigResultPayload::decode, (payload, supplier) -> {
+                    NetworkEvent.Context context = supplier.get();
+                    if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
+                        context.enqueueWork(() -> { ServerConfigScreen.receiveResult(payload); });
                     }
                     context.setPacketHandled(true);
                 });

@@ -8,22 +8,26 @@ import net.minecraft.util.ResourceLocation;
 public final class SetSelectionToolPayload implements AutoTorchPayload {
     public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID + ":set_selection_tool");
     private final boolean enabled;
+    private final String itemId;
 
-    public SetSelectionToolPayload(boolean enabled) {
+    public SetSelectionToolPayload(boolean enabled) { this(enabled, "minecraft:wooden_axe"); }
+
+    public SetSelectionToolPayload(boolean enabled, String itemId) {
         this.enabled = enabled;
+        this.itemId = itemId;
     }
 
-    public boolean enabled() {
-        return enabled;
-    }
+    public boolean enabled() { return enabled; }
+    public String itemId() { return itemId; }
 
     public static SetSelectionToolPayload decode(PacketBuffer buffer) {
-        return new SetSelectionToolPayload(buffer.readBoolean());
+        return new SetSelectionToolPayload(buffer.readBoolean(), buffer.readString(256));
     }
 
     @Override
     public void write(PacketBuffer buffer) {
         buffer.writeBoolean(enabled);
+        buffer.writeString(itemId, 256);
     }
 
     @Override

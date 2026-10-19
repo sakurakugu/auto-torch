@@ -27,6 +27,7 @@ public final class NearbyAutoTorch {
     private static final int MIN_Y_OFFSET = -2;
     private static final int MAX_Y_OFFSET = 1;
 
+    private static ClientConfigSnapshot previousConfig;
     private static World previousLevel;
     private static int ticksUntilScan;
     private static BlockPos lastAttemptPosition;
@@ -39,14 +40,21 @@ public final class NearbyAutoTorch {
 
     public static void tick(Minecraft minecraft) {
         tickCount++;
+        ClientConfigSnapshot config = ClientConfig.snapshot();
+        if (previousConfig != config) {
+            previousConfig = config;
+            ticksUntilScan = 0;
+            lastAttemptPosition = null;
+            lightStability.clear();
+        }
         if (minecraft.world != previousLevel) {
             previousLevel = minecraft.world;
             ticksUntilScan = 0;
             lastAttemptPosition = null;
-            lastAttemptAge = RETRY_DELAY_TICKS;
+            lastAttemptAge = ClientConfig.nearbyRetryDelay();
             lightStability.clear();
         }
-        if (lastAttemptPosition != null && lastAttemptAge < RETRY_DELAY_TICKS) {
+        if (lastAttemptPosition != null && lastAttemptAge < ClientConfig.nearbyRetryDelay()) {
             lastAttemptAge++;
         }
         if (!ClientConfig.isNearbyAutoTorchEnabled()
@@ -62,7 +70,7 @@ public final class NearbyAutoTorch {
         if (ticksUntilScan-- > 0) {
             return;
         }
-        ticksUntilScan = SCAN_INTERVAL_TICKS - 1;
+        ticksUntilScan = config.nearbyAutoTorchScanInterval - 1;
 
         TorchSource torch = findTorch(minecraft.player);
         if (torch == null) {
@@ -70,8 +78,8 @@ public final class NearbyAutoTorch {
             return;
         }
         int threshold = ClientConfig.nearbyAutoTorchThreshold();
-        lightStability.prune(tickCount, DARK_CONFIRM_TICKS);
-        BlockPos target = findTarget(minecraft.world, minecraft.player, threshold, DARK_CONFIRM_TICKS);
+        lightStability.prune(tickCount, config.nearbyAutoTorchDarkConfirm);
+        BlockPos target = findTarget(minecraft.world, minecraft.player, threshold, config.nearbyAutoTorchDarkConfirm);
         if (target != null) {
             place(minecraft, torch, target);
         }
@@ -84,8 +92,8 @@ public final class NearbyAutoTorch {
         double bestDistance = Double.MAX_VALUE;
 
         for (int dy = MIN_Y_OFFSET; dy <= MAX_Y_OFFSET; dy++) {
-            for (int dx = -HORIZONTAL_RADIUS; dx <= HORIZONTAL_RADIUS; dx++) {
-                for (int dz = -HORIZONTAL_RADIUS; dz <= HORIZONTAL_RADIUS; dz++) {
+            for (int dx = -ClientConfig.nearbyHorizontalRadius(); dx <= ClientConfig.nearbyHorizontalRadius(); dx++) {
+                for (int dz = -ClientConfig.nearbyHorizontalRadius(); dz <= ClientConfig.nearbyHorizontalRadius(); dz++) {
                     BlockPos candidate = origin.add(dx, dy, dz);
                     if (!isValidTarget(level, player, candidate)
                             || isWaitingToRetry(candidate)) {
@@ -113,7 +121,7 @@ public final class NearbyAutoTorch {
             return false;
         }
         BlockPos floorPos = target.down();
-        if (level.getBlockState(floorPos).getBlockFaceShape(level, floorPos, EnumFacing.UP) != BlockFaceShape.SOLID
+        if (!ClientConfig.nearbyPlacementItem().getBlock().getDefaultState().isValidPosition(level, target)
                 || player.getBoundingBox().intersects(new AxisAlignedBB(target))) {
             return false;
         }
@@ -131,19 +139,19 @@ public final class NearbyAutoTorch {
     private static boolean isWaitingToRetry(BlockPos candidate) {
         return lastAttemptPosition != null
                 && lastAttemptPosition.equals(candidate)
-                && lastAttemptAge < RETRY_DELAY_TICKS;
+                && lastAttemptAge < ClientConfig.nearbyRetryDelay();
     }
 
     private static TorchSource findTorch(EntityPlayerSP player) {
-        if (player.getHeldItemOffhand().getItem() == Blocks.TORCH.asItem()) {
+        if (player.getHeldItemOffhand().getItem() == ClientConfig.nearbyPlacementItem()) {
             return new TorchSource(EnumHand.OFF_HAND, -1);
         }
         int selected = player.inventory.currentItem;
-        if (player.inventory.getStackInSlot(selected).getItem() == Blocks.TORCH.asItem()) {
+        if (player.inventory.getStackInSlot(selected).getItem() == ClientConfig.nearbyPlacementItem()) {
             return new TorchSource(EnumHand.MAIN_HAND, selected);
         }
         for (int slot = 0; slot < 9; slot++) {
-            if (player.inventory.getStackInSlot(slot).getItem() == Blocks.TORCH.asItem()) {
+            if (player.inventory.getStackInSlot(slot).getItem() == ClientConfig.nearbyPlacementItem()) {
                 return new TorchSource(EnumHand.MAIN_HAND, slot);
             }
         }
@@ -182,7 +190,7 @@ public final class NearbyAutoTorch {
 
         /** 清理很久没有被重新观测的残留记录，避免扫描框移走后记录无限增长。 */
         void prune(long now, int confirmTicks) {
-            darkSince.entrySet().removeIf(entry -> now - entry.getValue() > confirmTicks + SCAN_INTERVAL_TICKS);
+            darkSince.entrySet().removeIf(entry -> now - entry.getValue() > confirmTicks + ClientConfig.nearbyScanInterval());
         }
 
         /** 未被观测到的坐标必须显式遗忘，否则没看它的那几轮也会被算成黑暗。 */

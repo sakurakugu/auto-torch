@@ -8,11 +8,19 @@ import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextComponentString;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
+import com.sakurakugu.autotorch.config.ConfigBackend;
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutoTorchServerCommandsTest {
+    @AfterEach
+    void restoreDefaults() { ServerConfig.install(new MemoryBackend()); }
+
     @Test
     void registersServerCommandTree() {
         CommandDispatcher<CommandSource> dispatcher = new CommandDispatcher<>();
@@ -21,6 +29,7 @@ class AutoTorchServerCommandsTest {
         CommandNode<CommandSource> root = child(dispatcher.getRoot(), "autotorch");
         child(root, "help");
         CommandNode<CommandSource> serverConfig = child(root, "serverconfig");
+        assertNotNull(child(serverConfig, "gui").getCommand());
         child(child(serverConfig, "get"), "key");
         child(child(child(serverConfig, "set"), "key"), "value");
         child(serverConfig, "defaults");
@@ -39,6 +48,106 @@ class AutoTorchServerCommandsTest {
 
         assertTrue(suggestions.getList().stream()
                 .anyMatch(suggestion -> suggestion.getText().equals("lightingTask.enabled")));
+    }
+
+    @Test
+    void rejectsCrossedSpacingBounds() {
+        // 修改一项时必须保持“下限 ≤ 上限”，否则客户端的间距滑块会出现无效区间。
+        assertTrue(ServerConfig.minSpacingChangeAllowed(1, 12));
+        assertTrue(ServerConfig.minSpacingChangeAllowed(12, 12));
+        assertFalse(ServerConfig.minSpacingChangeAllowed(13, 12));
+
+        assertTrue(ServerConfig.maxSpacingChangeAllowed(12, 1));
+        assertTrue(ServerConfig.maxSpacingChangeAllowed(5, 5));
+        assertFalse(ServerConfig.maxSpacingChangeAllowed(4, 5));
+    }
+
+    @Test
+    void commandSetSharesValidationWithAdminScreen() {
+        ServerConfig.install(new MemoryBackend());
+
+        assertEquals(ServerConfig.SetStatus.OK,
+                ServerConfig.setFromText("limits.maxSphereRadius", "80").status());
+        assertEquals(80, ServerConfig.maxSphereRadius());
+
+        // 界面与命令共用同一套错误状态，避免两处校验规则漂移。
+        assertEquals(ServerConfig.SetStatus.OUT_OF_RANGE,
+                ServerConfig.setFromText("limits.maxSphereRadius", "999").status());
+        assertEquals(ServerConfig.SetStatus.INVALID_VALUE,
+                ServerConfig.setFromText("lightingTask.enabled", "yes").status());
+        assertEquals(ServerConfig.SetStatus.UNKNOWN_KEY,
+                ServerConfig.setFromText("missing.key", "1").status());
+    }
+
+    @Test
+    void setRejectsSpacingThatCrossesTheCounterpart() {
+        ServerConfig.install(new MemoryBackend());
+
+        assertEquals(ServerConfig.SetStatus.OK,
+                ServerConfig.setFromText("limits.maxSpacing", "5").status());
+        assertEquals(ServerConfig.SetStatus.SPACING_ORDER,
+                ServerConfig.setFromText("limits.minSpacing", "6").status());
+        assertEquals(1, ServerConfig.minSpacing());
+        assertEquals(5, ServerConfig.maxSpacing());
+    }
+
+    @Test
+    void resetsServerConfigByKeyCategoryAndSection() {
+        ServerConfig.install(new MemoryBackend());
+        ServerConfig.setFromText("limits.maxSphereRadius", "80");
+        ServerConfig.setFromText("performance.placeBudgetPerTaskTick", "4");
+
+        assertTrue(ServerConfig.resetScope("limits.maxSphereRadius"));
+        assertEquals(ConfigDefinitions.LIMIT_MAX_SPHERE_RADIUS.defaultValue(), ServerConfig.maxSphereRadius());
+
+        assertTrue(ServerConfig.resetScope(ConfigDefinitions.ServerCategory.PERFORMANCE.name()));
+        assertEquals(ConfigDefinitions.PERFORMANCE_PLACE_BUDGET_PER_TASK_TICK.defaultValue(),
+                ServerConfig.placeBudgetPerTaskTick());
+
+        ServerConfig.setFromText("limits.maxSphereRadius", "80");
+        assertTrue(ServerConfig.resetScope("limits"));
+        assertEquals(ConfigDefinitions.LIMIT_MAX_SPHERE_RADIUS.defaultValue(), ServerConfig.maxSphereRadius());
+        assertFalse(ServerConfig.resetScope("missing"));
+    }
+
+    /** 测试用内存后端：未写入的键读取配置默认值，模拟服务端 TOML。 */
+    private static final class MemoryBackend implements ConfigBackend {
+        private final java.util.Map<String, Object> values = new java.util.HashMap<>();
+
+        @Override
+        public boolean getBoolean(String key, boolean defaultValue) {
+            return values.get(key) instanceof Boolean ? ((Boolean) values.get(key)) : defaultValue;
+        }
+
+        @Override
+        public int getInt(String key, int defaultValue) {
+            return values.get(key) instanceof Integer ? ((Integer) values.get(key)) : defaultValue;
+        }
+
+        @Override
+        public double getDouble(String key, double defaultValue) {
+            return values.get(key) instanceof Double ? ((Double) values.get(key)) : defaultValue;
+        }
+
+        @Override
+        public String getString(String key, String defaultValue) {
+            return values.get(key) instanceof String ? ((String) values.get(key)) : defaultValue;
+        }
+
+        @Override
+        public void setBoolean(String key, boolean value) { values.put(key, value); }
+
+        @Override
+        public void setInt(String key, int value) { values.put(key, value); }
+
+        @Override
+        public void setDouble(String key, double value) { values.put(key, value); }
+
+        @Override
+        public void setString(String key, String value) { values.put(key, value); }
+
+        @Override
+        public void save() { }
     }
 
     private static CommandNode<CommandSource> child(CommandNode<CommandSource> parent, String name) {

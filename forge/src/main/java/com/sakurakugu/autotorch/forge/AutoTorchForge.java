@@ -5,6 +5,7 @@ import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
+import com.sakurakugu.autotorch.server.ServerConfigNetwork;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.EnumActionResult;
@@ -30,6 +31,7 @@ public final class AutoTorchForge {
         ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
         ForgeNetworking.initialize();
         context.getModEventBus().addListener(this::onConfigLoading);
+        context.getModEventBus().addListener(this::onConfigReloading);
 
         MinecraftForge.EVENT_BUS.addListener(this::onServerStarting);
         MinecraftForge.EVENT_BUS.addListener(this::onServerTick);
@@ -85,10 +87,18 @@ public final class AutoTorchForge {
     }
 
     private void onConfigLoading(ModConfig.Loading event) {
-        if (event.getConfig().getType() == ModConfig.Type.CLIENT) {
-            ForgeConfigs.CLIENT.attach(event.getConfig());
-        } else if (event.getConfig().getType() == ModConfig.Type.SERVER) {
-            ForgeConfigs.SERVER.attach(event.getConfig());
+        updateServerConfig(event.getConfig());
+    }
+
+    private void onConfigReloading(ModConfig.ConfigReloading event) {
+        updateServerConfig(event.getConfig());
+    }
+
+    private void updateServerConfig(ModConfig config) {
+        if (config.getSpec() == ForgeConfigs.SERVER.spec()) {
+            ForgeConfigs.SERVER.attach(config);
+            net.minecraft.server.MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+            if (server != null) server.addScheduledTask(() -> ServerConfigNetwork.broadcast(server));
         }
     }
 }

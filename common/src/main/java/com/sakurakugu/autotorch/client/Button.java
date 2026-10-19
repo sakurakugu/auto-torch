@@ -4,13 +4,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 
 /** 为 1.13 的 GuiButton 补齐界面业务使用的控件接口。 */
-class Button extends GuiButton implements Widget {
-    interface OnPress { void onPress(Button button); }
+public class Button extends GuiButton implements Widget {
+    public interface OnPress { void onPress(Button button); }
 
     private final OnPress onPress;
-    boolean active = true;
+    public boolean active = true;
 
-    Button(int x, int y, int width, int height, String message, OnPress onPress) {
+    public Button(int x, int y, int width, int height, String message, OnPress onPress) {
         super(0, x, y, width, height, message);
         this.onPress = onPress;
     }
@@ -23,6 +23,8 @@ class Button extends GuiButton implements Widget {
     @Override
     public void render(int mouseX, int mouseY, float partialTicks) {
         enabled = active;
+        if (!visible) return;
+        hovered = isMouseOver(mouseX, mouseY);
         renderButton(mouseX, mouseY, partialTicks);
     }
 
@@ -30,13 +32,16 @@ class Button extends GuiButton implements Widget {
         super.render(mouseX, mouseY, partialTicks);
     }
 
-    void setMessage(String message) { displayString = message; }
-    String getMessage() { return displayString; }
-    boolean isHovered() { return hovered; }
-    boolean isFocused() { return false; }
-    static void fill(int left, int top, int right, int bottom, int color) {
+    public void setMessage(String message) { displayString = message; }
+    public String getMessage() { return displayString; }
+    public boolean isHovered() { return hovered; }
+    public boolean isFocused() { return false; }
+    public static void fill(int left, int top, int right, int bottom, int color) {
         drawRect(left, top, right, bottom, color);
     }
+    protected boolean isValidClickButton(int button) { return button == 0; }
+    protected void fillGradient(int l, int t, int r, int b, int top, int bottom) { drawGradientRect(l, t, r, b, top, bottom); }
+    public int getWidth() { return width; }
     @Override public int y() { return y; }
     @Override public void setY(int y) { this.y = y; }
     @Override public boolean isVisible() { return visible; }

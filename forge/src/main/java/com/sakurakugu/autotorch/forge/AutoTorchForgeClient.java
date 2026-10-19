@@ -34,11 +34,13 @@ final class AutoTorchForgeClient {
     private BlockPos selectionClickPos;
 
     private AutoTorchForgeClient(FMLJavaModLoadingContext context) {
-        ClientConfig.install(ForgeConfigs.CLIENT);
+        ClientConfig.installDeferred(ForgeConfigs.CLIENT);
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ForgeConfigs.CLIENT.spec());
 
         context.getModEventBus().addListener(this::registerKeys);
+        context.getModEventBus().addListener(this::onConfigLoading);
+        context.getModEventBus().addListener(this::onConfigReloading);
         MinecraftForge.EVENT_BUS.addListener(this::onClientChat);
         MinecraftForge.EVENT_BUS.addListener(this::onRender);
         MinecraftForge.EVENT_BUS.addListener(this::onTick);
@@ -48,6 +50,15 @@ final class AutoTorchForgeClient {
 
     static void initialize(FMLJavaModLoadingContext context) {
         new AutoTorchForgeClient(context);
+    }
+
+    private void onConfigLoading(ModConfig.Loading event) { updateConfig(event.getConfig()); }
+    private void onConfigReloading(ModConfig.ConfigReloading event) { updateConfig(event.getConfig()); }
+    private void updateConfig(ModConfig config) {
+        if (config.getSpec() == ForgeConfigs.CLIENT.spec()) {
+            ForgeConfigs.CLIENT.attach(config);
+            ClientConfig.reload();
+        }
     }
 
     private void registerKeys(FMLClientSetupEvent event) {
