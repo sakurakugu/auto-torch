@@ -475,6 +475,8 @@ public final class ClientConfigScreen extends Screen {
                 Component tooltip = hint == null ? new net.minecraft.network.chat.TextComponent(row.key())
                         : new net.minecraft.network.chat.TextComponent(row.key() + "\n").append(hint);
                 renderTooltip(TooltipRenderer.split(font, tooltip, width, mouseX), mouseX, mouseY);
+                // 提示框会重新开启物品光照，恢复 2D 状态避免后续行文字变暗。
+                LegacyTooltips.restoreGuiRenderState();
             }
         }
         LegacyTooltips.render(this, font, mouseX, mouseY);

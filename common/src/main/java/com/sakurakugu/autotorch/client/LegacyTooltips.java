@@ -5,6 +5,8 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.platform.Lighting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -62,8 +64,22 @@ public final class LegacyTooltips {
             if (widget.isMouseOver(mouseX, mouseY)) {
                 screen.renderTooltip(
                         TooltipRenderer.split(font, entry.getValue(), screen.width, mouseX), mouseX, mouseY);
+                restoreGuiRenderState();
                 return;
             }
         }
+    }
+
+    /**
+     * 1.14.4 的 Forge 提示框绘制结束时会重新开启标准物品光照与深度测试，
+     * 而全部设置界面会在提示框之后继续画文字和图标，必须恢复 2D GUI 状态，
+     * 否则后续文字会被光照压暗（鼠标悬停时更明显）。
+     */
+    public static void restoreGuiRenderState() {
+        Lighting.turnOff();
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepthTest();
+        GlStateManager.enableTexture();
+        GlStateManager.color4f(1.0F, 1.0F, 1.0F, 1.0F);
     }
 }

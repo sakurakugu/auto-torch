@@ -326,6 +326,8 @@ public final class ServerConfigScreen extends Screen {
             if (mouseY >= row.y() && mouseY < row.y() + 28
                     && mouseX >= left && mouseX < left + ROW_LABEL_INDENT + font.width(LegacyText.string(label))) {
                 renderTooltip(row.key(), mouseX, mouseY);
+                // 提示框会重新开启物品光照，恢复 2D 状态避免后续行文字变暗。
+                LegacyTooltips.restoreGuiRenderState();
             }
         }
         LegacyTooltips.render(this, font, mouseX, mouseY);
