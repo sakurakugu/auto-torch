@@ -2,6 +2,7 @@ package com.sakurakugu.autotorch.forge;
 
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -22,10 +23,17 @@ import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+/**
+ * Forge 1.12.2 客户端入口。
+ * 1.12.2 没有客户端配置加载事件，TOML 在 preInit 已同步加载，这里只负责安装配置后端、网络出口、按键与渲染事件。
+ */
 final class AutoTorchForgeClient {
     private final AutoTorchClient client = new AutoTorchClient();
     private BlockPos selectionClickPos;
+
     private AutoTorchForgeClient() {
+        // 1.12.2 的 TOML 已在 preInit 同步加载，这里直接安装即可发布第一份客户端配置快照。
+        ClientConfig.install(ForgeConfigs.CLIENT);
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
         ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
@@ -33,6 +41,7 @@ final class AutoTorchForgeClient {
         ClientCommandHandler.instance.registerCommand(new LegacyAutoTorchClientCommand());
         MinecraftForge.EVENT_BUS.register(this);
     }
+
     static void initialize() { new AutoTorchForgeClient(); }
 
     @SubscribeEvent public void onClientChat(ClientChatEvent event) {
@@ -48,6 +57,7 @@ final class AutoTorchForgeClient {
             if (!Minecraft.getMinecraft().gameSettings.keyBindAttack.isKeyDown()) selectionClickPos = null;
         }
     }
+
     @SubscribeEvent public void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
         boolean start = selectionClickPos == null || !selectionClickPos.equals(event.getPos());
         if (event.getEntityPlayer() != null && event.getEntityPlayer().world instanceof WorldClient) {
@@ -57,6 +67,7 @@ final class AutoTorchForgeClient {
             }
         }
     }
+
     @SubscribeEvent public void onRightClick(PlayerInteractEvent.RightClickBlock event) {
         if (event.getEntityPlayer() != null && event.getEntityPlayer().world instanceof WorldClient) {
             // Forge 放置方块时不总会及时触发客户端世界的方块 dirty 通知，提前标记以便渲染阶段复核。
@@ -66,6 +77,7 @@ final class AutoTorchForgeClient {
             }
         }
     }
+
     @SubscribeEvent public void onRender(RenderWorldLastEvent event) {
         Minecraft minecraft = Minecraft.getMinecraft(); if (minecraft.world == null) return;
         Entity view = minecraft.getRenderViewEntity(); if (view == null) return;

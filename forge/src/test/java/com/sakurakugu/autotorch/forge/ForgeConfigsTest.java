@@ -38,6 +38,20 @@ class ForgeConfigsTest {
     }
 
     @Test
+    void createsCompleteServerDefaults() throws IOException {
+        Path path = configDirectory.resolve("autotorch-server.toml");
+        ForgeConfigs.Backend backend = serverBackend(path);
+
+        String toml = read(path);
+        assertTrue(toml.contains("[limits]"));
+        assertTrue(toml.contains("[performance]"));
+        for (ConfigDefinitions.Value definition : ConfigDefinitions.SERVER) {
+            assertTrue(toml.contains(leafName(definition.key()) + " ="), definition.key());
+        }
+        assertTrue(backend.getBoolean("lightingTask.enabled", false));
+    }
+
+    @Test
     void fillsMissingValuesAndPreservesUnknownValues() throws IOException {
         Path path = configDirectory.resolve("autotorch-client.toml");
         write(path, "futureValue = 42\n\n[nearbyAutoTorch]\nenabled = true\n");
@@ -61,6 +75,42 @@ class ForgeConfigsTest {
         assertFalse(backend.getBoolean("nearbyAutoTorch.enabled", true));
         assertEquals(16, backend.getInt("nearbyAutoTorch.lightThreshold", 4));
         assertEquals(16, backend.getInt("lightOverlay.horizontalRange", 16));
+    }
+
+    /** 浮点与文本是 1.13.2 新增的配置类型，1.12.2 的 TOML 后端也要能读写与修复。 */
+    @Test
+    void readsAndWritesDecimalAndStringValues() throws IOException {
+        Path path = configDirectory.resolve("autotorch-client.toml");
+        ForgeConfigs.Backend backend = backend(path);
+
+        assertEquals(2.5, backend.getDouble("lightOverlay.nearLineWidth", -1));
+        assertEquals("FF3030", backend.getString("lightOverlay.alwaysRiskColor", null));
+        assertEquals("minecraft:wooden_axe", backend.getString("selectionOverlay.toolItem", null));
+
+        backend.setDouble("lightOverlay.nearLineWidth", 3.25);
+        backend.setString("lightOverlay.alwaysRiskColor", "aBc123");
+        backend.setString("selectionOverlay.toolItem", "minecraft:stick");
+        backend.save();
+
+        ForgeConfigs.Backend reloaded = backend(path);
+        assertEquals(3.25, reloaded.getDouble("lightOverlay.nearLineWidth", -1));
+        assertEquals("aBc123", reloaded.getString("lightOverlay.alwaysRiskColor", null));
+        assertEquals("minecraft:stick", reloaded.getString("selectionOverlay.toolItem", null));
+    }
+
+    @Test
+    void repairsInvalidDecimalAndStringValues() throws IOException {
+        Path path = configDirectory.resolve("autotorch-client.toml");
+        write(path, "[lightOverlay]\nnearLineWidth = 99.0\nfarLineWidth = \"oops\"\n"
+                + "alwaysRiskColor = \"zzzzzz\"\n\n[nearbyAutoTorch]\nitem = 42\n");
+
+        ForgeConfigs.Backend backend = backend(path);
+
+        // 超范围浮点按定义裁剪；类型错误与非法颜色回退默认值。
+        assertEquals(8.0, backend.getDouble("lightOverlay.nearLineWidth", -1));
+        assertEquals(0.75, backend.getDouble("lightOverlay.farLineWidth", -1));
+        assertEquals("FF3030", backend.getString("lightOverlay.alwaysRiskColor", null));
+        assertEquals("minecraft:torch", backend.getString("nearbyAutoTorch.item", null));
     }
 
     @Test
@@ -149,6 +199,12 @@ class ForgeConfigsTest {
 
     private ForgeConfigs.Backend backend(Path path) {
         ForgeConfigs.Backend backend = new ForgeConfigs.Backend(ConfigDefinitions.CLIENT);
+        backend.load(path.toFile(), configDirectory.resolve("missing.cfg").toFile());
+        return backend;
+    }
+
+    private ForgeConfigs.Backend serverBackend(Path path) {
+        ForgeConfigs.Backend backend = new ForgeConfigs.Backend(ConfigDefinitions.SERVER);
         backend.load(path.toFile(), configDirectory.resolve("missing.cfg").toFile());
         return backend;
     }

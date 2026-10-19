@@ -1,10 +1,10 @@
 package com.sakurakugu.autotorch.client;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.io.IOException;
-
 import com.sakurakugu.autotorch.AutoTorchRules;
+import com.sakurakugu.autotorch.client.ui.IconButton;
+import com.sakurakugu.autotorch.client.ui.LegacyWidgetSprites;
+import com.sakurakugu.autotorch.client.ui.PixelGlyph;
+import com.sakurakugu.autotorch.client.ui.SegmentedSwitchButton;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
@@ -12,17 +12,22 @@ import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
+import com.sakurakugu.autotorch.client.Widget;
+import com.sakurakugu.autotorch.client.AbstractSliderButton;
+import com.sakurakugu.autotorch.client.Button;
+import com.sakurakugu.autotorch.client.EditBox;
+import com.sakurakugu.autotorch.client.Screen;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
-import org.lwjgl.opengl.GL11;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.item.ItemStack;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 
 /** 自动照明的参数界面，负责选区管理、客户端校验和任务提交。 */
 public final class LightingScreen extends Screen {
-    private static final int CONTENT_HEIGHT = 398;
+    private static final int CONTENT_HEIGHT = 350;
     private static final int VIEWPORT_MARGIN = 4;
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int MIN_SCROLLBAR_HEIGHT = 20;
@@ -30,93 +35,93 @@ public final class LightingScreen extends Screen {
     private final EditBox[] first = new EditBox[3];
     private final EditBox[] second = new EditBox[3];
     private final EditBox[] dimensions = new EditBox[3];
-    private final Map<Button, ITextComponent> tooltips = new LinkedHashMap<>();
-    private EditBox maxTorches;
     private Button shapeButton;
     private Button convertShapeButton;
+    private Button swapPointsButton;
     private Button sphereDisplayButton;
-    private Button displayButton;
-    private Button moreSettingsButton;
+    private Button allSettingsButton;
     private Button useCurrentFirstButton;
     private Button useCurrentSecondButton;
     private Button setLightingButton;
     private Button exclusionButton;
-    private Button consumeButton;
-    private Button undergroundButton;
+    private Button includeSkyLightButton;
     private Button lightOverlayButton;
-    private Button lightOverlayModeButton;
     private Button lightOverlayRenderThroughButton;
     private Button swampSlimeDetectionButton;
     private Button drownedDetectionButton;
     private Button nearbyAutoTorchButton;
     private Button nearbyAutoTorchSkyLightButton;
-    private Button woodenAxeSelectionButton;
+    private SelectionToolButton selectionToolButton;
     private Button startTaskButton;
     private Button cancelTaskButton;
     private Button resetButton;
-    private DualRangeSlider heightRangeSlider;
-    private boolean consumeTorches;
-    private boolean undergroundOnly;
+    private boolean includeSkyLight;
     private boolean syncingInputs;
+    private String selectionToolItemId;
     private int scrollOffset;
     private boolean draggingScrollbar;
     private boolean selectionInRange = true;
-    private ITextComponent error = new TextComponentString("");
-    private ITextComponent rangeMessage = new TextComponentString("");
+    private ITextComponent error = new net.minecraft.util.text.TextComponentString("");
+    private ITextComponent rangeMessage = new net.minecraft.util.text.TextComponentString("");
 
     public LightingScreen() {
         this(0);
     }
 
     private LightingScreen(int initialScrollOffset) {
-        super(new TextComponentTranslation("screen.autotorch.title"));
+        super(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.title"));
         scrollOffset = initialScrollOffset;
-        consumeTorches = initialConsumeTorches();
-        undergroundOnly = ClientConfig.isDefaultUndergroundOnly();
+        includeSkyLight = ClientConfig.isDefaultIncludeSkyLight();
     }
 
     @Override
     protected void init() {
-        tooltips.clear();
-        BlockPos playerPos = minecraft.player == null
-                ? BlockPos.ORIGIN : minecraft.player.getPosition();
+        // 直接调用 init() 重建页面时同时清空旧按钮与绘制列表；1.12.2 的按钮输入列表是 buttonList。
+        buttonList.clear();
+        children().clear();
+        // 从全部设置返回时重新读取任务参数，避免提交旧值。
+        includeSkyLight = ClientConfig.isDefaultIncludeSkyLight();
+        BlockPos playerPos = minecraft.player == null ? BlockPos.ORIGIN : minecraft.player.getPosition();
         int left = panelLeft();
 
-        ITextComponent resetMessage = new TextComponentTranslation("screen.autotorch.reset");
-        resetButton = addRenderableWidget(new ResetButton(resetButtonX(resetMessage), 2,
-                font.getStringWidth(resetMessage.getFormattedText()), 16, resetMessage, panelLeft(), panelLeft() + 310,
+        ITextComponent resetMessage = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.reset");
+        resetButton = addButton(new ResetButton(resetButtonX(resetMessage), 2,
+                font.getStringWidth(LegacyText.string(resetMessage)), 16, resetMessage, panelLeft(), panelLeft() + 310,
                 button -> resetLightingTaskSettings()));
 
-        shapeButton = addRenderableWidget(button(left, 20, 126, 20, shapeMessage(), button -> {
+        shapeButton = addButton(ButtonBuilder.builder(shapeMessage(), button -> {
             SelectionState.setShape(SelectionState.shape() == AreaShape.BOX ? AreaShape.SPHERE : AreaShape.BOX);
-            shapeButton.setMessage(shapeMessage().getFormattedText());
-            convertShapeButton.setMessage(convertShapeMessage().getFormattedText());
-            updatePointButtonMessages();
+            shapeButton.setMessage(LegacyText.string(shapeMessage()));
+            updateShapeDependentMessages();
             refreshDimensionInputs();
-        }));
-        sphereDisplayButton = addRenderableWidget(button(left + 216, 88, 94, 20, sphereDisplayMessage(), button -> {
+        }).bounds(left, 20, 126, 20).build());
+        sphereDisplayButton = addButton(ButtonBuilder.builder(sphereDisplayMessage(), button -> {
             SelectionState.SphereDisplayMode next =
                     SelectionState.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY
                             ? SelectionState.SphereDisplayMode.SMOOTH : SelectionState.SphereDisplayMode.BLOCKY;
             SelectionState.setSphereDisplayMode(next);
-            sphereDisplayButton.setMessage(sphereDisplayMessage().getFormattedText());
-        }));
-        displayButton = addRenderableWidget(button(left + 130, 20, 90, 20, displayMessage(), button -> {
-            cycleSelectionDisplay();
-            displayButton.setMessage(displayMessage().getFormattedText());
-        }));
-        moreSettingsButton = addRenderableWidget(button(left + 224, 20, 86, 20,
-                new TextComponentTranslation("screen.autotorch.more_settings"), button -> { }));
+            sphereDisplayButton.setMessage(LegacyText.string(sphereDisplayMessage()));
+        }).bounds(left + 216, 88, 94, 20).build());
+        addButton(new SegmentedSwitchButton(left + 130, 20, 156, 20,
+                java.util.Arrays.asList(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.display_faces"),
+                        new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.display_lines"),
+                        new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.display_off")),
+                LightingScreen::selectionDisplayIndex, LightingScreen::selectSelectionDisplay));
+        allSettingsButton = addButton(new IconButton(left + 290, 20, 20, 20, PixelGlyph.SETTING,
+                new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.all_settings"), button -> {
+                    saveSelection();
+                    minecraft.displayGuiScreen(new ClientConfigScreen(this, ConfigDefinitions.ClientCategory.LIGHTING_TASK));
+                }));
 
         createCoordinateRow(first, left, 44, SelectionState.first(playerPos));
-        useCurrentFirstButton = addRenderableWidget(button(left + 190, 44, 120, 20, firstPointMessage(), button -> {
+        useCurrentFirstButton = addButton(ButtonBuilder.builder(firstPointMessage(), button -> {
             setCoordinatePosition(first, currentPosition());
-        }));
+        }).bounds(left + 190, 44, 120, 20).build());
 
         createCoordinateRow(second, left, 66, SelectionState.second(playerPos));
-        useCurrentSecondButton = addRenderableWidget(button(left + 190, 66, 120, 20, secondPointMessage(), button -> {
+        useCurrentSecondButton = addButton(ButtonBuilder.builder(secondPointMessage(), button -> {
             setCoordinatePosition(second, currentPosition());
-        }));
+        }).bounds(left + 190, 66, 120, 20).build());
 
         int[] dimensionOffsets = {18, 120, 222};
         int[] dimensionWidths = {82, 82, 88};
@@ -132,141 +137,156 @@ public final class LightingScreen extends Screen {
         }
         refreshDimensionInputs();
 
-        convertShapeButton = addRenderableWidget(button(left, 112, 126, 20,
-                convertShapeMessage(), button -> convertSelectionShape()));
-        addRenderableWidget(button(left + 130, 112, 82, 20,
-                new TextComponentTranslation("screen.autotorch.swap_points"), button -> swapPoints()));
-        woodenAxeSelectionButton = addRenderableWidget(withTooltip(button(left + 216, 112, 94, 20,
-                woodenAxeSelectionMessage(), button -> {
-            boolean enabled = !ClientConfig.isWoodenAxeSelectionEnabled();
-            ClientConfig.setWoodenAxeSelectionEnabled(enabled);
-            PlatformNetworking.sendToServer(new SetSelectionToolPayload(enabled));
-            woodenAxeSelectionButton.setMessage(woodenAxeSelectionMessage().getFormattedText());
-        }), new TextComponentTranslation("screen.autotorch.wooden_axe_selection.tooltip")));
+        // 转换和互换按钮按配置显示文字或符号，符号模式下用悬停提示补充说明。
+        convertShapeButton = addButton(ButtonBuilder.builder(convertShapeMessage(), button -> convertSelectionShape())
+                .bounds(left, 112, 126, 20).build());
+        swapPointsButton = addButton(ButtonBuilder.builder(swapPointsMessage(), button -> swapPoints())
+                .bounds(left + 130, 112, 82, 20).build());
+        updateActionTooltips();
+        selectionToolButton = addButton(new SelectionToolButton(left + 216, 112, 94, 20,
+                selectionToolMessage(), button -> {
+            boolean enabled = !ClientConfig.isSelectionToolEnabled();
+            ClientConfig.setSelectionToolEnabled(enabled);
+            PlatformNetworking.sendToServer(new SetSelectionToolPayload(enabled,
+                    ClientConfig.stringValue(ConfigDefinitions.SELECTION_TOOL_ITEM)));
+            selectionToolButton.setMessage(LegacyText.string(selectionToolMessage()));
+        }));
+        LegacyTooltips.set(selectionToolButton,
+                new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.selection_tool.tooltip"));
+        selectionToolButton.setToolStack(ClientConfig.selectionToolItem().getDefaultInstance());
+        selectionToolItemId = ClientConfig.stringValue(ConfigDefinitions.SELECTION_TOOL_ITEM);
 
-        setLightingButton = addRenderableWidget(new ColoredButton(left, 136, 120, 20,
-                new TextComponentTranslation("screen.autotorch.set_lighting"), button -> setLightingZone(),
+        setLightingButton = addButton(new ColoredButton(left, 136, 141, 20,
+                new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.set_lighting"), button -> setLightingZone(),
                 0xDD176B35, 0xEE218A47));
-        exclusionButton = addRenderableWidget(new ColoredButton(left + 124, 136, 120, 20,
+        exclusionButton = addButton(new ColoredButton(left + 145, 136, 141, 20,
                 exclusionMessage(), button -> addExclusion(), 0xDDA52B2B, 0xEEC83C3C));
         updateZoneButtonAvailability();
-        addRenderableWidget(button(left + 248, 136, 62, 20,
-                new TextComponentTranslation("screen.autotorch.manage_exclusions"), button -> {
-            saveSelection();
-            saveTaskDefaults();
-            minecraft.displayGuiScreen(new ExclusionListScreen());
-        }));
+        addButton(new IconButton(left + 290, 136, 20, 20, PixelGlyph.LIST,
+                new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.manage_exclusions"), button -> {
+                    saveSelection();
+                    minecraft.displayGuiScreen(new ExclusionListScreen());
+                }));
 
-        int configuredMaxTorches = effectiveDefaultMaxTorches();
-        maxTorches = limitBox(left + 70, 160, 42,
-                configuredMaxTorches == 0 ? "∞" : Integer.toString(configuredMaxTorches));
-        addRenderableWidget(new MinSpacingSlider(left + 120, 160, 100, 20));
-        addRenderableWidget(withTooltip(new AreaLightThresholdSlider(left + 224, 160, 86, 20),
-                new TextComponentTranslation("screen.autotorch.area_light_threshold.tooltip")));
+        includeSkyLightButton = addButton(ButtonBuilder.builder(includeSkyLightMessage(), button -> {
+            includeSkyLight = !includeSkyLight;
+            ClientConfig.setDefaultIncludeSkyLight(includeSkyLight);
+            includeSkyLightButton.setMessage(LegacyText.string(includeSkyLightMessage()));
+        }).bounds(left, 160, 116, 20).build());
+        addButton(new MinSpacingSlider(left + 120, 160, 100, 20));
+        addButton(new AreaLightThresholdSlider(left + 224, 160, 86, 20));
 
-        consumeButton = addRenderableWidget(button(left, 184, 153, 20, consumeMessage(), button -> {
-            consumeTorches = !consumeTorches;
-            if (isCreativePlayer()) {
-                ClientConfig.setCreativeConsumesTorches(consumeTorches);
-            } else {
-                ClientConfig.setSurvivalConsumesTorches(consumeTorches);
-            }
-            consumeButton.setMessage(consumeMessage().getFormattedText());
-        }));
-        consumeButton.active = canChooseConsumeTorches();
-        if (!consumeButton.active) {
-            withTooltip(consumeButton, new TextComponentTranslation("screen.autotorch.consume.survival_server"));
-        }
-        undergroundButton = addRenderableWidget(button(left + 157, 184, 153, 20, undergroundMessage(), button -> {
-            undergroundOnly = !undergroundOnly;
-            ClientConfig.setDefaultUndergroundOnly(undergroundOnly);
-            undergroundButton.setMessage(undergroundMessage().getFormattedText());
-        }));
-
-        startTaskButton = addRenderableWidget(button(left, 208, 153, 20,
-                new TextComponentTranslation("screen.autotorch.start"), button -> startTask()));
-        cancelTaskButton = addRenderableWidget(button(left + 157, 208, 153, 20,
-                new TextComponentTranslation("screen.autotorch.cancel_task"), button -> {
+        startTaskButton = addButton(ButtonBuilder.builder(
+                new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.start"), button -> startTask())
+                .bounds(left, 184, 153, 20).build());
+        cancelTaskButton = addButton(ButtonBuilder.builder(
+                new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.cancel_task"), button -> {
             PlatformNetworking.sendToServer(new CancelLightingPayload());
             onClose();
-        }));
+        }).bounds(left + 157, 184, 153, 20).build());
         updateTaskButtonAvailability();
 
-        lightOverlayButton = addRenderableWidget(button(left, 258, 108, 20, lightOverlayMessage(), button -> {
+        lightOverlayButton = addButton(ButtonBuilder.builder(lightOverlayMessage(), button -> {
             LightOverlayState.toggle();
-            lightOverlayButton.setMessage(lightOverlayMessage().getFormattedText());
+            lightOverlayButton.setMessage(LegacyText.string(lightOverlayMessage()));
+        }).bounds(left, 234, 108, 20).build());
+        ITextComponent lightOverlayResetMessage = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.reset");
+        addButton(new ResetButton(resetButtonX(lightOverlayResetMessage), 218,
+                font.getStringWidth(LegacyText.string(lightOverlayResetMessage)), 16, lightOverlayResetMessage, panelLeft(), panelLeft() + 310,
+                button -> resetLightOverlaySettings()));
+        addButton(new SegmentedSwitchButton(left + 112, 234, 174, 20,
+                java.util.Arrays.asList(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.light_overlay_mode_crosses"),
+                        new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.light_overlay_mode_numbers"),
+                        new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.light_overlay_mode_boxed_numbers")),
+                LightingScreen::lightOverlayDisplayModeIndex, LightingScreen::selectLightOverlayDisplayMode));
+        addButton(new IconButton(left + 290, 234, 20, 20, PixelGlyph.SETTING,
+                new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.all_settings"), button -> {
+            saveSelection();
+            minecraft.displayGuiScreen(new ClientConfigScreen(this, ConfigDefinitions.ClientCategory.LIGHT_OVERLAY));
         }));
-        ITextComponent lightOverlayResetMessage = new TextComponentTranslation("screen.autotorch.reset");
-        addRenderableWidget(new ResetButton(resetButtonX(lightOverlayResetMessage), 242,
-                font.getStringWidth(lightOverlayResetMessage.getFormattedText()), 16, lightOverlayResetMessage,
-                panelLeft(), panelLeft() + 310, button -> resetLightOverlaySettings()));
-        lightOverlayModeButton = addRenderableWidget(button(left + 112, 258, 88, 20,
-                lightOverlayModeMessage(), button -> {
-            LightOverlayState.cycleDisplayMode();
-            lightOverlayModeButton.setMessage(lightOverlayModeMessage().getFormattedText());
-        }));
-        lightOverlayRenderThroughButton = addRenderableWidget(button(left + 204, 258, 106, 20,
-                lightOverlayRenderThroughMessage(), button -> {
-                    ClientConfig.setLightOverlayRenderThrough(!ClientConfig.isLightOverlayRenderThrough());
-                    lightOverlayRenderThroughButton.setMessage(lightOverlayRenderThroughMessage().getFormattedText());
-                }));
-        addRenderableWidget(new LightRangeSlider(left, 282, 108, 20));
-        heightRangeSlider = addRenderableWidget(new DualRangeSlider(left + 112, 282, 198, 20, -64, 64, 64,
+        lightOverlayRenderThroughButton = addButton(ButtonBuilder.builder(lightOverlayRenderThroughMessage(), button -> {
+            ClientConfig.setLightOverlayRenderThrough(!ClientConfig.isLightOverlayRenderThrough());
+            lightOverlayRenderThroughButton.setMessage(LegacyText.string(lightOverlayRenderThroughMessage()));
+        }).bounds(left + 213, 282, 97, 20).build());
+        // 宽度与高度滑块同一行；宽度滑块保持原有 108 像素宽度。
+        addButton(new LightRangeSlider(left, 258, 108, 20));
+        addButton(new DualRangeSlider(left + 112, 258, 198, 20, -64, 64, 64,
                 -LightOverlayState.downRange(), LightOverlayState.upRange(),
-                (lower, upper) -> new TextComponentTranslation(
-                        "screen.autotorch.light_overlay_height_value", lower, upper),
+                (lower, upper) -> new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.light_overlay_height_value", lower, upper),
                 (lower, upper) -> {
                     LightOverlayState.setDownRange(-lower);
                     LightOverlayState.setUpRange(upper);
                 }));
-
-        swampSlimeDetectionButton = addRenderableWidget(withTooltip(button(left, 306, 116, 20,
-                swampSlimeDetectionMessage(), button -> { }),
-                new TextComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-")));
+        swampSlimeDetectionButton = addButton(ButtonBuilder.builder(swampSlimeDetectionMessage(), button -> {
+            LightOverlayState.toggleSwampSlimeDetection();
+            swampSlimeDetectionButton.setMessage(LegacyText.string(swampSlimeDetectionMessage()));
+        }).bounds(left, 282, 108, 20)
+                .tooltip(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-"))
+                .build());
+        // 1.12.2 也没有沼泽史莱姆的刷怪规则，保留控件位置但禁止修改无效配置。
         swampSlimeDetectionButton.active = false;
-        drownedDetectionButton = addRenderableWidget(withTooltip(button(left + 120, 306, 102, 20,
-                drownedDetectionMessage(), button -> {
+        drownedDetectionButton = addButton(ButtonBuilder.builder(drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
-            drownedDetectionButton.setMessage(drownedDetectionMessage().getFormattedText());
-        }), new TextComponentTranslation("screen.autotorch.drowned_detection.tooltip.1.12.2")));
+            drownedDetectionButton.setMessage(LegacyText.string(drownedDetectionMessage()));
+        }).bounds(left + 112, 282, 97, 20)
+                .tooltip(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.drowned_detection.tooltip.1.12.2"))
+                .build());
         // Minecraft 1.12.2 尚未加入溺尸，保留控件位置但禁止修改无效配置。
         drownedDetectionButton.active = false;
-        addRenderableWidget(button(left + 226, 306, 84, 20,
-                new TextComponentTranslation("screen.autotorch.more_settings"), button -> {
-            saveSelection();
-            saveTaskDefaults();
-            minecraft.displayGuiScreen(new LightOverlaySettingsScreen(this));
-        }));
 
-        nearbyAutoTorchButton = addRenderableWidget(withTooltip(button(left, 350, 153, 20,
-                nearbyAutoTorchMessage(), button -> {
+        nearbyAutoTorchButton = addButton(ButtonBuilder.builder(nearbyAutoTorchMessage(), button -> {
             ClientConfig.setNearbyAutoTorchEnabled(!ClientConfig.isNearbyAutoTorchEnabled());
-            nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage().getFormattedText());
-        }), new TextComponentTranslation("screen.autotorch.nearby_auto_torch.tooltip")));
-        ITextComponent nearbyResetMessage = new TextComponentTranslation("screen.autotorch.reset");
-        addRenderableWidget(new ResetButton(resetButtonX(nearbyResetMessage), 334,
-                font.getStringWidth(nearbyResetMessage.getFormattedText()), 16, nearbyResetMessage,
-                panelLeft(), panelLeft() + 310, button -> resetNearbyAutoTorchSettings()));
-        addRenderableWidget(new NearbyAutoTorchThresholdSlider(left + 157, 350, 153, 20));
-        nearbyAutoTorchSkyLightButton = addRenderableWidget(button(left, 374, 310, 20,
-                nearbyAutoTorchSkyLightMessage(), button -> {
+            nearbyAutoTorchButton.setMessage(LegacyText.string(nearbyAutoTorchMessage()));
+        }).bounds(left, 326, 90, 20)
+                .tooltip(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.nearby_auto_torch.tooltip"))
+                .build());
+        ITextComponent nearbyResetMessage = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.reset");
+        addButton(new ResetButton(resetButtonX(nearbyResetMessage), 310,
+                font.getStringWidth(LegacyText.string(nearbyResetMessage)), 16, nearbyResetMessage, panelLeft(), panelLeft() + 310,
+                button -> resetNearbyAutoTorchSettings()));
+        addButton(new NearbyAutoTorchThresholdSlider(left + 94, 326, 94, 20));
+        nearbyAutoTorchSkyLightButton = addButton(ButtonBuilder.builder(nearbyAutoTorchSkyLightMessage(), button -> {
             ClientConfig.setIncludesSkyLight(!ClientConfig.includesSkyLight());
-            nearbyAutoTorchSkyLightButton.setMessage(nearbyAutoTorchSkyLightMessage().getFormattedText());
+            nearbyAutoTorchSkyLightButton.setMessage(LegacyText.string(nearbyAutoTorchSkyLightMessage()));
+        }).bounds(left + 192, 326, 94, 20).build());
+        addButton(new IconButton(left + 290, 326, 20, 20, PixelGlyph.SETTING,
+                new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.all_settings"), button -> {
+            saveSelection();
+            minecraft.displayGuiScreen(new ClientConfigScreen(this, ConfigDefinitions.ClientCategory.NEARBY_AUTO_TORCH));
         }));
 
         scrollOffset = Math.min(scrollOffset, maxScrollOffset());
         moveWidgets(-scrollOffset);
     }
 
-    private static Button button(int x, int y, int width, int height,
-            ITextComponent message, Button.OnPress onPress) {
-        return new ScrollingButton(x, y, width, height, message.getFormattedText(), onPress);
+    @Override
+    public void tick() {
+        super.tick();
+        updateTaskButtonAvailability();
+        refreshSelectionToolIcon();
+    }
+
+    /** 在配置界面改过工具物品后，返回本界面时刷新按钮上的物品图标。 */
+    private void refreshSelectionToolIcon() {
+        String item = ClientConfig.stringValue(ConfigDefinitions.SELECTION_TOOL_ITEM);
+        if (selectionToolButton != null && !item.equals(selectionToolItemId)) {
+            selectionToolItemId = item;
+            selectionToolButton.setToolStack(ClientConfig.selectionToolItem().getDefaultInstance());
+        }
+    }
+
+    private void updateTaskButtonAvailability() {
+        boolean enabled = ServerConfigState.lightingTaskEnabled();
+        if (startTaskButton != null) startTaskButton.active = enabled;
+        if (cancelTaskButton != null) cancelTaskButton.active = enabled;
     }
 
     private void resetLightingTaskSettings() {
         ClientConfig.resetLightingTaskDefaults();
         SelectionState.reloadConfig();
-        PlatformNetworking.sendToServer(new SetSelectionToolPayload(ClientConfig.isWoodenAxeSelectionEnabled()));
+        PlatformNetworking.sendToServer(new SetSelectionToolPayload(
+                ClientConfig.isSelectionToolEnabled(),
+                ClientConfig.stringValue(ConfigDefinitions.SELECTION_TOOL_ITEM)));
         reopenAtCurrentScrollOffset();
     }
 
@@ -285,23 +305,6 @@ public final class LightingScreen extends Screen {
         minecraft.displayGuiScreen(new LightingScreen(scrollOffset));
     }
 
-    private <T extends Button> T withTooltip(T widget, ITextComponent tooltip) {
-        tooltips.put(widget, tooltip);
-        return widget;
-    }
-
-    @Override
-    public void updateScreen() {
-        super.updateScreen();
-        updateTaskButtonAvailability();
-    }
-
-    private void updateTaskButtonAvailability() {
-        boolean enabled = ServerConfigState.lightingTaskEnabled();
-        if (startTaskButton != null) startTaskButton.active = enabled;
-        if (cancelTaskButton != null) cancelTaskButton.active = enabled;
-    }
-
     private void createCoordinateRow(EditBox[] boxes, int left, int y, BlockPos initial) {
         int[] values = {initial.getX(), initial.getY(), initial.getZ()};
         for (int i = 0; i < boxes.length; i++) {
@@ -309,24 +312,18 @@ public final class LightingScreen extends Screen {
         }
     }
 
+    /** 输入框上下各内缩 2 像素，与同行的 20 像素高按钮保持视觉居中。 */
     private EditBox integerBox(int x, int y, int boxWidth, String value) {
-        EditBox box = new EditBox(font, x, y, boxWidth, 18, "");
+        EditBox box = new EditBox(font, x, y + 2, boxWidth, 16, LegacyText.string(new net.minecraft.util.text.TextComponentString("")));
         box.setMaxLength(9);
         box.setValue(value);
-        return addRenderableWidget(box);
-    }
-
-    private EditBox limitBox(int x, int y, int boxWidth, String value) {
-        EditBox box = new EditBox(font, x, y, boxWidth, 18, "");
-        box.setMaxLength(4);
-        box.setValue(value);
-        return addRenderableWidget(box);
+        return addButton(box);
     }
 
     private EditBox sizeBox(int x, int y, int boxWidth) {
-        EditBox box = new EditBox(font, x, y, boxWidth, 18, "");
+        EditBox box = new EditBox(font, x, y + 2, boxWidth, 16, LegacyText.string(new net.minecraft.util.text.TextComponentString("")));
         box.setMaxLength(9);
-        return addRenderableWidget(box);
+        return addButton(box);
     }
 
     private void onCoordinatesChanged() {
@@ -339,7 +336,7 @@ public final class LightingScreen extends Screen {
             SelectionState.setFirst(firstPos);
             SelectionState.setSecond(secondPos);
             refreshDimensionInputs(firstPos, secondPos);
-            error = new TextComponentString("");
+            error = new net.minecraft.util.text.TextComponentString("");
         } catch (IllegalArgumentException ignored) {
             // 坐标输入尚不完整时，等待用户继续输入。
         }
@@ -366,7 +363,7 @@ public final class LightingScreen extends Screen {
                         syncingInputs = false;
                     }
                     dimensionClamped = true;
-                } else if (radius < 1) {
+                } else if (radius < 0) {
                     throw new IllegalArgumentException("Out of range");
                 }
                 updatedSecond = offsetChecked(anchor, radius, 0, 0);
@@ -403,9 +400,9 @@ public final class LightingScreen extends Screen {
                 updatedSecond = offsetChecked(anchor, offsets[0], offsets[1], offsets[2]);
             }
             setCoordinatePosition(second, updatedSecond);
-            error = new TextComponentString("");
+            error = new net.minecraft.util.text.TextComponentString("");
             if (dimensionClamped) {
-                rangeMessage = new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
+                rangeMessage = new net.minecraft.util.text.TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                                 ? "screen.autotorch.sphere_radius_clamped"
                                 : "screen.autotorch.box_axis_clamped",
                         SelectionState.shape() == AreaShape.SPHERE
@@ -429,6 +426,7 @@ public final class LightingScreen extends Screen {
         syncingInputs = true;
         try {
             boolean sphere = SelectionState.shape() == AreaShape.SPHERE;
+            // 1.12.2 的文本框用 setX 调整位置，不能直接改字段。
             dimensions[0].setX(panelLeft() + 18);
             dimensions[0].setValue(Integer.toString(sphere
                     ? new AreaZone(AreaShape.SPHERE, firstPos, secondPos).radius()
@@ -452,8 +450,8 @@ public final class LightingScreen extends Screen {
                     * ServerConfigState.maxSphereRadius();
             AreaZone zone = new AreaZone(AreaShape.SPHERE, firstPos, secondPos);
             selectionInRange = zone.radiusSquared() <= maxRadiusSquared;
-            rangeMessage = selectionInRange ? new TextComponentString("")
-                    : new TextComponentTranslation("screen.autotorch.sphere_radius_too_large",
+            rangeMessage = selectionInRange ? new net.minecraft.util.text.TextComponentString("")
+                    : new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.sphere_radius_too_large",
                     ServerConfigState.maxSphereRadius());
         } else {
             long sizeX = Math.abs((long) secondPos.getX() - firstPos.getX()) + 1L;
@@ -462,8 +460,8 @@ public final class LightingScreen extends Screen {
             selectionInRange = sizeX <= ServerConfigState.maxBoxAxisLength()
                     && sizeY <= ServerConfigState.maxBoxAxisLength()
                     && sizeZ <= ServerConfigState.maxBoxAxisLength();
-            rangeMessage = selectionInRange ? new TextComponentString("")
-                    : new TextComponentTranslation("screen.autotorch.box_axis_too_large",
+            rangeMessage = selectionInRange ? new net.minecraft.util.text.TextComponentString("")
+                    : new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.box_axis_too_large",
                     ServerConfigState.maxBoxAxisLength());
         }
         updateZoneButtonAvailability();
@@ -493,7 +491,7 @@ public final class LightingScreen extends Screen {
             SelectionState.setSecond(firstPos);
             refreshDimensionInputs(secondPos, firstPos);
         } catch (IllegalArgumentException ignored) {
-            error = new TextComponentTranslation("screen.autotorch.invalid_value");
+            error = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.invalid_value");
         }
     }
 
@@ -513,12 +511,8 @@ public final class LightingScreen extends Screen {
                         Math.min((long) max.getX() - min.getX(), (long) max.getY() - min.getY()),
                         (long) max.getZ() - min.getZ());
                 int radius = (int) (shortestExtent / 2L);
-                if (radius < 1) {
-                    error = new TextComponentTranslation("screen.autotorch.convert_box_too_small");
-                    return;
-                }
                 if (radius > ServerConfigState.maxSphereRadius()) {
-                    error = new TextComponentTranslation("screen.autotorch.convert_sphere_too_large");
+                    error = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.convert_sphere_too_large");
                     return;
                 }
                 convertedFirst = midpoint(min, max);
@@ -529,7 +523,7 @@ public final class LightingScreen extends Screen {
                 validateZone(sphere);
                 int radius = sphere.radius();
                 if (radius * 2L + 1L > ServerConfigState.maxBoxAxisLength()) {
-                    error = new TextComponentTranslation(
+                    error = new net.minecraft.util.text.TextComponentTranslation(
                             "screen.autotorch.convert_box_too_large",
                             ServerConfigState.maxBoxAxisLength());
                     return;
@@ -549,13 +543,12 @@ public final class LightingScreen extends Screen {
             SelectionState.setFirst(convertedFirst);
             SelectionState.setSecond(convertedSecond);
             SelectionState.setShape(convertedShape);
-            shapeButton.setMessage(shapeMessage().getFormattedText());
-            convertShapeButton.setMessage(convertShapeMessage().getFormattedText());
-            updatePointButtonMessages();
+            shapeButton.setMessage(LegacyText.string(shapeMessage()));
+            updateShapeDependentMessages();
             refreshDimensionInputs(convertedFirst, convertedSecond);
-            error = new TextComponentString("");
+            error = new net.minecraft.util.text.TextComponentString("");
         } catch (IllegalArgumentException exception) {
-            error = new TextComponentTranslation("screen.autotorch.invalid_value");
+            error = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.invalid_value");
         }
     }
 
@@ -595,10 +588,10 @@ public final class LightingScreen extends Screen {
             validateZone(zone);
             validateLightingZone(zone);
             SelectionState.setLightingZone(zone);
-            exclusionButton.setMessage(exclusionMessage().getFormattedText());
-            error = new TextComponentString("");
+            exclusionButton.setMessage(LegacyText.string(exclusionMessage()));
+            error = new net.minecraft.util.text.TextComponentString("");
         } catch (IllegalArgumentException exception) {
-            error = new TextComponentTranslation("screen.autotorch.invalid_value");
+            error = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.invalid_value");
         }
     }
 
@@ -607,13 +600,13 @@ public final class LightingScreen extends Screen {
             AreaZone zone = readDraftZone();
             validateZone(zone);
             if (!SelectionState.addExclusion(zone)) {
-                error = new TextComponentTranslation("screen.autotorch.too_many_exclusions");
+                error = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.too_many_exclusions");
             } else {
-                exclusionButton.setMessage(exclusionMessage().getFormattedText());
-                error = new TextComponentString("");
+                exclusionButton.setMessage(LegacyText.string(exclusionMessage()));
+                error = new net.minecraft.util.text.TextComponentString("");
             }
         } catch (IllegalArgumentException exception) {
-            error = new TextComponentTranslation("screen.autotorch.invalid_value");
+            error = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.invalid_value");
         }
     }
 
@@ -629,7 +622,7 @@ public final class LightingScreen extends Screen {
         if (zone.shape() == AreaShape.SPHERE) {
             long maxRadiusSquared = (long) ServerConfigState.maxSphereRadius()
                     * ServerConfigState.maxSphereRadius();
-            if (zone.radiusSquared() <= 0L || zone.radiusSquared() > maxRadiusSquared) {
+            if (zone.radiusSquared() > maxRadiusSquared) {
                 throw new IllegalArgumentException("Sphere radius out of range");
             }
             return;
@@ -662,27 +655,31 @@ public final class LightingScreen extends Screen {
         try {
             AreaZone selection = SelectionState.lightingZone();
             if (selection == null) {
-                error = new TextComponentTranslation("screen.autotorch.no_lighting_zone");
+                error = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.no_lighting_zone");
                 return;
             }
             if (SelectionState.drafting()
                     || !readPosition(first).equals(SelectionState.first(selection.first()))
                     || !readPosition(second).equals(SelectionState.second(selection.second()))) {
-                error = new TextComponentTranslation("screen.autotorch.confirm_draft");
+                error = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.confirm_draft");
                 return;
             }
-            int max = readLimit(maxTorches);
-            int spacing = effectiveDefaultMinSpacing();
+            // 火把上限和间距只在“全部设置”里修改；这里只计算本次任务实际生效值，
+            // 不回写客户端配置，避免把当前服务器的限制永久写进玩家自己的设置。
+            int effectiveMax = ClientStatusJson.effectiveDefaultMaxTorches();
+            int spacing = ClientStatusJson.effectiveDefaultMinSpacing();
             int lightThreshold = ClientConfig.defaultTaskLightThreshold();
-            ClientConfig.setDefaultMaxTorches(max);
-            ClientConfig.setDefaultMinSpacing(spacing);
             PlatformNetworking.sendToServer(new StartLightingPayload(
-                    selection, max, spacing, lightThreshold, consumeTorches,
-                    undergroundOnly, SelectionState.exclusions()
+                    selection, effectiveMax, spacing, lightThreshold, initialConsumeTorches(),
+                    // 服务端载荷沿用 undergroundOnly 语义：true 表示跳过有天空光的位置。
+                    !includeSkyLight,
+                    ClientConfig.stringValue(ConfigDefinitions.TASK_DEFAULT_PLACEMENT_ITEM),
+                    ClientConfig.intValue(ConfigDefinitions.TASK_PROGRESS_INTERVAL),
+                    SelectionState.exclusions()
             ));
             onClose();
         } catch (IllegalArgumentException exception) {
-            error = new TextComponentTranslation("screen.autotorch.invalid_value");
+            error = new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.invalid_value");
         }
     }
 
@@ -694,49 +691,8 @@ public final class LightingScreen extends Screen {
         );
     }
 
-    private static int readPositive(EditBox box, int minimum, int maximum) {
-        int value = Integer.parseInt(box.getValue());
-        if (value < minimum || value > maximum) {
-            throw new IllegalArgumentException("Out of range");
-        }
-        return value;
-    }
-
-    private static int readLimit(EditBox box) {
-        String value = box.getValue();
-        if (value.isEmpty() || value.equals("∞")) {
-            if (ServerConfigState.allowsUnlimitedTorches()) {
-                return 0;
-            }
-            throw new IllegalArgumentException("Unlimited torches are disabled by the server");
-        }
-        return readPositive(box, 1, ServerConfigState.maxTorchesPerTask());
-    }
-
-    private void saveTaskDefaults() {
-        try {
-            ClientConfig.setDefaultMaxTorches(readLimit(maxTorches));
-        } catch (IllegalArgumentException ignored) {
-            // Keep the last valid defaults when closing a screen with incomplete input.
-        }
-    }
-
-    private static int effectiveDefaultMaxTorches() {
-        int configured = ClientConfig.defaultMaxTorches();
-        if (configured == 0) {
-            return ServerConfigState.allowsUnlimitedTorches()
-                    ? 0 : ServerConfigState.maxTorchesPerTask();
-        }
-        return Math.min(configured, ServerConfigState.maxTorchesPerTask());
-    }
-
-    private static int effectiveDefaultMinSpacing() {
-        return Math.max(ServerConfigState.minSpacing(),
-                Math.min(ServerConfigState.maxSpacing(), ClientConfig.defaultMinSpacing()));
-    }
-
     private static int effectiveSecondPassSpacing() {
-        return AutoTorchRules.secondPassSpacing(effectiveDefaultMinSpacing(),
+        return AutoTorchRules.secondPassSpacing(ClientStatusJson.effectiveDefaultMinSpacing(),
                 ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing());
     }
 
@@ -745,11 +701,8 @@ public final class LightingScreen extends Screen {
     }
 
     private static boolean isSingleplayerOwner() {
-        return Minecraft.getMinecraft().isSingleplayer();
-    }
-
-    private static boolean canChooseConsumeTorches() {
-        return isCreativePlayer() || isSingleplayerOwner();
+        // 1.12.2 同时提供 isSingleplayer 与 isIntegratedServerRunning，这里沿用新版语义。
+        return Minecraft.getMinecraft().isIntegratedServerRunning();
     }
 
     private static boolean initialConsumeTorches() {
@@ -777,8 +730,7 @@ public final class LightingScreen extends Screen {
     }
 
     private BlockPos currentPosition() {
-        return minecraft.player == null
-                ? BlockPos.ORIGIN : minecraft.player.getPosition();
+        return minecraft.player == null ? BlockPos.ORIGIN : minecraft.player.getPosition();
     }
 
     private static void setPosition(EditBox[] boxes, BlockPos pos) {
@@ -788,125 +740,154 @@ public final class LightingScreen extends Screen {
     }
 
     private ITextComponent shapeMessage() {
-        return new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
+        return new net.minecraft.util.text.TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                 ? "screen.autotorch.shape_sphere" : "screen.autotorch.shape_box");
     }
 
+    /** 转换按钮默认显示文字；开启符号模式后只显示转换方向。 */
     private ITextComponent convertShapeMessage() {
-        return new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
+        if (ClientConfig.usesSymbolButtons()) {
+            return new net.minecraft.util.text.TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
+                    ? "screen.autotorch.convert_to_circumscribed_box_symbol"
+                    : "screen.autotorch.convert_to_inscribed_sphere_symbol");
+        }
+        return convertShapeText();
+    }
+
+    /** 转换按钮的文字说明：随当前形状给出转换后的目标。 */
+    private ITextComponent convertShapeText() {
+        return new net.minecraft.util.text.TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                 ? "screen.autotorch.convert_to_circumscribed_box"
                 : "screen.autotorch.convert_to_inscribed_sphere");
     }
 
+    /** 互换按钮默认显示文字；开启符号模式后区间用 A/B、球形用 C/R。 */
+    private ITextComponent swapPointsMessage() {
+        if (ClientConfig.usesSymbolButtons()) {
+            return new net.minecraft.util.text.TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
+                    ? "screen.autotorch.swap_center_radius_symbol"
+                    : "screen.autotorch.swap_points_symbol");
+        }
+        return new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.swap_points");
+    }
+
+    /** 符号模式下按钮含义不直观，悬停时补充说明；文字模式本身已说明操作。 */
+    private void updateActionTooltips() {
+        boolean symbols = ClientConfig.usesSymbolButtons();
+        if (symbols) {
+            LegacyTooltips.set(convertShapeButton, convertShapeText());
+            LegacyTooltips.set(swapPointsButton, new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.swap_points"));
+        } else {
+            LegacyTooltips.clear(convertShapeButton);
+            LegacyTooltips.clear(swapPointsButton);
+        }
+    }
+
     private ITextComponent firstPointMessage() {
-        return new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
+        return new net.minecraft.util.text.TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                 ? "screen.autotorch.use_current_center" : "screen.autotorch.use_current_a");
     }
 
     private ITextComponent secondPointMessage() {
-        return new TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
+        return new net.minecraft.util.text.TextComponentTranslation(SelectionState.shape() == AreaShape.SPHERE
                 ? "screen.autotorch.use_current_radius" : "screen.autotorch.use_current_b");
     }
 
     private ITextComponent exclusionMessage() {
-        return new TextComponentTranslation(SelectionState.isEditingExclusion()
+        return new net.minecraft.util.text.TextComponentTranslation(SelectionState.isEditingExclusion()
                 ? "screen.autotorch.save_exclusion" : "screen.autotorch.add_exclusion");
     }
 
-    private void updatePointButtonMessages() {
-        useCurrentFirstButton.setMessage(firstPointMessage().getFormattedText());
-        useCurrentSecondButton.setMessage(secondPointMessage().getFormattedText());
+    /** 形状变化后刷新转换方向、互换对象和坐标按钮的文字与提示。 */
+    private void updateShapeDependentMessages() {
+        convertShapeButton.setMessage(LegacyText.string(convertShapeMessage()));
+        swapPointsButton.setMessage(LegacyText.string(swapPointsMessage()));
+        updateActionTooltips();
+        useCurrentFirstButton.setMessage(LegacyText.string(firstPointMessage()));
+        useCurrentSecondButton.setMessage(LegacyText.string(secondPointMessage()));
     }
 
-    private static void cycleSelectionDisplay() {
+    /** 档位顺序与语言标签一致：0=面，1=线，2=关。 */
+    private static int selectionDisplayIndex() {
         if (!SelectionState.isOverlayEnabled()) {
-            SelectionState.setDisplayMode(SelectionState.DisplayMode.FACES);
-            SelectionState.toggleOverlay();
-        } else if (SelectionState.displayMode() == SelectionState.DisplayMode.FACES) {
-            SelectionState.setDisplayMode(SelectionState.DisplayMode.LINES);
-        } else {
-            SelectionState.toggleOverlay();
+            return 2;
         }
+        return SelectionState.displayMode() == SelectionState.DisplayMode.FACES ? 0 : 1;
     }
 
-    private ITextComponent displayMessage() {
-        if (!SelectionState.isOverlayEnabled()) {
-            return new TextComponentTranslation("screen.autotorch.display_off");
+    /** 直接切换到对应档位；选择面或线时顺带打开选区显示。 */
+    private static void selectSelectionDisplay(int index) {
+        if (index == 2) {
+            if (SelectionState.isOverlayEnabled()) {
+                SelectionState.toggleOverlay();
+            }
+            return;
         }
-        return new TextComponentTranslation(SelectionState.displayMode() == SelectionState.DisplayMode.FACES
-                ? "screen.autotorch.display_faces" : "screen.autotorch.display_lines");
+        SelectionState.setDisplayMode(index == 0
+                ? SelectionState.DisplayMode.FACES : SelectionState.DisplayMode.LINES);
+        if (!SelectionState.isOverlayEnabled()) {
+            SelectionState.toggleOverlay();
+        }
     }
 
     private ITextComponent sphereDisplayMessage() {
-        return new TextComponentTranslation(SelectionState.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY
+        return new net.minecraft.util.text.TextComponentTranslation(SelectionState.sphereDisplayMode() == SelectionState.SphereDisplayMode.BLOCKY
                 ? "screen.autotorch.sphere_display_blocky" : "screen.autotorch.sphere_display_smooth");
     }
 
-    private ITextComponent consumeMessage() {
-        if (!canChooseConsumeTorches()) {
-            return new TextComponentTranslation(ServerConfigState.survivalConsumesTorches()
-                    ? "screen.autotorch.consume_on" : "screen.autotorch.consume_off");
-        }
-        return new TextComponentTranslation(consumeTorches ? "screen.autotorch.consume_on" : "screen.autotorch.consume_off");
-    }
-
-    private ITextComponent undergroundMessage() {
-        return new TextComponentTranslation(undergroundOnly ? "screen.autotorch.underground_on" : "screen.autotorch.underground_off");
+    /** 界面直接显示“包含天空光”；服务端载荷和任务内部仍使用相反的“仅无天空光”语义。 */
+    private ITextComponent includeSkyLightMessage() {
+        return new net.minecraft.util.text.TextComponentTranslation(includeSkyLight
+                ? "screen.autotorch.task_sky_light_on" : "screen.autotorch.task_sky_light_off");
     }
 
     private ITextComponent lightOverlayMessage() {
-        return new TextComponentTranslation(LightOverlayState.isEnabled()
+        return new net.minecraft.util.text.TextComponentTranslation(LightOverlayState.isEnabled()
                 ? "screen.autotorch.light_overlay_on" : "screen.autotorch.light_overlay_off");
     }
 
-    private ITextComponent lightOverlayModeMessage() {
-        return new TextComponentTranslation(LightOverlayState.displayMode() == LightOverlayState.DisplayMode.CROSSES
-                ? "screen.autotorch.light_overlay_mode_crosses"
-                : LightOverlayState.displayMode() == LightOverlayState.DisplayMode.NUMBERS
-                ? "screen.autotorch.light_overlay_mode_numbers"
-                : "screen.autotorch.light_overlay_mode_boxed_numbers");
+    /** 光照显示样式的档位顺序与 DisplayMode 枚举一致。 */
+    private static int lightOverlayDisplayModeIndex() {
+        return LightOverlayState.displayMode().ordinal();
+    }
+
+    private static void selectLightOverlayDisplayMode(int index) {
+        LightOverlayState.setDisplayMode(LightOverlayState.DisplayMode.values()[index]);
     }
 
     private ITextComponent lightOverlayRenderThroughMessage() {
-        return new TextComponentTranslation(ClientConfig.isLightOverlayRenderThrough()
+        return new net.minecraft.util.text.TextComponentTranslation(ClientConfig.isLightOverlayRenderThrough()
                 ? "screen.autotorch.light_overlay_render_through_on"
                 : "screen.autotorch.light_overlay_render_through_off");
     }
 
     private ITextComponent swampSlimeDetectionMessage() {
-        return new TextComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-");
+        return new net.minecraft.util.text.TextComponentTranslation(LightOverlayState.isSwampSlimeDetectionEnabled()
+                ? "screen.autotorch.swamp_slime_detection_on"
+                : "screen.autotorch.swamp_slime_detection_off");
     }
 
-    private <T extends Button> T addRenderableWidget(T widget) {
-        children.add(widget);
-        return addButton(widget);
-    }
-
-    private EditBox addRenderableWidget(EditBox widget) {
-        children.add(widget);
-        return widget;
-    }
-
+    /** 1.12.2 没有溺尸，按钮固定显示不可用提示。 */
     private ITextComponent drownedDetectionMessage() {
-        return new TextComponentTranslation("screen.autotorch.drowned_detection_unavailable.1.12.2-");
+        return new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.drowned_detection_unavailable.1.12.2-");
     }
 
     private ITextComponent nearbyAutoTorchMessage() {
-        return new TextComponentTranslation(ClientConfig.isNearbyAutoTorchEnabled()
+        return new net.minecraft.util.text.TextComponentTranslation(ClientConfig.isNearbyAutoTorchEnabled()
                 ? "screen.autotorch.nearby_auto_torch_on"
                 : "screen.autotorch.nearby_auto_torch_off");
     }
 
     private ITextComponent nearbyAutoTorchSkyLightMessage() {
-        return new TextComponentTranslation(ClientConfig.includesSkyLight()
+        return new net.minecraft.util.text.TextComponentTranslation(ClientConfig.includesSkyLight()
                 ? "screen.autotorch.nearby_auto_torch_sky_light_on"
                 : "screen.autotorch.nearby_auto_torch_sky_light_off");
     }
 
-    private ITextComponent woodenAxeSelectionMessage() {
-        return new TextComponentTranslation(ClientConfig.isWoodenAxeSelectionEnabled()
-                ? "screen.autotorch.wooden_axe_selection_on"
-                : "screen.autotorch.wooden_axe_selection_off");
+    private ITextComponent selectionToolMessage() {
+        return new net.minecraft.util.text.TextComponentTranslation(ClientConfig.isSelectionToolEnabled()
+                ? "screen.autotorch.selection_tool_on"
+                : "screen.autotorch.selection_tool_off");
     }
 
     private int panelLeft() {
@@ -945,10 +926,10 @@ public final class LightingScreen extends Screen {
     }
 
     private void moveWidgets(int deltaY) {
+        // 1.12.2 没有 IGuiEventListener，遍历绘制列表里的控件对象即可。
         for (Object child : children()) {
             if (child instanceof Widget) {
-                Widget widget = (Widget) child;
-                widget.setY(widget.y() + deltaY);
+                ((Widget) child).setY(((Widget) child).y() + deltaY);
             }
         }
     }
@@ -965,11 +946,14 @@ public final class LightingScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
-        if (maxScrollOffset() > 0 && scrollY != 0.0) {
-            setScrollOffset(scrollOffset - (int) Math.round(scrollY * SCROLL_RATE));
+        if (super.mouseScrolled(mouseX, mouseY, scrollY)) {
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, scrollY);
+        if (maxScrollOffset() == 0 || scrollY == 0.0) {
+            return false;
+        }
+        setScrollOffset(scrollOffset - (int) Math.round(scrollY * SCROLL_RATE));
+        return true;
     }
 
     @Override
@@ -986,9 +970,6 @@ public final class LightingScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (heightRangeSlider != null && heightRangeSlider.drag(mouseX)) {
-            return true;
-        }
         if (draggingScrollbar) {
             scrollToMouse(mouseY);
             return true;
@@ -998,9 +979,6 @@ public final class LightingScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (heightRangeSlider != null && heightRangeSlider.stopDrag()) {
-            return true;
-        }
         if (draggingScrollbar) {
             draggingScrollbar = false;
             return true;
@@ -1011,20 +989,20 @@ public final class LightingScreen extends Screen {
     @Override
     public void onClose() {
         saveSelection();
-        saveTaskDefaults();
         super.onClose();
     }
 
     @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // 1.12.2 用 LWJGL 键码；输入框聚焦时不拦截快捷键，避免与文本输入冲突。
         if (!textInputFocused() && keyCode == AutoTorchClient.OPEN_SCREEN.getKeyCode()) {
             onClose();
-            return;
+            return true;
         }
-        super.keyTyped(typedChar, keyCode);
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    /** 输入框获得焦点时不拦截快捷键，避免与文本输入冲突。 */
+    /** 输入框获得焦点时不拦截快捷键。 */
     private boolean textInputFocused() {
         for (Object child : children()) {
             if (child instanceof EditBox && ((EditBox) child).isFocused()) return true;
@@ -1034,58 +1012,52 @@ public final class LightingScreen extends Screen {
 
     @Override
     public void render(int mouseX, int mouseY, float partialTick) {
+        // 背景先按整屏绘制，再裁剪滚动内容，避免屏幕上下留出未压暗区域。
+        // 注意 1.12.2 的 drawScreen 会在裁剪区内自动再画一次背景，这里先补画整屏背景。
+        drawDefaultBackground();
         enableViewportScissor();
         super.render(mouseX, mouseY, partialTick);
-        // 1.13 的 GuiScreen 只自动绘制按钮，文本框需要由界面显式绘制。
         for (Object child : children()) {
-            if (child instanceof EditBox) {
-                ((EditBox) child).render(mouseX, mouseY, partialTick);
-            }
+            if (child instanceof EditBox) ((EditBox) child).render(mouseX, mouseY, partialTick);
         }
         int left = panelLeft();
         int offset = scrollOffset;
-        drawCenteredString(font, title.getFormattedText(), width / 2, 6 - offset, 0xFFFFFFFF);
+        drawCenteredString(font, LegacyText.string(title), width / 2, 6 - offset, 0xFFFFFFFF);
         boolean sphere = SelectionState.shape() == AreaShape.SPHERE;
-        drawString(font, sphere ? "C" : "A", left + 5, 50 - offset, 0xFF70A0FF);
-        drawString(font, sphere ? "R" : "B", left + 5, 72 - offset, 0xFF70A0FF);
+        drawString(font, LegacyText.string(sphere ? "C" : "A"), left + 5, 50 - offset, 0xFF70A0FF);
+        drawString(font, LegacyText.string(sphere ? "R" : "B"), left + 5, 72 - offset, 0xFF70A0FF);
         if (sphere) {
-            drawString(font, new TextComponentTranslation("screen.autotorch.radius_label").getFormattedText(),
-                    left + 2, 94 - offset, 0xFF70A0FF);
+            drawString(font, LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.radius_label")), left + 2, 94 - offset, 0xFF70A0FF);
         } else {
-            drawString(font, new TextComponentTranslation("screen.autotorch.length_label").getFormattedText(),
-                    left + 2, 94 - offset, 0xFF70A0FF);
-            drawString(font, new TextComponentTranslation("screen.autotorch.width_label").getFormattedText(),
-                    left + 104, 94 - offset, 0xFF70A0FF);
-            drawString(font, new TextComponentTranslation("screen.autotorch.height_label").getFormattedText(),
-                    left + 206, 94 - offset, 0xFF70A0FF);
+            drawString(font, LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.length_label")), left + 2, 94 - offset, 0xFF70A0FF);
+            drawString(font, LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.width_label")), left + 104, 94 - offset, 0xFF70A0FF);
+            drawString(font, LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.height_label")), left + 206, 94 - offset, 0xFF70A0FF);
         }
-        drawString(font, new TextComponentTranslation("screen.autotorch.max_torches").getFormattedText(),
-                left, 166 - offset, 0xFFFFFFFF);
-        int informationY = 232 - offset;
+        int informationY = 208 - offset;
         if (!error.getFormattedText().isEmpty()) {
-            drawCenteredString(font, error.getFormattedText(), width / 2, informationY, 0xFFFF6060);
+            drawCenteredString(font, LegacyText.string(error), width / 2, informationY, 0xFFFF6060);
         } else if (!rangeMessage.getFormattedText().isEmpty()) {
-            drawCenteredString(font, rangeMessage.getFormattedText(), width / 2, informationY, 0xFFFFC060);
+            drawCenteredString(font, LegacyText.string(rangeMessage), width / 2, informationY, 0xFFFFC060);
         } else if (!AutoTorchRules.canTorchMeetLightThreshold(ClientConfig.defaultTaskLightThreshold())) {
-            drawCenteredString(font, new TextComponentTranslation("screen.autotorch.light_threshold_unreachable",
-                    ClientConfig.defaultTaskLightThreshold()).getFormattedText(), width / 2, informationY, 0xFFFF6060);
+            drawCenteredString(font, LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.light_threshold_unreachable",
+                    ClientConfig.defaultTaskLightThreshold())), width / 2, informationY, 0xFFFF6060);
         } else if (ServerConfigState.minSpacing() > AutoTorchRules.maxSafeSecondPassSpacing(
                 ClientConfig.defaultTaskLightThreshold())) {
-            drawCenteredString(font, new TextComponentTranslation("screen.autotorch.second_pass_spacing_limited",
-                    effectiveSecondPassSpacing(), ClientConfig.defaultTaskLightThreshold()).getFormattedText(),
+            drawCenteredString(font, LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.second_pass_spacing_limited",
+                    effectiveSecondPassSpacing(), ClientConfig.defaultTaskLightThreshold())),
                     width / 2, informationY, 0xFFFFC060);
         } else {
-            drawString(font, new TextComponentTranslation("screen.autotorch.zone_summary",
-                    SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size()).getFormattedText(),
+            drawString(font, LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.zone_summary",
+                    SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size())),
                     left, informationY, 0xFFA0A0A0);
         }
-        fill(left, 242 - offset, left + 310, 243 - offset, 0xFF606060);
-        drawCenteredString(font, new TextComponentTranslation("screen.autotorch.light_overlay_title").getFormattedText(),
-                width / 2, 246 - offset, 0xFFFFFFFF);
-        fill(left, 334 - offset, left + 310, 335 - offset, 0xFF606060);
-        drawCenteredString(font, new TextComponentTranslation("screen.autotorch.nearby_auto_torch_title").getFormattedText(),
-                width / 2, 338 - offset, 0xFFFFFFFF);
-        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        fill(left, 218 - offset, left + 310, 219 - offset, 0xFF606060);
+        drawCenteredString(font, LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.light_overlay_title")),
+                width / 2, 222 - offset, 0xFFFFFFFF);
+        fill(left, 310 - offset, left + 310, 311 - offset, 0xFF606060);
+        drawCenteredString(font, LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.nearby_auto_torch_title")),
+                width / 2, 314 - offset, 0xFFFFFFFF);
+        LegacyText.disableScissor();
 
         if (maxScrollOffset() > 0) {
             int x = scrollbarX();
@@ -1093,27 +1065,18 @@ public final class LightingScreen extends Screen {
             int thumbColor = mouseX >= x && mouseX < x + SCROLLBAR_WIDTH
                     && mouseY >= VIEWPORT_MARGIN && mouseY < height - VIEWPORT_MARGIN
                     ? 0xFFE0E0E0 : 0xFFB0B0B0;
-            fill(x, VIEWPORT_MARGIN, x + SCROLLBAR_WIDTH,
-                    height - VIEWPORT_MARGIN, 0x80000000);
+            fill(x, VIEWPORT_MARGIN, x + SCROLLBAR_WIDTH, height - VIEWPORT_MARGIN, 0x80000000);
             fill(x, y, x + SCROLLBAR_WIDTH, y + scrollbarHeight(), thumbColor);
         }
-        if (mouseY >= VIEWPORT_MARGIN && mouseY < height - VIEWPORT_MARGIN) {
-            for (Map.Entry<Button, ITextComponent> entry : tooltips.entrySet()) {
-                if (entry.getKey().visible && entry.getKey().isMouseOver(mouseX, mouseY)) {
-                    renderTooltip(entry.getValue().getFormattedText(), mouseX, mouseY);
-                    break;
-                }
-            }
-        }
+        LegacyTooltips.render(this, font, mouseX, mouseY);
     }
 
+    /** 把内容裁剪到去掉上下留白的视口内；1.12.2 用 ScaledResolution 换算像素坐标。 */
     private void enableViewportScissor() {
-        net.minecraft.client.gui.ScaledResolution resolution = new net.minecraft.client.gui.ScaledResolution(minecraft);
-        double scale = resolution.getScaleFactor();
+        double scale = guiScaleFactor();
         int bottom = (int) Math.round(VIEWPORT_MARGIN * scale);
         int viewportHeight = (int) Math.round((height - VIEWPORT_MARGIN * 2) * scale);
-        GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(0, bottom, minecraft.displayWidth, viewportHeight);
+        LegacyText.enableScissor(0, bottom, minecraft.displayWidth, viewportHeight);
     }
 
     @Override
@@ -1123,7 +1086,36 @@ public final class LightingScreen extends Screen {
 
     /** 标题区域内仅在悬停时显示文字的重置入口。 */
     private int resetButtonX(ITextComponent message) {
-        return panelLeft() + 310 - font.getStringWidth(message.getFormattedText());
+        return panelLeft() + 310 - font.getStringWidth(LegacyText.string(message));
+    }
+
+    /** 在按钮左侧显示当前选区工具的物品图标，文字右移让出图标位置。 */
+    private static final class SelectionToolButton extends Button {
+        private static final ResourceLocation BUTTON = new ResourceLocation("minecraft", "widget/button");
+        private static final ResourceLocation BUTTON_HIGHLIGHTED = new ResourceLocation("minecraft", "widget/button_highlighted");
+        private static final ResourceLocation BUTTON_DISABLED = new ResourceLocation("minecraft", "widget/button_disabled");
+        private ItemStack toolStack = ItemStack.EMPTY;
+
+        private SelectionToolButton(int x, int y, int width, int height, ITextComponent message, OnPress onPress) {
+            super(x, y, width, height, LegacyText.string(message), onPress);
+        }
+
+        private void setToolStack(ItemStack value) {
+            toolStack = value;
+        }
+
+        @Override
+        public void renderButton(int mouseX, int mouseY, float partialTick) {
+            ResourceLocation sprite = !active ? BUTTON_DISABLED : (isHovered() || isFocused()) ? BUTTON_HIGHLIGHTED : BUTTON;
+            LegacyWidgetSprites.blit(sprite, x, y, getWidth(), height);
+            if (!toolStack.isEmpty()) {
+                Minecraft.getMinecraft().getRenderItem().renderItemAndEffectIntoGUI(toolStack, x + 4, y + 2);
+            }
+            // 图标右侧文字左对齐，避免文字位置随开关状态变化而漂移。
+            int textLeft = x + 22;
+            drawString(Minecraft.getMinecraft().fontRenderer, LegacyText.string(getMessage()), textLeft, y + 6,
+                    active ? 0xFFFFFFFF : 0xFFA0A0A0);
+        }
     }
 
     private static final class ResetButton extends Button {
@@ -1131,20 +1123,20 @@ public final class LightingScreen extends Screen {
         private final int hoverRight;
 
         private ResetButton(int x, int y, int width, int height, ITextComponent message,
-                int hoverLeft, int hoverRight, OnPress onPress) {
-            super(x, y, width, height, message.getFormattedText(), onPress);
+                            int hoverLeft, int hoverRight, OnPress onPress) {
+            super(x, y, width, height, LegacyText.string(message), onPress);
             this.hoverLeft = hoverLeft;
             this.hoverRight = hoverRight;
         }
 
         @Override
-        protected void renderButton(int mouseX, int mouseY, float partialTicks) {
+        public void renderButton(int mouseX, int mouseY, float partialTick) {
             boolean rowHovered = mouseX >= hoverLeft && mouseX < hoverRight
                     && mouseY >= y && mouseY < y + height;
-            if (isHovered() || isFocused() || rowHovered) {
-                FontRenderer fontRenderer = Minecraft.getMinecraft().fontRenderer;
-                drawString(fontRenderer, getMessage(), x + width - fontRenderer.getStringWidth(getMessage()), y + 4,
-                        isHovered() || isFocused() ? 0xFFFFFF00 : 0xFFFFFFFF);
+            if ((isHovered() || isFocused()) || rowHovered) {
+                drawString(Minecraft.getMinecraft().fontRenderer, LegacyText.string(getMessage()), x + getWidth() -
+                        Minecraft.getMinecraft().fontRenderer.getStringWidth(LegacyText.string(getMessage())), y + 4,
+                        (isHovered() || isFocused()) ? 0xFFFFFF00 : 0xFFFFFFFF);
             }
         }
     }
@@ -1157,8 +1149,7 @@ public final class LightingScreen extends Screen {
 
         @Override
         protected void updateMessage() {
-            setMessage(new TextComponentTranslation(
-                    "screen.autotorch.light_overlay_range_value", range()).getFormattedText());
+            setMessage(LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.light_overlay_range_value", range())));
         }
 
         @Override
@@ -1188,8 +1179,8 @@ public final class LightingScreen extends Screen {
 
         @Override
         protected void updateMessage() {
-            setMessage(new TextComponentTranslation(
-                    "screen.autotorch.nearby_auto_torch_threshold", threshold()).getFormattedText());
+            setMessage(LegacyText.string(new net.minecraft.util.text.TextComponentTranslation(
+                    "screen.autotorch.nearby_auto_torch_threshold", threshold())));
         }
 
         @Override
@@ -1211,23 +1202,17 @@ public final class LightingScreen extends Screen {
         }
     }
 
-    private static double minSpacingToSliderValue(int spacing) {
-        int steps = ServerConfigState.maxSpacing() - ServerConfigState.minSpacing();
-        return steps == 0 ? 0.0 : (double) (spacing - ServerConfigState.minSpacing()) / steps;
-    }
-
-    private final class MinSpacingSlider extends ScrollingSliderButton {
+    private static final class MinSpacingSlider extends ScrollingSliderButton {
         private MinSpacingSlider(int x, int y, int width, int height) {
-            super(x, y, width, height, minSpacingToSliderValue(effectiveDefaultMinSpacing()));
+            super(x, y, width, height, toSliderValue(ClientStatusJson.effectiveDefaultMinSpacing()));
             updateMessage();
         }
 
         @Override
         protected void updateMessage() {
             int spacing = spacing();
-            setMessage(new TextComponentTranslation("screen.autotorch.min_spacing", spacing).getFormattedText());
-            // 1.12.2 没有 Tooltip API，改用本界面的工具提示表。
-            tooltips.put(this, new TextComponentTranslation("screen.autotorch.min_spacing.tooltip.dynamic",
+            setMessage(LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.min_spacing", spacing)));
+            LegacyTooltips.set(this, new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.min_spacing.tooltip.dynamic",
                     spacing, AutoTorchRules.secondPassSpacing(spacing,
                             ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing())));
         }
@@ -1241,17 +1226,23 @@ public final class LightingScreen extends Screen {
             int steps = ServerConfigState.maxSpacing() - ServerConfigState.minSpacing();
             return ServerConfigState.minSpacing() + (int) Math.round(value * steps);
         }
+
+        private static double toSliderValue(int spacing) {
+            int steps = ServerConfigState.maxSpacing() - ServerConfigState.minSpacing();
+            return steps == 0 ? 0.0 : (double) (spacing - ServerConfigState.minSpacing()) / steps;
+        }
     }
 
     private static final class AreaLightThresholdSlider extends ScrollingSliderButton {
         private AreaLightThresholdSlider(int x, int y, int width, int height) {
             super(x, y, width, height, toSliderValue(ClientConfig.defaultTaskLightThreshold()));
+            LegacyTooltips.set(this, new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.area_light_threshold.tooltip"));
             updateMessage();
         }
 
         @Override
         protected void updateMessage() {
-            setMessage(new TextComponentTranslation("screen.autotorch.area_light_threshold", threshold()).getFormattedText());
+            setMessage(LegacyText.string(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.area_light_threshold", threshold())));
         }
 
         @Override

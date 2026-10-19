@@ -18,7 +18,10 @@ import org.lwjgl.input.Keyboard;
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
     private static boolean openScreenRequested;
+    private static boolean openServerConfigRequested;
     private World selectionToolSyncedLevel;
+    private boolean syncedToolEnabled;
+    private String syncedToolItem;
     public static final String CATEGORY = "key.category.autotorch.main";
     public static final KeyBinding OPEN_SCREEN = new KeyBinding(
             "key.autotorch.open_screen",
@@ -37,6 +40,12 @@ public final class AutoTorchClient {
     );
     public void tick(BlockPos lightOverlayCenter) {
         Minecraft minecraft = Minecraft.getMinecraft();
+        // 配置文件可能由平台层在其它线程重载，这里只在客户端 tick 中应用新快照。
+        ClientConfig.applyPendingReload();
+        if (openServerConfigRequested) {
+            openServerConfigRequested = false;
+            if (minecraft.player != null) minecraft.displayGuiScreen(new ServerConfigScreen());
+        }
         // 处理打开选区面板的请求，避免在 tick 中直接打开 GUI 导致的异常。(仅限 Fabric 端的bug)
         if (openScreenRequested) {
             openScreenRequested = false;
@@ -73,6 +82,8 @@ public final class AutoTorchClient {
         }
     }
 
+    public static void requestOpenServerConfigScreen() { openServerConfigRequested = true; }
+
     public static void requestOpenScreen() {
         openScreenRequested = true;
     }
@@ -80,7 +91,7 @@ public final class AutoTorchClient {
     public boolean onLeftClick(World level, ItemStack stack, BlockPos pos, boolean start) {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
                 || !level.isRemote
-                || stack.getItem() != Items.WOODEN_AXE) {
+                || stack.getItem() != ClientConfig.selectionToolItem()) {
             return false;
         }
         // 长按破坏方块会连续触发事件，只在 START 阶段记录一次 A 点。
@@ -99,7 +110,7 @@ public final class AutoTorchClient {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
                 || !level.isRemote
                 || hand != EnumHand.MAIN_HAND
-                || stack.getItem() != Items.WOODEN_AXE) {
+                || stack.getItem() != ClientConfig.selectionToolItem()) {
             return false;
         }
         SelectionState.setSecond(pos);
@@ -129,10 +140,14 @@ public final class AutoTorchClient {
     private void syncSelectionToolSetting(Minecraft minecraft) {
         if (minecraft.world == null) {
             selectionToolSyncedLevel = null;
-        } else if (minecraft.player != null && minecraft.world != selectionToolSyncedLevel) {
+        } else if (minecraft.player != null &&  (minecraft.world != selectionToolSyncedLevel
+                || syncedToolEnabled != ClientConfig.isSelectionToolEnabled()
+                || !ClientConfig.snapshot().selectionToolItem.equals(syncedToolItem))) {
             PlatformNetworking.sendToServer(
-                    new SetSelectionToolPayload(ClientConfig.isWoodenAxeSelectionEnabled()));
+                    new SetSelectionToolPayload(ClientConfig.isSelectionToolEnabled(), ClientConfig.stringValue(com.sakurakugu.autotorch.config.ConfigDefinitions.SELECTION_TOOL_ITEM)));
             selectionToolSyncedLevel = minecraft.world;
+            syncedToolEnabled = ClientConfig.isSelectionToolEnabled();
+            syncedToolItem = ClientConfig.snapshot().selectionToolItem;
         }
     }
 }

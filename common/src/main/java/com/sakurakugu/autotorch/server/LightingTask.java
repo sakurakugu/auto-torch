@@ -20,16 +20,12 @@ import net.minecraft.world.WorldServer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.EnumSkyBlock;
-import net.minecraft.item.Item;
 import net.minecraft.util.text.Style;
-import net.minecraft.block.Block;
 import net.minecraft.block.state.BlockFaceShape;
-import net.minecraft.init.Blocks;
 import net.minecraft.block.state.IBlockState;
 
 /** 单个玩家的增量照明任务，通过每刻预算避免大选区阻塞服务端线程。 */
 final class LightingTask {
-    private static final int PROGRESS_UPDATE_INTERVAL_TICKS = 10;
     private static final int PROGRESS_BAR_LENGTH = 20;
     private static final int UPDATE_ALL = 3;
 
@@ -48,6 +44,8 @@ final class LightingTask {
     private final int lightThreshold;
     private final boolean consumeTorches;
     private final boolean undergroundOnly;
+    private final net.minecraft.item.ItemBlock placementItem;
+    private final int progressUpdateIntervalTicks;
     private final AreaZoneIndex exclusions;
     private final Random random;
     private final Map<Long, List<BlockPos>> placedByCell = new HashMap<>();
@@ -57,7 +55,7 @@ final class LightingTask {
     private int pass;
     private int placed;
     private int skippedUnloaded;
-    private int ticksUntilProgressUpdate = PROGRESS_UPDATE_INTERVAL_TICKS;
+    private int ticksUntilProgressUpdate;
 
     LightingTask(
             WorldServer level,
@@ -70,6 +68,8 @@ final class LightingTask {
             int lightThreshold,
             boolean consumeTorches,
             boolean undergroundOnly,
+            net.minecraft.item.ItemBlock placementItem,
+            int progressUpdateIntervalTicks,
             List<AreaZone> exclusions,
             UUID playerId
     ) {
@@ -86,6 +86,9 @@ final class LightingTask {
         this.lightThreshold = lightThreshold;
         this.consumeTorches = consumeTorches;
         this.undergroundOnly = undergroundOnly;
+        this.placementItem = placementItem;
+        this.progressUpdateIntervalTicks = progressUpdateIntervalTicks;
+        this.ticksUntilProgressUpdate = progressUpdateIntervalTicks;
         this.exclusions = new AreaZoneIndex(exclusions.stream()
                 .filter(selection::intersects).collect(Collectors.toList()));
 
@@ -140,7 +143,7 @@ final class LightingTask {
             if (consumeTorches && !hasTorch(player)) {
                 return finish(player, "message.autotorch.out_of_torches", scannedThisTick, placedThisTick, placed);
             }
-            if (!level.setBlockState(torchPos, Blocks.TORCH.getDefaultState(), UPDATE_ALL)) {
+            if (!level.setBlockState(torchPos, placementItem.getBlock().getDefaultState(), UPDATE_ALL)) {
                 continue;
             }
             if (consumeTorches) {
@@ -165,7 +168,7 @@ final class LightingTask {
         if (--ticksUntilProgressUpdate > 0) {
             return;
         }
-        ticksUntilProgressUpdate = PROGRESS_UPDATE_INTERVAL_TICKS;
+        ticksUntilProgressUpdate = progressUpdateIntervalTicks;
         sendProgress(player);
     }
 
@@ -255,9 +258,8 @@ final class LightingTask {
                 continue;
             }
 
-            BlockPos floorPos = candidate.down();
-            IBlockState floor = level.getBlockState(floorPos);
-            if (floor.getBlockFaceShape(level, floorPos, EnumFacing.UP) == BlockFaceShape.SOLID
+            // 1.12.2 没有 1.13 的 Block.isValidPosition，改用等价的 canPlaceBlockAt。
+            if (placementItem.getBlock().canPlaceBlockAt(level, candidate)
                     && level.isBlockModifiable(player, candidate)) {
                 return candidate.toImmutable();
             }
@@ -314,19 +316,20 @@ final class LightingTask {
         placedByCell.computeIfAbsent(cellKey(cellX, cellY, cellZ), ignored -> new ArrayList<>()).add(pos);
     }
 
-    private static boolean hasTorch(EntityPlayerMP player) {
+    private boolean hasTorch(EntityPlayerMP player) {
         for (int slot = 0; slot < player.inventory.getSizeInventory(); slot++) {
-            if (player.inventory.getStackInSlot(slot).getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
+            // 放置物品现在可配置，消耗与检查都以任务开始时解析出的物品为准。
+            if (player.inventory.getStackInSlot(slot).getItem() == placementItem) {
                 return true;
             }
         }
         return false;
     }
 
-    private static void consumeTorch(EntityPlayerMP player) {
+    private void consumeTorch(EntityPlayerMP player) {
         for (int slot = 0; slot < player.inventory.getSizeInventory(); slot++) {
             ItemStack stack = player.inventory.getStackInSlot(slot);
-            if (stack.getItem() == Item.getItemFromBlock(Blocks.TORCH)) {
+            if (stack.getItem() == placementItem) {
                 stack.shrink(1);
                 player.inventory.markDirty();
                 return;

@@ -3,12 +3,12 @@ package com.sakurakugu.autotorch.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
+import org.lwjgl.input.Keyboard;
 
-/** 使用 1.13 按钮输入实现离散数值滑块。 */
+/** 使用新版按钮输入实现离散数值滑块。 */
 abstract class AbstractSliderButton extends Button {
     private static final ResourceLocation WIDGETS_LOCATION = new ResourceLocation("minecraft", "textures/gui/widgets.png");
     protected double value;
-    private boolean dragging;
 
     AbstractSliderButton(int x, int y, int width, int height, double value) {
         super(x, y, width, height, "", button -> { });
@@ -17,21 +17,12 @@ abstract class AbstractSliderButton extends Button {
 
     @Override
     public void onClick(double mouseX, double mouseY) {
-        dragging = true;
         updateFromMouse(mouseX);
     }
 
     @Override
-    protected void mouseDragged(Minecraft minecraft, int mouseX, int mouseY) {
-        // 1.12.2 绘制按钮时也会调用此方法，只有按住滑块后才更新数值。
-        if (dragging) {
-            updateFromMouse(mouseX);
-        }
-    }
-
-    @Override
-    public void mouseReleased(int mouseX, int mouseY) {
-        dragging = false;
+    protected void onDrag(double mouseX, double mouseY, double deltaX, double deltaY) {
+        updateFromMouse(mouseX);
     }
 
     @Override
@@ -54,6 +45,18 @@ abstract class AbstractSliderButton extends Button {
         drawModalRectWithCustomSizedTexture(handleLeft + 4, y, 196, textureY, 4, height, 256, 256);
         drawCenteredString(Minecraft.getMinecraft().fontRenderer, getMessage(),
                 x + width / 2, y + (height - 8) / 2, 0xFFFFFFFF);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // 1.12.2 是 LWJGL 2 键码：203/205 对应左右方向键。
+        if (keyCode == Keyboard.KEY_LEFT || keyCode == Keyboard.KEY_RIGHT) {
+            value = clamp(value + (keyCode == Keyboard.KEY_LEFT ? -1.0 : 1.0) / Math.max(1, width - 8));
+            applyValue();
+            updateMessage();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     private void updateFromMouse(double mouseX) {

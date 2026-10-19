@@ -19,11 +19,13 @@ public final class StartLightingPayload implements AutoTorchPayload {
     private final int lightThreshold;
     private final boolean consumeTorches;
     private final boolean undergroundOnly;
+    private final String placementItem;
+    private final int progressIntervalTicks;
     private final List<AreaZone> exclusions;
 
     public StartLightingPayload(
             AreaZone selection, int maxTorches, int minSpacing, int lightThreshold,
-            boolean consumeTorches, boolean undergroundOnly, List<AreaZone> exclusions
+            boolean consumeTorches, boolean undergroundOnly, String placementItem, int progressIntervalTicks, List<AreaZone> exclusions
     ) {
         this.selection = selection;
         this.maxTorches = maxTorches;
@@ -31,6 +33,8 @@ public final class StartLightingPayload implements AutoTorchPayload {
         this.lightThreshold = lightThreshold;
         this.consumeTorches = consumeTorches;
         this.undergroundOnly = undergroundOnly;
+        this.placementItem = placementItem;
+        this.progressIntervalTicks = progressIntervalTicks;
         // 固化列表，避免编码或异步处理期间调用方继续修改数据。
         this.exclusions = Collections.unmodifiableList(new ArrayList<>(exclusions));
     }
@@ -41,6 +45,8 @@ public final class StartLightingPayload implements AutoTorchPayload {
     public int lightThreshold() { return lightThreshold; }
     public boolean consumeTorches() { return consumeTorches; }
     public boolean undergroundOnly() { return undergroundOnly; }
+    public String placementItem() { return placementItem; }
+    public int progressIntervalTicks() { return progressIntervalTicks; }
     public List<AreaZone> exclusions() { return exclusions; }
 
     public static StartLightingPayload decode(PacketBuffer buffer) {
@@ -51,6 +57,8 @@ public final class StartLightingPayload implements AutoTorchPayload {
                 buffer.readVarInt(),
                 buffer.readBoolean(),
                 buffer.readBoolean(),
+                buffer.readString(256),
+                buffer.readVarInt(),
                 readExclusions(buffer)
         );
     }
@@ -63,6 +71,9 @@ public final class StartLightingPayload implements AutoTorchPayload {
         buffer.writeVarInt(lightThreshold);
         buffer.writeBoolean(consumeTorches);
         buffer.writeBoolean(undergroundOnly);
+        // 1.12.2 的 PacketBuffer 只有 writeString(String)，长度上限由 readString(maxLength) 在读取侧限制。
+        buffer.writeString(placementItem);
+        buffer.writeVarInt(progressIntervalTicks);
         buffer.writeVarInt(exclusions.size());
         for (AreaZone exclusion : exclusions) {
             writeZone(buffer, exclusion);

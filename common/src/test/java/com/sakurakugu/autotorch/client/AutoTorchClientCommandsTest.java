@@ -2,12 +2,64 @@ package com.sakurakugu.autotorch.client;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.tree.CommandNode;
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutoTorchClientCommandsTest {
+    @Test
+    void resetCommandsCoverEverySettingSectionAndFeatureGroup() {
+        CommandDispatcher<Object> dispatcher = new CommandDispatcher<>();
+        AutoTorchClientCommands.register(dispatcher);
+        CommandNode<Object> config = child(child(dispatcher.getRoot(), "autotorch"), "config");
+        for (String alias : new String[] {"defaults", "reset"}) {
+            CommandNode<Object> root = child(config, alias);
+            assertNotNull(root.getCommand());
+            for (ConfigDefinitions.Value definition : ConfigDefinitions.CLIENT) {
+                String[] path = definition.key().split("\\.");
+                CommandNode<Object> section = child(root, path[0]);
+                assertNotNull(section.getCommand(), path[0]);
+                assertNotNull(child(section, path[1]).getCommand(), definition.key());
+                assertFalse(dispatcher.parse("autotorch config " + alias + " "
+                        + definition.key().replace('.', ' '), new Object()).getReader().canRead());
+            }
+            CommandNode<Object> group = child(root, "group");
+            assertNull(group.getCommand());
+            for (String name : new String[] {"area", "overlay", "nearby"}) {
+                assertNotNull(child(group, name).getCommand());
+            }
+        }
+    }
+
+    @Test
+    void everyClientSettingHasGetAndSetCommands() {
+        CommandDispatcher<Object> dispatcher = new CommandDispatcher<>();
+        AutoTorchClientCommands.register(dispatcher);
+        for (ConfigDefinitions.Value definition : ConfigDefinitions.CLIENT) {
+            CommandNode<Object> query = child(child(child(dispatcher.getRoot(), "autotorch"), "config"), "get");
+            CommandNode<Object> setter = child(child(child(dispatcher.getRoot(), "autotorch"), "config"), "set");
+            for (String segment : definition.key().split("\\.")) {
+                query = child(query, segment);
+                setter = child(setter, segment);
+            }
+            assertNotNull(query.getCommand(), definition.key());
+            // set 必须带 value，节点本身不再承担查询。
+            assertNull(setter.getCommand(), definition.key());
+            assertNotNull(child(setter, "value").getCommand(), definition.key());
+        }
+    }
+
+    @Test
+    void leavesServerConfigCommandsForServer() {
+        // 1.12.2 的 serverconfig 命令由服务端执行，本地入口必须放行，交给 Forge 层转发。
+        assertFalse(AutoTorchClientCommands.tryExecute("/autotorch serverconfig"));
+        assertFalse(AutoTorchClientCommands.tryExecute("/autotorch serverconfig get enabled"));
+    }
+
     @Test
     void registersClientCommandTree() {
         CommandDispatcher<Object> dispatcher = new CommandDispatcher<>();
@@ -18,6 +70,9 @@ class AutoTorchClientCommandsTest {
         child(root, "help");
         child(child(root, "status"), "json");
         child(child(root, "config"), "defaults");
+        child(child(root, "config"), "reset");
+        child(child(root, "config"), "get");
+        child(child(root, "config"), "set");
 
         CommandNode<Object> nearby = child(root, "nearby");
         child(nearby, "on");
@@ -71,6 +126,14 @@ class AutoTorchClientCommandsTest {
         child(task, "start");
         child(task, "cancel");
         child(task, "status");
+
+        // serverconfig 只声明语法供补全，不绑定客户端执行器。
+        CommandNode<Object> serverConfig = child(root, "serverconfig");
+        assertNull(serverConfig.getCommand());
+        child(serverConfig, "gui");
+        child(child(serverConfig, "get"), "key");
+        child(child(child(serverConfig, "set"), "key"), "value");
+        child(serverConfig, "defaults");
     }
 
     @Test
