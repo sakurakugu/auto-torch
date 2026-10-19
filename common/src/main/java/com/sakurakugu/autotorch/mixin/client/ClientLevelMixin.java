@@ -23,14 +23,4 @@ abstract class ClientLevelMixin {
     private void autoTorch$markSectionDirty(int sectionX, int sectionY, int sectionZ, CallbackInfo callback) {
         LightOverlayState.markSectionDirty((ClientLevel) (Object) this, sectionX, sectionY, sectionZ);
     }
-
-    @Inject(method = "setSectionRangeDirty", at = @At("TAIL"))
-    private void autoTorch$markSectionRangeDirty(
-            int minSectionX, int minSectionY, int minSectionZ,
-            int maxSectionX, int maxSectionY, int maxSectionZ,
-            CallbackInfo callback
-    ) {
-        LightOverlayState.markSectionRangeDirty((ClientLevel) (Object) this,
-                minSectionX, minSectionY, minSectionZ, maxSectionX, maxSectionY, maxSectionZ);
-    }
 }

@@ -5,7 +5,7 @@ import java.util.function.BiFunction;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.GuiComponent;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
@@ -17,6 +17,7 @@ public class DualRangeSlider extends Button {
     private final int maxSpan;
     private final BiFunction<Integer, Integer, Component> messageFactory;
     private final BiConsumer<Integer, Integer> changeListener;
+    private final BiConsumer<Integer, Integer> commitListener;
     private int lowerValue;
     private int upperValue;
     private int draggingThumb;
@@ -25,13 +26,24 @@ public class DualRangeSlider extends Button {
             int maxSpan, int lowerValue, int upperValue,
             BiFunction<Integer, Integer, Component> messageFactory,
             BiConsumer<Integer, Integer> changeListener) {
-        super(x, y, width, height, "", button -> { });
+        this(x, y, width, height, minValue, maxValue, maxSpan, lowerValue, upperValue,
+                messageFactory, changeListener, (lower, upper) -> { });
+    }
+
+    /** 额外接收松开鼠标时的回调，供只在拖动结束后才写配置的界面使用。 */
+    public DualRangeSlider(int x, int y, int width, int height, int minValue, int maxValue,
+            int maxSpan, int lowerValue, int upperValue,
+            BiFunction<Integer, Integer, Component> messageFactory,
+            BiConsumer<Integer, Integer> changeListener,
+            BiConsumer<Integer, Integer> commitListener) {
+        super(x, y, width, height, LegacyText.string(new net.minecraft.network.chat.TextComponent("")), button -> { });
         if (minValue >= maxValue || maxSpan < 0) throw new IllegalArgumentException("Invalid slider range");
         this.minValue = minValue;
         this.maxValue = maxValue;
         this.maxSpan = maxSpan;
         this.messageFactory = messageFactory;
         this.changeListener = changeListener;
+        this.commitListener = commitListener;
         setValues(lowerValue, upperValue, false);
     }
 
@@ -47,7 +59,7 @@ public class DualRangeSlider extends Button {
         this.upperValue = clamp(upperValue);
         if (this.lowerValue > this.upperValue) this.lowerValue = this.upperValue;
         if (this.upperValue - this.lowerValue > maxSpan) this.upperValue = clamp(this.lowerValue + maxSpan);
-        setMessage(messageFactory.apply(this.lowerValue, this.upperValue).getString());
+        setMessage(LegacyText.string(messageFactory.apply(this.lowerValue, this.upperValue)));
         if (notify) changeListener.accept(this.lowerValue, this.upperValue);
     }
 
@@ -55,10 +67,9 @@ public class DualRangeSlider extends Button {
     public void renderButton(int mouseX, int mouseY, float partialTick) {
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        Minecraft.getInstance().getTextureManager().bind(SLIDER_LOCATION);
-        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F); RenderSystem.enableBlend(); RenderSystem.defaultBlendFunc(); RenderSystem.enableDepthTest();
-        drawNineSliced(x,y,getWidth(),height,20,4,200,20,0,isFocused()?20:0);
-        fill(lowX, y + 1, highX, y + height - 1, 0xFF3A5F8A);
+        applySliderTexture();
+        drawNineSliced(x, y, getWidth(), height, 20, 4, 200, 20, 0, isFocused() ? 20 : 0);
+        fill(lowX, y + 1, highX, y + height - 1, 0x803A5F8A);
         drawThumb(lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
         ScrollingText.render(Minecraft.getInstance().font, getMessage(),
@@ -66,12 +77,74 @@ public class DualRangeSlider extends Button {
     }
 
     private void drawThumb(int thumbX, boolean highlighted) {
-        drawNineSliced(thumbX-4,y,8,height,20,4,200,20,0,highlighted?60:40);
+        applySliderTexture();
+        drawNineSliced(thumbX - 4, y, 8, height, 20, 4, 200, 20, 0, highlighted ? 60 : 40);
     }
 
-    private static void drawNineSliced(int x,int y,int width,int height,int cw,int ch,int tw,int th,int u,int v){int l=Math.min(cw,width/2),r=Math.min(cw,width-l),t=Math.min(ch,height/2),b=Math.min(ch,height-t),mw=width-l-r,mh=height-t-b,sw=Math.max(1,tw-cw*2),sh=Math.max(1,th-ch*2);blitPatch(x,y,l,t,u,v,l,t);blitPatch(x+width-r,y,r,t,u+tw-r,v,r,t);blitPatch(x,y+height-b,l,b,u,v+th-b,l,b);blitPatch(x+width-r,y+height-b,r,b,u+tw-r,v+th-b,r,b);if(mw>0){blitRepeat(x+l,y,mw,t,u+cw,v,sw,t);blitRepeat(x+l,y+height-b,mw,b,u+cw,v+th-b,sw,b);}if(mh>0){blitRepeat(x,y+t,l,mh,u,v+ch,l,sh);blitRepeat(x+width-r,y+t,r,mh,u+tw-r,v+ch,r,sh);}if(mw>0&&mh>0)blitRepeat(x+l,y+t,mw,mh,u+cw,v+ch,sw,sh);}
-    private static void blitPatch(int x,int y,int w,int h,int u,int v,int sw,int sh){if(w>0&&h>0)GuiComponent.blit(x,y,0,(float)u,(float)v,w,h,256,256);}
-    private static void blitRepeat(int x,int y,int w,int h,int u,int v,int sw,int sh){if(w<=0||h<=0)return;for(int oy=0;oy<h;oy+=sh)for(int ox=0;ox<w;ox+=sw){int tw=Math.min(sw,w-ox),th=Math.min(sh,h-oy);blitPatch(x+ox,y+oy,tw,th,u,v,tw,th);}}
+    /** 旧版没有 GuiGraphics 自动管理着色器状态，绘制原版贴图前需要手动绑定。 */
+    private static void applySliderTexture() {
+        Minecraft.getInstance().getTextureManager().bind(SLIDER_LOCATION);
+        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
+    }
+
+    private static void drawNineSliced(int x, int y, int width, int height,
+            int cornerWidth, int cornerHeight, int textureWidth, int textureHeight, int u, int v) {
+        int left = Math.min(cornerWidth, width / 2);
+        int right = Math.min(cornerWidth, width - left);
+        int top = Math.min(cornerHeight, height / 2);
+        int bottom = Math.min(cornerHeight, height - top);
+        int centerWidth = width - left - right;
+        int centerHeight = height - top - bottom;
+        int sourceCenterWidth = Math.max(1, textureWidth - cornerWidth * 2);
+        int sourceCenterHeight = Math.max(1, textureHeight - cornerHeight * 2);
+
+        blitPatch(x, y, left, top, u, v, left, top);
+        blitPatch(x + width - right, y, right, top,
+                u + textureWidth - right, v, right, top);
+        blitPatch(x, y + height - bottom, left, bottom,
+                u, v + textureHeight - bottom, left, bottom);
+        blitPatch(x + width - right, y + height - bottom, right, bottom,
+                u + textureWidth - right, v + textureHeight - bottom, right, bottom);
+        if (centerWidth > 0) {
+            blitRepeatingPatch(x + left, y, centerWidth, top,
+                    u + cornerWidth, v, sourceCenterWidth, top);
+            blitRepeatingPatch(x + left, y + height - bottom, centerWidth, bottom,
+                    u + cornerWidth, v + textureHeight - bottom, sourceCenterWidth, bottom);
+        }
+        if (centerHeight > 0) {
+            blitRepeatingPatch(x, y + top, left, centerHeight,
+                    u, v + cornerHeight, left, sourceCenterHeight);
+            blitRepeatingPatch(x + width - right, y + top, right, centerHeight,
+                    u + textureWidth - right, v + cornerHeight, right, sourceCenterHeight);
+        }
+        if (centerWidth > 0 && centerHeight > 0) {
+            blitRepeatingPatch(x + left, y + top, centerWidth, centerHeight,
+                    u + cornerWidth, v + cornerHeight, sourceCenterWidth, sourceCenterHeight);
+        }
+    }
+
+    private static void blitPatch(int x, int y, int width, int height,
+            int u, int v, int sourceWidth, int sourceHeight) {
+        if (width > 0 && height > 0) {
+            net.minecraft.client.gui.GuiComponent.blit(x, y, 0, (float) u, (float) v, width, height, 256, 256);
+        }
+    }
+
+    private static void blitRepeatingPatch(int x, int y, int width, int height,
+            int u, int v, int sourceWidth, int sourceHeight) {
+        if (width <= 0 || height <= 0 || sourceWidth <= 0 || sourceHeight <= 0) return;
+        for (int offsetY = 0; offsetY < height; offsetY += sourceHeight) {
+            int tileHeight = Math.min(sourceHeight, height - offsetY);
+            for (int offsetX = 0; offsetX < width; offsetX += sourceWidth) {
+                int tileWidth = Math.min(sourceWidth, width - offsetX);
+                blitPatch(x + offsetX, y + offsetY, tileWidth, tileHeight,
+                        u, v, tileWidth, tileHeight);
+            }
+        }
+    }
 
     private boolean isThumbHovered(int mouseX, int mouseY, int x) {
         return mouseY >= y && mouseY < y + height && Math.abs(mouseX - x) <= 6;
@@ -95,6 +168,7 @@ public class DualRangeSlider extends Button {
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         draggingThumb = 0;
+        commitListener.accept(lowerValue, upperValue);
         return true;
     }
 

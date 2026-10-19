@@ -6,6 +6,7 @@ import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.server.ServerConfigNetwork;
 import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.util.ActionResultType;
 import net.minecraft.util.Hand;
@@ -29,7 +30,9 @@ public final class AutoTorchForge {
         ServerConfig.install(ForgeConfigs.SERVER);
         ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ForgeConfigs.SERVER.spec());
         ForgeNetworking.initialize();
-        MinecraftForge.EVENT_BUS.addListener(this::onServerStarting);
+        ServerConfigNetwork.installSender(ForgeNetworking::sendToPlayer);
+        MinecraftForge.EVENT_BUS.addListener((FMLServerStartingEvent event) -> AutoTorchServerCommands.register(event.getCommandDispatcher(),
+                ServerConfigNetwork::broadcast));
 
         MinecraftForge.EVENT_BUS.addListener(this::onServerTick);
         MinecraftForge.EVENT_BUS.addListener(this::onLeftClick);
@@ -40,13 +43,6 @@ public final class AutoTorchForge {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             AutoTorchForgeClient.initialize(context);
         }
-    }
-
-    private void onServerStarting(FMLServerStartingEvent event) {
-        // 单机、局域网和专用服务器都注册，客户端才能拿到服务端命令树并补全 serverconfig。
-        AutoTorchServerCommands.register(event.getCommandDispatcher(), server ->
-                server.getPlayerList().getPlayers().forEach(player ->
-                        ForgeNetworking.sendToPlayer(player, ServerConfigPayload.current())));
     }
 
     private void onServerTick(TickEvent.ServerTickEvent event) {

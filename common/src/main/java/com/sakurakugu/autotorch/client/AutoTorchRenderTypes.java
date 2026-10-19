@@ -14,6 +14,7 @@ import org.lwjgl.opengl.GL11;
 public final class AutoTorchRenderTypes {
     private static final Map<Integer, RenderType> LINES = new HashMap<>();
     private static final Map<Integer, RenderType> SEE_THROUGH_LINES = new HashMap<>();
+    private static final Map<ResourceLocation, RenderType> NUMBERS = new HashMap<>();
     private static final Map<ResourceLocation, RenderType> SEE_THROUGH_NUMBERS = new HashMap<>();
     private AutoTorchRenderTypes() {
     }
@@ -39,18 +40,32 @@ public final class AutoTorchRenderTypes {
         }
     }
 
-    /** 返回显式关闭深度测试的数字纹理渲染类型。 */
+    /** 按配置选择是否让数字穿过实体方块。 */
+    public static RenderType numbers(ResourceLocation texture, boolean seeThrough) {
+        return seeThrough ? seeThroughNumbers(texture) : NUMBERS.computeIfAbsent(texture, key -> RenderType.text(key));
+    }
+
     public static RenderType seeThroughNumbers(ResourceLocation texture) {
         return SEE_THROUGH_NUMBERS.computeIfAbsent(texture, AutoTorchRenderTypes::createSeeThroughNumbers);
     }
 
-    /** 在相机模型视图矩阵仍有效时结束全部数字透视批次。 */
+    /** 在相机模型视图矩阵仍有效时结束全部数字批次。 */
+    public static void endNumberBatches(MultiBufferSource.BufferSource buffers) {
+        for (RenderType renderType : NUMBERS.values()) {
+            buffers.endBatch(renderType);
+        }
+        endSeeThroughNumberBatches(buffers);
+    }
+
     public static void endSeeThroughNumberBatches(MultiBufferSource.BufferSource buffers) {
         for (RenderType renderType : SEE_THROUGH_NUMBERS.values()) {
             buffers.endBatch(renderType);
         }
     }
 
+    // 1.15.2 的固定管线状态（alpha test、顶点颜色）在 1.17 被移除，
+    // 这个版本只有这一套写法、没有替代 API，只能集中在这里抑制。
+    @SuppressWarnings("deprecation")
     private static RenderType createSeeThroughNumbers(ResourceLocation texture) {
         return RenderTypeInvoker.autotorch$create(
                 "autotorch_light_overlay_see_through_numbers",

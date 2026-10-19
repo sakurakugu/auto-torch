@@ -4,9 +4,11 @@ import java.util.function.Consumer;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.AreaShape;
@@ -23,8 +25,8 @@ import net.minecraft.commands.arguments.coordinates.Coordinates;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.BaseComponent;
 import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.BaseComponent;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
@@ -60,8 +62,8 @@ public final class AutoTorchClientCommands {
         }
         try {
             DISPATCHER.execute(message.substring(1), new Object());
-        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException exception) {
-            chat(new TextComponent(exception.getMessage()));
+        } catch (CommandSyntaxException exception) {
+            chat(new net.minecraft.network.chat.TextComponent(exception.getMessage()));
         }
         return true;
     }
@@ -79,13 +81,121 @@ public final class AutoTorchClientCommands {
                         .executes(context -> showStatus())
                         .then(AutoTorchClientCommands.<S>literal("json").executes(context -> showStatusJson())))
                 .then(AutoTorchClientCommands.<S>literal("config")
-                        .then(AutoTorchClientCommands.<S>literal("defaults")
-                                .executes(context -> resetConfigDefaults())))
+                        .then(configDefaults("defaults"))
+                        .then(configDefaults("reset"))
+                        .then(configGets())
+                        .then(configValues()))
+                .then(serverConfigPassthrough())
                 .then(AutoTorchClientCommands.<S>nearby())
                 .then(AutoTorchClientCommands.<S>overlay())
                 .then(AutoTorchClientCommands.<S>selection())
                 .then(AutoTorchClientCommands.<S>zone())
                 .then(AutoTorchClientCommands.<S>task());
+    }
+
+    /**
+     * 服务端配置命令由服务端执行，这里只保留完整语法让 Fabric 将命令转发到服务端。
+     * 这些叶节点不能绑定客户端执行器，否则 Fabric 会把同名命令截留在本地。
+     */
+    private static <S> LiteralArgumentBuilder<S> serverConfigPassthrough() {
+        return AutoTorchClientCommands.<S>literal("serverconfig")
+                .then(AutoTorchClientCommands.<S>literal("gui"))
+                .then(AutoTorchClientCommands.<S>literal("get")
+                        .then(RequiredArgumentBuilder.<S, String>argument("key", StringArgumentType.word())))
+                .then(AutoTorchClientCommands.<S>literal("set")
+                        .then(RequiredArgumentBuilder.<S, String>argument("key", StringArgumentType.word())
+                                .then(RequiredArgumentBuilder.<S, String>argument(
+                                        "value", StringArgumentType.word()))))
+                .then(AutoTorchClientCommands.<S>literal("defaults"));
+    }
+
+    /** defaults 保留兼容入口，reset 提供相同的单项、配置节与功能分组重置。 */
+    private static <S> LiteralArgumentBuilder<S> configDefaults(String name) {
+        LiteralArgumentBuilder<S> root = AutoTorchClientCommands.<S>literal(name)
+                .executes(context -> resetConfigDefaults());
+        ConfigDefinitions.CLIENT.stream().map(value -> value.key().split("\\.")[0]).distinct().forEach(section -> {
+            LiteralArgumentBuilder<S> sectionCommand = AutoTorchClientCommands.<S>literal(section)
+                    .executes(context -> {
+                        ClientConfig.resetDefaults(section);
+                        return feedback("command.autotorch.config_scope_reset", section);
+                    });
+            for (ConfigDefinitions.Value definition : ConfigDefinitions.CLIENT) {
+                if (!definition.key().startsWith(section + ".")) continue;
+                sectionCommand.then(AutoTorchClientCommands.<S>literal(definition.key().substring(section.length() + 1))
+                        .executes(context -> {
+                            ClientConfig.resetDefaults(definition);
+                            return feedback("command.autotorch.config_scope_reset", definition.key());
+                        }));
+            }
+            root.then(sectionCommand);
+        });
+        LiteralArgumentBuilder<S> groups = AutoTorchClientCommands.literal("group");
+        for (ConfigDefinitions.ClientCategory category : ConfigDefinitions.ClientCategory.values()) {
+            String group;
+            switch (category) {
+                case LIGHTING_TASK: group = "area"; break;
+                case LIGHT_OVERLAY: group = "overlay"; break;
+                default: group = "nearby"; break;
+            }
+            groups.then(AutoTorchClientCommands.<S>literal(group).executes(context -> {
+                ClientConfig.resetDefaults(category);
+                return feedback("command.autotorch.config_scope_reset", new net.minecraft.network.chat.TranslatableComponent(category.titleKey()));
+            }));
+        }
+        return root.then(groups);
+    }
+
+    /** 查询配置项当前值；查询与设置共用同一份键路径生成逻辑。 */
+    private static <S> LiteralArgumentBuilder<S> configGets() {
+        return configTree("get", false);
+    }
+
+    /** 逐项设置配置值；必须提供 value，查询请使用 config get。 */
+    private static <S> LiteralArgumentBuilder<S> configValues() {
+        return configTree("set", true);
+    }
+
+    private static <S> LiteralArgumentBuilder<S> configTree(String name, boolean writable) {
+        LiteralArgumentBuilder<S> root = AutoTorchClientCommands.literal(name);
+        for (ConfigDefinitions.Value definition : ConfigDefinitions.CLIENT) {
+            String[] path = definition.key().split("\\.");
+            String leaf = path[path.length - 1];
+            LiteralArgumentBuilder<S> command = AutoTorchClientCommands.<S>literal(leaf);
+            if (writable) {
+                command.then(RequiredArgumentBuilder.<S, String>argument("value", StringArgumentType.greedyString())
+                        .executes(context -> setConfigValue(definition,
+                                StringArgumentType.getString(context, "value"))));
+            } else {
+                command.executes(context -> showConfigValue(definition));
+            }
+            if (path.length == 1) {
+                root.then(command);
+            } else {
+                // 按点分段生成独立子命令，例如 config get lightOverlay scanBudgetPerTick。
+                LiteralArgumentBuilder<S> nested = command;
+                for (int index = path.length - 2; index >= 1; index--) {
+                    nested = AutoTorchClientCommands.<S>literal(path[index]).then(nested);
+                }
+                root.then(AutoTorchClientCommands.<S>literal(path[0]).then(nested));
+            }
+        }
+        return root;
+    }
+
+    private static int showConfigValue(ConfigDefinitions.Value definition) {
+        chat(new net.minecraft.network.chat.TextComponent(definition.key() + " = " + ClientConfig.get(definition)));
+        return 1;
+    }
+
+    private static int setConfigValue(ConfigDefinitions.Value definition, String value) {
+        try {
+            ClientConfig.set(definition, value);
+            chat(new net.minecraft.network.chat.TextComponent(definition.key() + " = " + ClientConfig.get(definition)));
+            return 1;
+        } catch (IllegalArgumentException exception) {
+            chat(new net.minecraft.network.chat.TextComponent("Invalid value for " + definition.key() + ": " + value));
+            return 0;
+        }
     }
 
     private static <S> LiteralArgumentBuilder<S> nearby() {
@@ -181,7 +291,6 @@ public final class AutoTorchClientCommands {
                                         IntegerArgumentType.integer(0, AreaZone.MAX_SPHERE_RADIUS))
                                         .executes(context -> setSphere(context)))))
                 .then(toolCommand("tool"))
-                .then(toolCommand("wooden_axe"))
                 .then(AutoTorchClientCommands.<S>literal("list").executes(context -> listZones()));
     }
 
@@ -257,7 +366,8 @@ public final class AutoTorchClientCommands {
         LightOverlayState.reloadConfig();
         SelectionState.reloadConfig();
         PlatformNetworking.sendToServer(new SetSelectionToolPayload(
-                ClientConfig.isWoodenAxeSelectionEnabled()));
+                ClientConfig.isSelectionToolEnabled(),
+                ClientConfig.stringValue(ConfigDefinitions.SELECTION_TOOL_ITEM)));
         return feedback("command.autotorch.config_defaults");
     }
 
@@ -280,7 +390,7 @@ public final class AutoTorchClientCommands {
     /** 光照显示开关文本，开启透视渲染时附加对应的标记。 */
     private static Component overlayEnabledText() {
         return ClientConfig.isLightOverlayRenderThrough()
-                ? new TranslatableComponent("command.autotorch.status.overlay_see_through",
+                ? new net.minecraft.network.chat.TranslatableComponent("command.autotorch.status.overlay_see_through",
                         state(LightOverlayState.isEnabled()))
                 : state(LightOverlayState.isEnabled());
     }
@@ -291,9 +401,9 @@ public final class AutoTorchClientCommands {
         boolean rotatesNumbers = mode != LightOverlayState.DisplayMode.CROSSES
                 && ClientConfig.rotatesLightOverlayNumbers();
         return rotatesNumbers
-                ? new TranslatableComponent("command.autotorch.status.overlay_rotate_numbers",
-                        new TranslatableComponent(displayModeKey(mode)))
-                : new TranslatableComponent(displayModeKey(mode));
+                ? new net.minecraft.network.chat.TranslatableComponent("command.autotorch.status.overlay_rotate_numbers",
+                        new net.minecraft.network.chat.TranslatableComponent(displayModeKey(mode)))
+                : new net.minecraft.network.chat.TranslatableComponent(displayModeKey(mode));
     }
 
     /** 光照显示样式对应的本地化键。 */
@@ -310,7 +420,7 @@ public final class AutoTorchClientCommands {
     private static int setOverlayMode(LightOverlayState.DisplayMode mode) {
         LightOverlayState.setDisplayMode(mode);
         return feedback("command.autotorch.overlay_mode",
-                new TranslatableComponent(displayModeKey(mode)));
+                new net.minecraft.network.chat.TranslatableComponent(displayModeKey(mode)));
     }
 
     private static <S> BlockPos position(CommandContext<S> context, String name) {
@@ -401,8 +511,9 @@ public final class AutoTorchClientCommands {
     }
 
     private static int setSelectionTool(boolean enabled) {
-        ClientConfig.setWoodenAxeSelectionEnabled(enabled);
-        PlatformNetworking.sendToServer(new SetSelectionToolPayload(enabled));
+        ClientConfig.setSelectionToolEnabled(enabled);
+        PlatformNetworking.sendToServer(new SetSelectionToolPayload(enabled,
+                ClientConfig.stringValue(ConfigDefinitions.SELECTION_TOOL_ITEM)));
         return feedback("command.autotorch.selection_tool", state(enabled));
     }
 
@@ -432,7 +543,7 @@ public final class AutoTorchClientCommands {
 
     private static void showZone(int number, AreaZone zone) {
         feedback("command.autotorch.zone_entry", number,
-                new TranslatableComponent(zone.shape() == AreaShape.SPHERE
+                new net.minecraft.network.chat.TranslatableComponent(zone.shape() == AreaShape.SPHERE
                         ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                 formatPosition(zone.first()), formatPosition(zone.second()));
     }
@@ -514,7 +625,11 @@ public final class AutoTorchClientCommands {
         PlatformNetworking.sendToServer(new StartLightingPayload(
                 selection, effectiveDefaultMaxTorches(), effectiveDefaultMinSpacing(),
                 ClientConfig.defaultTaskLightThreshold(), consumesTorches(),
-                ClientConfig.isDefaultUndergroundOnly(), SelectionState.exclusions()));
+                // 服务端载荷沿用 undergroundOnly 语义：true 表示跳过有天空光的位置。
+                !ClientConfig.isDefaultIncludeSkyLight(),
+                ClientConfig.stringValue(ConfigDefinitions.TASK_DEFAULT_PLACEMENT_ITEM),
+                ClientConfig.intValue(ConfigDefinitions.TASK_PROGRESS_INTERVAL),
+                SelectionState.exclusions()));
         return feedback("command.autotorch.task_submitted");
     }
 
@@ -568,12 +683,17 @@ public final class AutoTorchClientCommands {
                 option("replace"), separator("|"), option("remove <number>"), separator("|"), option("clear"));
         helpLine(option("/autotorch task start"), separator("|"), option("cancel"), separator("|"), option("status"));
         helpLine(option("/autotorch config defaults"));
+        helpLine(option("/autotorch config reset <section> [setting]"));
+        helpLine(option("/autotorch config reset group area|overlay|nearby"));
+        helpLine(option("/autotorch config set <分类> <配置项> [值]"));
+        helpLine(option("/autotorch serverconfig gui"), separator("|"),
+                new net.minecraft.network.chat.TranslatableComponent("command.autotorch.server.gui_hint"));
         feedbackColored("------------------------------------------------", ChatFormatting.WHITE);
         return 1;
     }
 
     private static void helpLine(Component... parts) {
-        BaseComponent line = new TextComponent("");
+        BaseComponent line = new net.minecraft.network.chat.TextComponent("");
         for (Component part : parts) {
             line.append(part);
         }
@@ -581,11 +701,11 @@ public final class AutoTorchClientCommands {
     }
 
     private static Component option(String text) {
-        return new TextComponent(text).withStyle(HELP_OPTION_COLOR);
+        return new net.minecraft.network.chat.TextComponent(text).withStyle(HELP_OPTION_COLOR);
     }
 
     private static Component separator(String text) {
-        return new TextComponent(text).withStyle(HELP_SEPARATOR_COLOR);
+        return new net.minecraft.network.chat.TextComponent(text).withStyle(HELP_SEPARATOR_COLOR);
     }
 
     private static int showStatus() {
@@ -606,24 +726,24 @@ public final class AutoTorchClientCommands {
             boolean consumesTorches = consumesTorches();
             int maxTorches = effectiveDefaultMaxTorches();
             feedbackColored("command.autotorch.status.selection", STATUS_DETAILS_COLOR,
-                    new TranslatableComponent(sphere
+                    new net.minecraft.network.chat.TranslatableComponent(sphere
                             ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
-                    new TranslatableComponent(sphere
+                    new net.minecraft.network.chat.TranslatableComponent(sphere
                             ? "command.autotorch.point1_c" : "command.autotorch.point1_a"),
                     formatPosition(draft.first()),
-                    new TranslatableComponent(sphere
+                    new net.minecraft.network.chat.TranslatableComponent(sphere
                             ? "command.autotorch.point2_r" : "command.autotorch.point2_b"),
                     formatPosition(draft.second()),
                     SelectionState.lightingZone() == null ? 0 : 1, SelectionState.exclusions().size());
             feedbackColored("command.autotorch.status.task", STATUS_DETAILS_COLOR,
-                    state(ClientConfig.isWoodenAxeSelectionEnabled()), state(consumesTorches),
-                    maxTorches == 0 ? new TranslatableComponent("command.autotorch.unlimited") : maxTorches,
+                    state(ClientConfig.isSelectionToolEnabled()), state(consumesTorches),
+                    maxTorches == 0 ? new net.minecraft.network.chat.TranslatableComponent("command.autotorch.unlimited") : maxTorches,
                     effectiveDefaultMinSpacing(), ClientConfig.defaultTaskLightThreshold(),
-                    state(ClientConfig.includesSkyLight()),
-                    new TranslatableComponent(sphere
+                    state(ClientConfig.isDefaultIncludeSkyLight()),
+                    new net.minecraft.network.chat.TranslatableComponent(sphere
                             ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                     state(LightOverlayState.isEnabled()),
-                    new TranslatableComponent(displayModeKey(LightOverlayState.displayMode())));
+                    new net.minecraft.network.chat.TranslatableComponent(displayModeKey(LightOverlayState.displayMode())));
         }
         feedbackColored("------------------------------------------------", ChatFormatting.WHITE);
         return 1;
@@ -640,13 +760,13 @@ public final class AutoTorchClientCommands {
     /** 把当前全部状态以单行 JSON 输出，并在下一行给出点击复制的入口。 */
     private static int showStatusJson() {
         String json = ClientStatusJson.build(consumesTorches(), playerPositionOrNull());
-        chat(new TextComponent(json));
-        chat(new TranslatableComponent("command.autotorch.status.json_copy")
+        chat(new net.minecraft.network.chat.TextComponent(json));
+        chat(new net.minecraft.network.chat.TranslatableComponent("command.autotorch.status.json_copy")
                 .withStyle(style -> style
                         .setColor(STATUS_JSON_COPY_COLOR)
                         .setClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, json))
-                        .setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, 
-                                new TranslatableComponent("command.autotorch.status.json_copy_hover")))));
+                        .setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                new net.minecraft.network.chat.TranslatableComponent("command.autotorch.status.json_copy_hover")))));
         return 1;
     }
 
@@ -670,7 +790,7 @@ public final class AutoTorchClientCommands {
         String key = swampSlime
                 ? (drowned ? "command.autotorch.special.both" : "command.autotorch.special.swamp_slime")
                 : (drowned ? "command.autotorch.special.drowned" : "command.autotorch.special.none");
-        return new TranslatableComponent(key);
+        return new net.minecraft.network.chat.TranslatableComponent(key);
     }
 
     private static String formatPosition(BlockPos pos) {
@@ -678,16 +798,16 @@ public final class AutoTorchClientCommands {
     }
 
     private static Component state(boolean enabled) {
-        return new TranslatableComponent(enabled ? "command.autotorch.on" : "command.autotorch.off");
+        return new net.minecraft.network.chat.TranslatableComponent(enabled ? "command.autotorch.on" : "command.autotorch.off");
     }
 
     private static int feedback(String key, Object... arguments) {
-        chat(new TranslatableComponent(key, arguments));
+        chat(new net.minecraft.network.chat.TranslatableComponent(key, arguments));
         return 1;
     }
 
     private static int feedbackColored(String key, ChatFormatting color, Object... arguments) {
-        chat(new TranslatableComponent(key, arguments).withStyle(color));
+        chat(new net.minecraft.network.chat.TranslatableComponent(key, arguments).withStyle(color));
         return 1;
     }
 
