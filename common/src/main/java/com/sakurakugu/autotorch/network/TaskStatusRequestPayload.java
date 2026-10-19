@@ -21,3 +21,4 @@ public record TaskStatusRequestPayload() implements AutoTorchPayload {
         return ID;
     }
 }
+

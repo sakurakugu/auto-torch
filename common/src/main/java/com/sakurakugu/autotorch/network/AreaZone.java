@@ -95,3 +95,4 @@ public record AreaZone(AreaShape shape, BlockPos first, BlockPos second) {
                 boxMin.getX(), boxMin.getY(), boxMin.getZ(), boxMax.getX(), boxMax.getY(), boxMax.getZ());
     }
 }
+

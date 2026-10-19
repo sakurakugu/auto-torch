@@ -1,7 +1,12 @@
 package com.sakurakugu.autotorch.client;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.sakurakugu.autotorch.config.ConfigDefinitions;
+import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -40,8 +45,53 @@ class ClientStatusJsonTest {
         JsonObject task = root.getAsJsonObject("task");
         assertFalse(task.get("consumeTorches").getAsBoolean());
         assertEquals(8, task.get("minSpacing").getAsInt());
+        // 区间任务的“包含天空光”使用正向布尔值，默认不包含。
+        assertFalse(task.get("includeSkyLight").getAsBoolean());
+        assertFalse(task.has("undergroundOnly"));
 
         assertTrue(root.getAsJsonObject("server").has("maxSphereRadius"));
+    }
+
+    @Test
+    void clampsClientTaskDefaultsToServerLimits() {
+        ServerConfigPayload defaults = ServerConfigPayload.defaults();
+        try {
+            ClientConfig.setDefaultMaxTorches(0);
+            ClientConfig.setDefaultMinSpacing(1);
+            // 服务端上限 256、间距范围 5~8，且禁止“不限”。
+            ServerConfigState.update(payload(Map.of(
+                    "limits.maxTorchesPerTask", "256",
+                    "limits.allowUnlimitedTorches", "false",
+                    "limits.minSpacing", "5",
+                    "limits.maxSpacing", "8")));
+
+            assertEquals(256, ClientStatusJson.effectiveDefaultMaxTorches());
+            assertEquals(5, ClientStatusJson.effectiveDefaultMinSpacing());
+
+            // 服务端允许“不限”时，客户端设为 0 才表示不限。
+            ServerConfigState.update(payload(Map.of(
+                    "limits.maxTorchesPerTask", "256",
+                    "limits.allowUnlimitedTorches", "true",
+                    "limits.minSpacing", "5",
+                    "limits.maxSpacing", "8")));
+            assertEquals(0, ClientStatusJson.effectiveDefaultMaxTorches());
+
+            ClientConfig.setDefaultMaxTorches(1024);
+            assertEquals(256, ClientStatusJson.effectiveDefaultMaxTorches());
+            ClientConfig.setDefaultMinSpacing(12);
+            assertEquals(8, ClientStatusJson.effectiveDefaultMinSpacing());
+        } finally {
+            ClientConfig.setDefaultMaxTorches(ConfigDefinitions.TASK_DEFAULT_MAX_TORCHES.defaultValue());
+            ClientConfig.setDefaultMinSpacing(ConfigDefinitions.TASK_DEFAULT_MIN_SPACING.defaultValue());
+            ServerConfigState.update(defaults);
+        }
+    }
+
+    /** 在默认服务端配置的基础上覆盖指定键，构造模拟的服务端快照。 */
+    private static ServerConfigPayload payload(Map<String, String> overrides) {
+        Map<String, String> values = new HashMap<>(ServerConfigPayload.defaults().values());
+        values.putAll(overrides);
+        return new ServerConfigPayload(values);
     }
 
     @Test

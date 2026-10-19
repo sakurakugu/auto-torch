@@ -34,3 +34,4 @@ abstract class ScrollingSliderButton extends AbstractSliderButton {
         ScrollingText.render(poseStack, font, getMessage(), x + 2, y, x + width - 2, y + height, color);
     }
 }
+

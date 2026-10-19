@@ -100,7 +100,7 @@ public final class ClientStatusJson {
     private static JsonObject task(boolean consumesTorches) {
         int maxTorches = effectiveDefaultMaxTorches();
         JsonObject task = new JsonObject();
-        task.addProperty("woodenAxeSelection", ClientConfig.isWoodenAxeSelectionEnabled());
+        task.addProperty("selectionTool", ClientConfig.isSelectionToolEnabled());
         task.addProperty("consumeTorches", consumesTorches);
         // 0 表示不限，用 null 表达比数字 0 更准确。
         if (maxTorches == 0) {
@@ -110,7 +110,7 @@ public final class ClientStatusJson {
         }
         task.addProperty("minSpacing", effectiveDefaultMinSpacing());
         task.addProperty("lightThreshold", ClientConfig.defaultTaskLightThreshold());
-        task.addProperty("undergroundOnly", ClientConfig.isDefaultUndergroundOnly());
+        task.addProperty("includeSkyLight", ClientConfig.isDefaultIncludeSkyLight());
         return task;
     }
 
@@ -152,3 +152,4 @@ public final class ClientStatusJson {
         return value.name().toLowerCase(Locale.ROOT);
     }
 }
+

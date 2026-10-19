@@ -24,3 +24,4 @@ public record TaskStatusPayload(boolean running, int percent, int placed) implem
         return ID;
     }
 }
+

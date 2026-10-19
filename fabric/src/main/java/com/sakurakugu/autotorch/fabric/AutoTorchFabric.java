@@ -1,9 +1,12 @@
 package com.sakurakugu.autotorch.fabric;
 
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
+import com.sakurakugu.autotorch.network.AutoTorchPayload;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
 import com.sakurakugu.autotorch.network.SetSelectionToolPayload;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResetPayload;
+import com.sakurakugu.autotorch.network.ServerConfigSetPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
@@ -11,6 +14,7 @@ import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
+import com.sakurakugu.autotorch.server.ServerConfigNetwork;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -32,9 +36,8 @@ public final class AutoTorchFabric implements ModInitializer {
     public void onInitialize() {
         // 单机、局域网和专用服务器都注册，客户端才能拿到服务端命令树并补全 serverconfig。
         CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) ->
-                AutoTorchServerCommands.register(dispatcher, server ->
-                        server.getPlayerList().getPlayers().forEach(player ->
-                                sendServerConfig(player))));
+                AutoTorchServerCommands.register(dispatcher, ServerConfigNetwork::broadcast));
+        ServerConfigNetwork.installSender(AutoTorchFabric::sendToPlayer);
         serverConfig = new TomlConfigBackend(
                 FabricLoader.getInstance().getConfigDir().resolve("autotorch-server.toml"),
                 ConfigDefinitions.SERVER);
@@ -52,7 +55,7 @@ public final class AutoTorchFabric implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(SetSelectionToolPayload.ID,
                 (server, player, handler, buffer, sender) -> {
                     SetSelectionToolPayload payload = SetSelectionToolPayload.decode(buffer);
-                    server.execute(() -> SelectionToolEvents.setEnabled(player, payload.enabled()));
+                    server.execute(() -> SelectionToolEvents.setEnabled(player, payload.enabled(), payload.toolItem()));
                 });
         ServerPlayNetworking.registerGlobalReceiver(TaskStatusRequestPayload.ID,
                 (server, player, handler, buffer, sender) -> server.execute(() -> {
@@ -61,6 +64,17 @@ public final class AutoTorchFabric implements ModInitializer {
                     payload.write(response);
                     ServerPlayNetworking.send(player, payload.id(), response);
                 }));
+
+        ServerPlayNetworking.registerGlobalReceiver(ServerConfigSetPayload.ID,
+                (server, player, handler, buffer, sender) -> {
+                    ServerConfigSetPayload payload = ServerConfigSetPayload.decode(buffer);
+                    server.execute(() -> ServerConfigNetwork.handleSet(player, payload));
+                });
+        ServerPlayNetworking.registerGlobalReceiver(ServerConfigResetPayload.ID,
+                (server, player, handler, buffer, sender) -> {
+                    ServerConfigResetPayload payload = ServerConfigResetPayload.decode(buffer);
+                    server.execute(() -> ServerConfigNetwork.handleReset(player, payload));
+                });
 
         ServerTickEvents.END_SERVER_TICK.register(LightingTaskManager::onServerTick);
         AttackBlockCallback.EVENT.register((player, level, hand, pos, direction) ->
@@ -75,12 +89,11 @@ public final class AutoTorchFabric implements ModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 SelectionToolEvents.onLogout(handler.getPlayer()));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            sendServerConfig(handler.getPlayer());
+            ServerConfigNetwork.sendConfig(handler.getPlayer());
         });
     }
 
-    private static void sendServerConfig(ServerPlayer player) {
-        ServerConfigPayload payload = ServerConfigPayload.current();
+    private static void sendToPlayer(ServerPlayer player, AutoTorchPayload payload) {
         var buffer = PacketByteBufs.create();
         payload.write(buffer);
         ServerPlayNetworking.send(player, payload.id(), buffer);

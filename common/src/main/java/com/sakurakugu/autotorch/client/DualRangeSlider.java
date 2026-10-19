@@ -8,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 
 /** 可复用的双端点范围滑动条。 */
@@ -19,6 +18,7 @@ public class DualRangeSlider extends Button {
     private final int maxSpan;
     private final BiFunction<Integer, Integer, Component> messageFactory;
     private final BiConsumer<Integer, Integer> changeListener;
+    private final BiConsumer<Integer, Integer> commitListener;
     private int lowerValue;
     private int upperValue;
     private int draggingThumb;
@@ -27,13 +27,24 @@ public class DualRangeSlider extends Button {
             int maxSpan, int lowerValue, int upperValue,
             BiFunction<Integer, Integer, Component> messageFactory,
             BiConsumer<Integer, Integer> changeListener) {
-        super(x, y, width, height, TextComponent.EMPTY, button -> { });
+        this(x, y, width, height, minValue, maxValue, maxSpan, lowerValue, upperValue,
+                messageFactory, changeListener, (lower, upper) -> { });
+    }
+
+    /** 额外接收松开鼠标时的回调，供只在拖动结束后才写配置的界面使用。 */
+    public DualRangeSlider(int x, int y, int width, int height, int minValue, int maxValue,
+            int maxSpan, int lowerValue, int upperValue,
+            BiFunction<Integer, Integer, Component> messageFactory,
+            BiConsumer<Integer, Integer> changeListener,
+            BiConsumer<Integer, Integer> commitListener) {
+        super(x, y, width, height, new net.minecraft.network.chat.TextComponent(""), button -> { });
         if (minValue >= maxValue || maxSpan < 0) throw new IllegalArgumentException("Invalid slider range");
         this.minValue = minValue;
         this.maxValue = maxValue;
         this.maxSpan = maxSpan;
         this.messageFactory = messageFactory;
         this.changeListener = changeListener;
+        this.commitListener = commitListener;
         setValues(lowerValue, upperValue, false);
     }
 
@@ -57,14 +68,9 @@ public class DualRangeSlider extends Button {
     public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         int lowX = position(lowerValue);
         int highX = position(upperValue);
-        RenderSystem.setShader(GameRenderer::getPositionTexShader);
-        RenderSystem.setShaderTexture(0, SLIDER_LOCATION);
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
+        applySliderTexture();
         drawNineSliced(poseStack, x, y, getWidth(), getHeight(), 20, 4, 200, 20, 0, isFocused() ? 20 : 0);
-        fill(poseStack, lowX, y + 1, highX, y + getHeight() - 1, 0xFF3A5F8A);
+        fill(poseStack, lowX, y + 1, highX, y + getHeight() - 1, 0x803A5F8A);
         drawThumb(poseStack, lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
         drawThumb(poseStack, highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
         ScrollingText.render(poseStack, Minecraft.getInstance().font, getMessage(),
@@ -72,7 +78,18 @@ public class DualRangeSlider extends Button {
     }
 
     private void drawThumb(PoseStack poseStack, int thumbX, boolean highlighted) {
+        applySliderTexture();
         drawNineSliced(poseStack, thumbX - 4, y, 8, getHeight(), 20, 4, 200, 20, 0, highlighted ? 60 : 40);
+    }
+
+    /** 旧版没有 GuiGraphics 自动管理着色器状态，绘制原版贴图前需要手动绑定。 */
+    private static void applySliderTexture() {
+        RenderSystem.setShader(GameRenderer::getPositionTexShader);
+        RenderSystem.setShaderTexture(0, SLIDER_LOCATION);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
     }
 
     private static void drawNineSliced(PoseStack poseStack, int x, int y, int width, int height,
@@ -85,18 +102,23 @@ public class DualRangeSlider extends Button {
         int centerHeight = height - top - bottom;
         int sourceCenterWidth = Math.max(1, textureWidth - cornerWidth * 2);
         int sourceCenterHeight = Math.max(1, textureHeight - cornerHeight * 2);
+
         blitPatch(poseStack, x, y, left, top, u, v, left, top);
-        blitPatch(poseStack, x + width - right, y, right, top, u + textureWidth - right, v, right, top);
-        blitPatch(poseStack, x, y + height - bottom, left, bottom, u, v + textureHeight - bottom, left, bottom);
+        blitPatch(poseStack, x + width - right, y, right, top,
+                u + textureWidth - right, v, right, top);
+        blitPatch(poseStack, x, y + height - bottom, left, bottom,
+                u, v + textureHeight - bottom, left, bottom);
         blitPatch(poseStack, x + width - right, y + height - bottom, right, bottom,
                 u + textureWidth - right, v + textureHeight - bottom, right, bottom);
         if (centerWidth > 0) {
-            blitRepeatingPatch(poseStack, x + left, y, centerWidth, top, u + cornerWidth, v, sourceCenterWidth, top);
+            blitRepeatingPatch(poseStack, x + left, y, centerWidth, top,
+                    u + cornerWidth, v, sourceCenterWidth, top);
             blitRepeatingPatch(poseStack, x + left, y + height - bottom, centerWidth, bottom,
                     u + cornerWidth, v + textureHeight - bottom, sourceCenterWidth, bottom);
         }
         if (centerHeight > 0) {
-            blitRepeatingPatch(poseStack, x, y + top, left, centerHeight, u, v + cornerHeight, left, sourceCenterHeight);
+            blitRepeatingPatch(poseStack, x, y + top, left, centerHeight,
+                    u, v + cornerHeight, left, sourceCenterHeight);
             blitRepeatingPatch(poseStack, x + width - right, y + top, right, centerHeight,
                     u + textureWidth - right, v + cornerHeight, right, sourceCenterHeight);
         }
@@ -148,6 +170,7 @@ public class DualRangeSlider extends Button {
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         draggingThumb = 0;
+        commitListener.accept(lowerValue, upperValue);
         return true;
     }
 
@@ -173,3 +196,4 @@ public class DualRangeSlider extends Button {
 
     private int clamp(int value) { return Math.max(minValue, Math.min(maxValue, value)); }
 }
+

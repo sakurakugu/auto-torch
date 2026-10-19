@@ -68,3 +68,4 @@ final class ScrollingText {
         RenderSystem.enableScissor(x, y, width, height);
     }
 }
+

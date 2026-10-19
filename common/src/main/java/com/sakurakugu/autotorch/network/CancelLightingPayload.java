@@ -21,3 +21,4 @@ public record CancelLightingPayload() implements AutoTorchPayload {
         return ID;
     }
 }
+

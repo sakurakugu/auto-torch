@@ -16,3 +16,4 @@ final class TooltipRenderer {
         return font.split(tooltip, Math.max(1, Math.max(leftWidth, rightWidth)));
     }
 }
+

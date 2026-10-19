@@ -9,3 +9,4 @@ public interface AutoTorchPayload {
 
     void write(FriendlyByteBuf buffer);
 }
+

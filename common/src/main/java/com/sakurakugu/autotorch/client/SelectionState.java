@@ -276,3 +276,4 @@ public final class SelectionState {
         SMOOTH
     }
 }
+
