@@ -13,6 +13,9 @@ import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
@@ -28,22 +31,14 @@ public final class LightingTaskManager {
     private LightingTaskManager() {
     }
 
-    private static void sendSystemMessage(ServerPlayer player, Component message) {
-        player.displayClientMessage(message, false);
-    }
-
-    private static void sendSystemMessage(ServerPlayer player, Component message, boolean overlay) {
-        player.displayClientMessage(message, overlay);
-    }
-
     public static void start(ServerPlayer player, StartLightingPayload payload) {
         // 网络载荷不可信，所有会影响扫描范围和资源消耗的参数都在服务端校验。
         if (!ServerConfig.lightingTaskEnabled()) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.server_disabled"));
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.server_disabled"), false);
             return;
         }
         if (!player.mayBuild()) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.no_build_permission"));
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.no_build_permission"), false);
             return;
         }
 
@@ -62,20 +57,20 @@ public final class LightingTaskManager {
 
         if (!isValidZone(selection) || sizeX > maxSelectionBoundAxis || sizeY > maxSelectionBoundAxis
                 || sizeZ > maxSelectionBoundAxis || volume > maxSelectionBoundVolume) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.area_too_large",
-                    ServerConfig.maxBoxAxisLength(), ServerConfig.maxSphereRadius()));
+            player.displayClientMessage(new TranslatableComponent("message.autotorch.area_too_large",
+                    ServerConfig.maxBoxAxisLength(), ServerConfig.maxSphereRadius()), false);
             return;
         }
         int scanMinY = Math.max(min.getY(), 0);
         int scanMaxY = Math.min(max.getY(), player.getLevel().getMaxBuildHeight() - 1);
         if (scanMinY > scanMaxY) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.outside_world"));
+            player.displayClientMessage(new TranslatableComponent("message.autotorch.outside_world"), false);
             return;
         }
         BlockPos scanMin = new BlockPos(min.getX(), scanMinY, min.getZ());
         BlockPos scanMax = new BlockPos(max.getX(), scanMaxY, max.getZ());
         if (!Level.isInWorldBounds(scanMin) || !Level.isInWorldBounds(scanMax)) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.outside_world"));
+            player.displayClientMessage(new TranslatableComponent("message.autotorch.outside_world"), false);
             return;
         }
         long scanVolume = sizeX * ((long) scanMaxY - scanMinY + 1L) * sizeZ;
@@ -83,28 +78,39 @@ public final class LightingTaskManager {
         if (payload.maxTorches() < 0
                 || payload.maxTorches() > ServerConfig.maxTorchesPerTask()
                 || (payload.maxTorches() == 0 && !ServerConfig.allowsUnlimitedTorches())) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.invalid_settings"));
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.invalid_settings"), false);
             return;
         }
         // 服务端间距下限只在此读取一次：既用于校验，也作为本任务第二轮补点的下限快照。
         int secondPassMinimumSpacing = ServerConfig.minSpacing();
         if (payload.minSpacing() < secondPassMinimumSpacing
                 || payload.minSpacing() > ServerConfig.maxSpacing()) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.invalid_settings"));
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.invalid_settings"), false);
             return;
         }
         if (payload.lightThreshold() < ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.minValue()
                 || payload.lightThreshold() > ConfigDefinitions.TASK_DEFAULT_LIGHT_THRESHOLD.maxValue()) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.invalid_settings"));
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.invalid_settings"), false);
             return;
         }
         if (payload.exclusions().size() > ServerConfig.maxExclusions()
                 || payload.exclusions().stream().anyMatch(zone -> !isValidZone(zone))) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.invalid_settings"));
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.invalid_settings"), false);
+            return;
+        }
+        BlockItem placementItem = resolveBlockItem(payload.placementItem());
+        if (placementItem == null) {
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.invalid_settings"), false);
+            return;
+        }
+        if (payload.progressIntervalTicks() < ConfigDefinitions.TASK_PROGRESS_INTERVAL.minValue()
+                || payload.progressIntervalTicks() > ConfigDefinitions.TASK_PROGRESS_INTERVAL.maxValue()
+                || !ConfigDefinitions.TASK_PROGRESS_INTERVAL.accepts(payload.progressIntervalTicks())) {
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.invalid_settings"), false);
             return;
         }
         if (!TASKS.containsKey(player.getUUID()) && TASKS.size() >= ServerConfig.maxConcurrentTasks()) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.server_busy"));
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.server_busy"), false);
             return;
         }
 
@@ -119,19 +125,31 @@ public final class LightingTaskManager {
                 player.getLevel(), selection, scanMin, scanMax, maxTorches, minSpacing, secondPassMinimumSpacing,
                 lightThreshold,
                 consumeTorches, payload.undergroundOnly(),
+                placementItem,
+                payload.progressIntervalTicks(),
                 payload.exclusions(), player.getUUID()
         );
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
         TASKS.put(player.getUUID(), task);
-        sendSystemMessage(player, new TranslatableComponent("message.autotorch.started", scanVolume));
+        player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.started", scanVolume), false);
         if (!AutoTorchRules.canTorchMeetLightThreshold(lightThreshold)) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.light_threshold_unreachable",
-                    lightThreshold));
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.light_threshold_unreachable",
+                    lightThreshold), false);
         } else if (secondPassMinimumSpacing > AutoTorchRules.maxSafeSecondPassSpacing(lightThreshold)) {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.second_pass_spacing_limited",
-                    secondPassMinimumSpacing, lightThreshold));
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.second_pass_spacing_limited",
+                    secondPassMinimumSpacing, lightThreshold), false);
         }
         task.showInitialProgress(player);
+    }
+
+    private static BlockItem resolveBlockItem(String id) {
+        try {
+            ResourceLocation resourceId = ResourceLocation.tryParse(id);
+            net.minecraft.world.item.Item item = resourceId == null ? null : Registry.ITEM.getOptional(resourceId).orElse(null);
+            return item instanceof BlockItem ? ((BlockItem) item) : null;
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
     private static boolean isValidZone(AreaZone zone) {
@@ -149,10 +167,10 @@ public final class LightingTaskManager {
 
     public static void cancel(ServerPlayer player) {
         if (TASKS.remove(player.getUUID()) != null) {
-            sendSystemMessage(player, new TextComponent(""), true);
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.cancelled"));
+            player.displayClientMessage(new net.minecraft.network.chat.TextComponent(""), true);
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.cancelled"), false);
         } else {
-            sendSystemMessage(player, new TranslatableComponent("message.autotorch.no_task"));
+            player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.no_task"), false);
         }
     }
 

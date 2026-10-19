@@ -19,6 +19,7 @@ import org.lwjgl.glfw.GLFW;
 
 /** 客户端入口，处理快捷键、选区交互以及选区边框的渲染事件。 */
 public final class AutoTorchClient {
+    private static volatile boolean openServerConfigRequested;
     private static boolean openScreenRequested;
     private Level selectionToolSyncedLevel;
     public static final String CATEGORY = "key.category.autotorch.main";
@@ -48,6 +49,10 @@ public final class AutoTorchClient {
             if (minecraft.player != null && minecraft.screen == null) {
                 minecraft.setScreen(new LightingScreen());
             }
+        }
+        if (openServerConfigRequested) {
+            openServerConfigRequested = false;
+            if (minecraft.player != null && minecraft.screen == null) minecraft.setScreen(new ServerConfigScreen());
         }
 
         BlockPos currentPosition = minecraft.player == null
@@ -83,10 +88,14 @@ public final class AutoTorchClient {
         openScreenRequested = true;
     }
 
+    public static void requestOpenServerConfigScreen() {
+        openServerConfigRequested = true;
+    }
+
     public boolean onLeftClick(Level level, ItemStack stack, BlockPos pos, boolean start) {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
                 || !level.isClientSide
-                || stack.getItem() != Items.WOODEN_AXE) {
+                || stack.getItem() != ClientConfig.selectionToolItem()) {
             return false;
         }
         // 长按破坏方块会连续触发事件，只在 START 阶段记录一次 A 点。
@@ -105,7 +114,7 @@ public final class AutoTorchClient {
         if (!ClientConfig.isWoodenAxeSelectionEnabled()
                 || !level.isClientSide
                 || hand != InteractionHand.MAIN_HAND
-                || stack.getItem() != Items.WOODEN_AXE) {
+                || stack.getItem() != ClientConfig.selectionToolItem()) {
             return false;
         }
         SelectionState.setSecond(pos);
@@ -142,3 +151,4 @@ public final class AutoTorchClient {
         }
     }
 }
+

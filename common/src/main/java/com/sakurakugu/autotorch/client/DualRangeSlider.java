@@ -35,6 +35,19 @@ final class DualRangeSlider extends Button {
         setValues(lowerValue, upperValue, false);
     }
 
+    DualRangeSlider(int x, int y, int width, int height, int minValue, int maxValue,
+            int maxSpan, int lowerValue, int upperValue,
+            BiFunction<Integer, Integer, Component> messageFactory,
+            BiConsumer<Integer, Integer> ignoredListener,
+            BiConsumer<Integer, Integer> changeListener) {
+        this(x, y, width, height, minValue, maxValue, maxSpan, lowerValue, upperValue,
+                messageFactory, changeListener);
+    }
+
+    public void setValues(int lowerValue, int upperValue) {
+        setValues(lowerValue, upperValue, false);
+    }
+
     private void setValues(int lowerValue, int upperValue, boolean notify) {
         this.lowerValue = clamp(lowerValue);
         this.upperValue = clamp(upperValue);

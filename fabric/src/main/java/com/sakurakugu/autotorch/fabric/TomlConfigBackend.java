@@ -17,6 +17,8 @@ import com.electronwill.nightconfig.toml.TomlFormat;
 import com.sakurakugu.autotorch.config.ConfigBackend;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.BooleanValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.IntValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.DoubleValue;
+import com.sakurakugu.autotorch.config.ConfigDefinitions.StringValue;
 import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 
 final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
@@ -95,6 +97,32 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
         return clamped;
     }
 
+    @Override public double getDouble(String key, double fallback) {
+        DoubleValue definition = definitionIndex.get(key) instanceof DoubleValue ? ((DoubleValue) definitionIndex.get(key)) : null;
+        Object raw = config.getRaw(key);
+        double parsed = raw instanceof Number ? ((Number) raw).doubleValue() : Double.NaN;
+        if (!Double.isFinite(parsed)) {
+            double corrected = definition == null ? fallback : definition.defaultValue();
+            config.set(key, corrected);
+            save();
+            return corrected;
+        }
+        double corrected = definition == null ? parsed : definition.clamp(parsed);
+        if (corrected != parsed) { config.set(key, corrected); save(); }
+        return corrected;
+    }
+
+    @Override public String getString(String key, String fallback) {
+        StringValue definition = definitionIndex.get(key) instanceof StringValue ? ((StringValue) definitionIndex.get(key)) : null;
+        Object raw = config.getRaw(key);
+        String parsed = raw instanceof String ? ((String) raw) : null;
+        if (parsed == null || definition != null && !definition.accepts(parsed)) {
+            String corrected = definition == null ? fallback : definition.defaultValue();
+            config.set(key, corrected); save(); return corrected;
+        }
+        return parsed;
+    }
+
     @Override
     public void setBoolean(String key, boolean value) {
         config.set(key, value);
@@ -111,6 +139,16 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
                     new Object[] { path, key, definition.minValue(), definition.maxValue(), value, corrected });
         }
         config.set(key, corrected);
+    }
+
+    @Override public void setDouble(String key, double value) {
+        DoubleValue definition = definitionIndex.get(key) instanceof DoubleValue ? ((DoubleValue) definitionIndex.get(key)) : null;
+        config.set(key, definition == null ? value : definition.clamp(value));
+    }
+    @Override public void setString(String key, String value) {
+        StringValue definition = definitionIndex.get(key) instanceof StringValue ? ((StringValue) definitionIndex.get(key)) : null;
+        config.set(key, definition == null || definition.accepts(value) ? value
+                : definition.defaultValue());
     }
 
     @Override
@@ -169,6 +207,14 @@ final class TomlConfigBackend implements ConfigBackend, AutoCloseable {
                     if (parsed == null || corrected != parsed) {
                         values.set(definition.key(), corrected);
                         changed[0] = true;
+                    }
+                } else if (definition instanceof DoubleValue) {
+                    double parsed = raw instanceof Number ? ((Number) raw).doubleValue() : Double.NaN;
+                    double corrected = Double.isFinite(parsed) ? ((DoubleValue) definition).clamp(parsed) : ((DoubleValue) definition).defaultValue();
+                    if (corrected != parsed) { values.set(definition.key(), corrected); changed[0] = true; }
+                } else if (definition instanceof StringValue) {
+                    if (!(raw instanceof String) || !((StringValue) definition).accepts(((String) raw))) {
+                        values.set(definition.key(), ((StringValue) definition).defaultValue()); changed[0] = true;
                     }
                 }
                 if (applyComment(values, definition)) {

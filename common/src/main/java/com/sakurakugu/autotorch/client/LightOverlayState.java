@@ -581,3 +581,4 @@ public final class LightOverlayState {
         List<Marker> markers() { return markers; }
     }
 }
+

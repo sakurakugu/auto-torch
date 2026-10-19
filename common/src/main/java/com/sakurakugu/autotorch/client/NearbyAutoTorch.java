@@ -195,6 +195,10 @@ public final class NearbyAutoTorch {
             darkSince.entrySet().removeIf(entry -> now - entry.getValue() > confirmTicks + SCAN_INTERVAL_TICKS);
         }
 
+        void prune(long now, int ignoredWindow, int confirmTicks) {
+            darkSince.entrySet().removeIf(entry -> now - entry.getValue() > ignoredWindow + SCAN_INTERVAL_TICKS);
+        }
+
         /** 未被观测到的坐标必须显式遗忘，否则没看它的那几轮也会被算成黑暗。 */
         void forget(BlockPos position) {
             darkSince.remove(position);
@@ -233,3 +237,4 @@ public final class NearbyAutoTorch {
         private int hotbarSlot() { return hotbarSlot; }
     }
 }
+

@@ -7,10 +7,13 @@ import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
+import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.config.ConfigDefinitions;
+import com.sakurakugu.autotorch.network.OpenServerConfigScreenPayload;
 import com.sakurakugu.autotorch.network.PlatformNetworking;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
+import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -52,6 +55,16 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
                 (minecraft, handler, buffer, sender) -> {
                     ServerConfigPayload payload = ServerConfigPayload.decode(buffer);
                     minecraft.execute(() -> ServerConfigState.update(payload));
+                });
+        ClientPlayNetworking.registerGlobalReceiver(OpenServerConfigScreenPayload.ID,
+                (minecraft, handler, buffer, sender) -> {
+                    OpenServerConfigScreenPayload.decode(buffer);
+                    minecraft.execute(AutoTorchClient::requestOpenServerConfigScreen);
+                });
+        ClientPlayNetworking.registerGlobalReceiver(ServerConfigResultPayload.ID,
+                (minecraft, handler, buffer, sender) -> {
+                    ServerConfigResultPayload payload = ServerConfigResultPayload.decode(buffer);
+                    minecraft.execute(() -> ServerConfigScreen.receiveResult(payload));
                 });
         ClientPlayNetworking.registerGlobalReceiver(TaskStatusPayload.ID,
                 (minecraft, handler, buffer, sender) -> {
