@@ -213,7 +213,8 @@ public final class ClientConfigScreen extends Screen {
 
     /** 按当前语言读取配置说明；首行是标签，其余行是悬停提示。 */
     private static String translatedComment(ConfigDefinitions.Value definition) {
-        return new net.minecraft.util.text.TextComponentTranslation(definition.translationKey()).getFormattedText();
+        // 1.12.2 的 .lang 用字面量 \n 保存换行，LegacyText.string 会还原成真实换行。
+        return LegacyText.string(new net.minecraft.util.text.TextComponentTranslation(definition.translationKey()));
     }
 
     private static String firstLine(String text) {
@@ -473,7 +474,7 @@ public final class ClientConfigScreen extends Screen {
             // 受服务端限制的配置在标签下方显示实际生效值，说明为什么配置值和主界面可能不同。
             ITextComponent hint = row.definition() == null ? null : serverEffectHint(row.definition());
             if (hint != null) {
-                String hintText = font.trimStringToWidth(hint.getFormattedText(), labelWidth);
+                String hintText = font.trimStringToWidth(LegacyText.string(hint), labelWidth);
                 drawString(font, LegacyText.string(hintText), left + ROW_LABEL_INDENT, row.y() + 17, 0xFF909090);
             }
             // 行标签已经显示了说明，悬停时改为提示配置键与实际生效值，方便对照配置文件。

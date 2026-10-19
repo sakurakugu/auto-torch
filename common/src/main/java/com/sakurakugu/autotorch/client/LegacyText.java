@@ -7,8 +7,16 @@ import org.lwjgl.opengl.GL11;
 public final class LegacyText {
     private LegacyText() { }
 
-    public static String string(ITextComponent text) { return text.getFormattedText(); }
-    public static String string(String text) { return text; }
+    /**
+     * 1.12.2 的 .lang 无法直接保存换行，构建时会把换行写成字面量 \n，
+     * 这里还原成真实换行，保持与 1.13.2 及以上版本的显示一致。
+     */
+    public static String normalizeNewlines(String text) {
+        return text == null ? null : text.replace("\\n", "\n");
+    }
+
+    public static String string(ITextComponent text) { return normalizeNewlines(text.getFormattedText()); }
+    public static String string(String text) { return normalizeNewlines(text); }
 
     /** 旧版 RenderSystem 尚未提供裁剪封装。 */
     public static void enableScissor(int x, int y, int width, int height) {

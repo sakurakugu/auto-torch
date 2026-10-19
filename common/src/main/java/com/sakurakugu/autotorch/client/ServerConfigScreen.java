@@ -351,14 +351,15 @@ public final class ServerConfigScreen extends Screen {
 
     /** 行标签取语言文件里的首行，避免长说明挤占右侧控件区。 */
     private static String rowLabel(Value definition) {
-        String text = new net.minecraft.util.text.TextComponentTranslation(definition.translationKey()).getFormattedText();
+        // 1.12.2 的 .lang 用字面量 \n 保存换行，LegacyText.string 会还原成真实换行。
+        String text = LegacyText.string(new net.minecraft.util.text.TextComponentTranslation(definition.translationKey()));
         int lineEnd = text.indexOf('\n');
         return lineEnd < 0 ? text : text.substring(0, lineEnd);
     }
 
     /** 说明的首行已经作为左侧行标签，提示框里只保留后面的细节。 */
     private static String detailComment(Value definition) {
-        String text = new net.minecraft.util.text.TextComponentTranslation(definition.translationKey()).getFormattedText();
+        String text = LegacyText.string(new net.minecraft.util.text.TextComponentTranslation(definition.translationKey()));
         int lineEnd = text.indexOf('\n');
         return lineEnd < 0 ? "" : text.substring(lineEnd + 1).replaceFirst("^\\s+", "");
     }

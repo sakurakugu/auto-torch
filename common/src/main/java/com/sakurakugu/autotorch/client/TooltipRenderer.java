@@ -12,6 +12,7 @@ final class TooltipRenderer {
     static List<String> split(FontRenderer font, ITextComponent tooltip, int screenWidth, int mouseX) {
         int leftWidth = mouseX - 20;
         int rightWidth = screenWidth - mouseX - 16;
-        return font.listFormattedStringToWidth(tooltip.getFormattedText(), Math.max(1, Math.max(leftWidth, rightWidth)));
+        // 1.12.2 的 .lang 把换行保存为字面量 \n，先还原再交给字体折行。
+        return font.listFormattedStringToWidth(LegacyText.string(tooltip), Math.max(1, Math.max(leftWidth, rightWidth)));
     }
 }
