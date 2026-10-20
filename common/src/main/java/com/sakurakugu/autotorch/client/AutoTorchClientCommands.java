@@ -23,11 +23,15 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.commands.arguments.coordinates.Coordinates;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -637,10 +641,21 @@ public final class AutoTorchClientCommands {
 
     public static void receiveTaskStatus(TaskStatusPayload status) {
         if (status.running()) {
-            feedback("command.autotorch.task_running", status.percent(), status.placed());
+            feedback("command.autotorch.task_running", status.percent(), status.placed(),
+                    placementName(status.placementItem()));
         } else {
             feedback("command.autotorch.task_idle");
         }
+    }
+
+    /** 把服务端任务实际使用的放置物品 ID 转成客户端语言下的名称；ID 无法解析时退回配置项或 ID 原文。 */
+    private static Component placementName(String itemId) {
+        if (itemId.isBlank()) {
+            return ClientConfig.taskPlacementName();
+        }
+        ResourceLocation identifier = ResourceLocation.tryParse(itemId);
+        Item item = identifier == null ? null : Registry.ITEM.getOptional(identifier).orElse(null);
+        return item == null ? new net.minecraft.network.chat.TextComponent(itemId) : new ItemStack(item).getHoverName();
     }
 
     private static int openScreen() {
@@ -735,7 +750,8 @@ public final class AutoTorchClientCommands {
                     new net.minecraft.network.chat.TranslatableComponent(sphere
                             ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                     state(LightOverlayState.isEnabled()),
-                    new net.minecraft.network.chat.TranslatableComponent(displayModeKey(LightOverlayState.displayMode())));
+                    new net.minecraft.network.chat.TranslatableComponent(displayModeKey(LightOverlayState.displayMode())),
+                    ClientConfig.taskPlacementName());
         }
         feedbackColored("------------------------------------------------", ChatFormatting.WHITE);
         return 1;

@@ -232,7 +232,8 @@ public final class LightingScreen extends Screen {
             ClientConfig.setNearbyAutoTorchEnabled(!ClientConfig.isNearbyAutoTorchEnabled());
             nearbyAutoTorchButton.setMessage(nearbyAutoTorchMessage());
         }).bounds(left, 326, 90, 20)
-                .tooltip(new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.nearby_auto_torch.tooltip"))
+                .tooltip(new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.nearby_auto_torch.tooltip",
+                        ClientConfig.nearbyPlacementName()))
                 .build());
         Component nearbyResetMessage = new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.reset");
         addRenderableWidget(new ResetButton(resetButtonX(nearbyResetMessage), 310,
@@ -686,7 +687,8 @@ public final class LightingScreen extends Screen {
 
     private static int effectiveSecondPassSpacing() {
         return AutoTorchRules.secondPassSpacing(ClientStatusJson.effectiveDefaultMinSpacing(),
-                ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing());
+                ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing(),
+                ClientConfig.taskPlacementLightEmission());
     }
 
     private static boolean isCreativePlayer() {
@@ -1023,11 +1025,13 @@ public final class LightingScreen extends Screen {
             drawCenteredString(poseStack, font, error, width / 2, informationY, 0xFFFF6060);
         } else if (!rangeMessage.getString().isEmpty()) {
             drawCenteredString(poseStack, font, rangeMessage, width / 2, informationY, 0xFFFFC060);
-        } else if (!AutoTorchRules.canTorchMeetLightThreshold(ClientConfig.defaultTaskLightThreshold())) {
+        } else if (!AutoTorchRules.canLightSourceMeetThreshold(
+                ClientConfig.defaultTaskLightThreshold(), ClientConfig.taskPlacementLightEmission())) {
             drawCenteredString(poseStack, font, new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.light_threshold_unreachable",
-                    ClientConfig.defaultTaskLightThreshold()), width / 2, informationY, 0xFFFF6060);
+                    ClientConfig.defaultTaskLightThreshold(), ClientConfig.taskPlacementName(),
+                    ClientConfig.taskPlacementLightEmission()), width / 2, informationY, 0xFFFF6060);
         } else if (ServerConfigState.minSpacing() > AutoTorchRules.maxSafeSecondPassSpacing(
-                ClientConfig.defaultTaskLightThreshold())) {
+                ClientConfig.defaultTaskLightThreshold(), ClientConfig.taskPlacementLightEmission())) {
             drawCenteredString(poseStack, font, new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.second_pass_spacing_limited",
                     effectiveSecondPassSpacing(), ClientConfig.defaultTaskLightThreshold()),
                     width / 2, informationY, 0xFFFFC060);
@@ -1191,7 +1195,8 @@ public final class LightingScreen extends Screen {
             setMessage(new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.min_spacing", spacing));
             LegacyTooltips.set(this, new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.min_spacing.tooltip.dynamic",
                     spacing, AutoTorchRules.secondPassSpacing(spacing,
-                            ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing())));
+                            ClientConfig.defaultTaskLightThreshold(), ServerConfigState.minSpacing(),
+                            ClientConfig.taskPlacementLightEmission())));
         }
 
         @Override
