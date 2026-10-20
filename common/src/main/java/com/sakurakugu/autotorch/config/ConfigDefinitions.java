@@ -15,21 +15,21 @@ public final class ConfigDefinitions {
     public static final int HARD_MAX_TORCHES = 4096;
 
     public static final BooleanValue NEARBY_AUTO_TORCH_ENABLED = bool("nearbyAutoTorch.enabled", false,
-            "附近自动插火把\n启用后会在玩家周围约 2 格内的暗处自动放置火把");
+            "附近自动照明\n启用后会在玩家周围约 2 格内的暗处自动放置方块");
     public static final IntValue NEARBY_AUTO_TORCH_LIGHT_THRESHOLD = integer("nearbyAutoTorch.lightThreshold", 4, 1, 16,
-            "附近插火把亮度阈值\n亮度低于该值时才放置火把");
+            "附近照明亮度阈值\n亮度低于该值时才放置方块");
     public static final BooleanValue NEARBY_AUTO_TORCH_INCLUDE_SKY_LIGHT = bool("nearbyAutoTorch.includeSkyLight", false,
-            "附近插火把计入天空光\ntrue 取方块光与天空光中的较大值，false 只判断方块光");
+            "附近照明计入天空光\ntrue 取方块光与天空光中的较大值，false 只判断方块光");
     public static final IntValue NEARBY_AUTO_TORCH_SCAN_INTERVAL = integer("nearbyAutoTorch.scanIntervalTicks", 10, 1, 40,
-            "附近插火把扫描间隔\n单位为 tick");
+            "附近照明扫描间隔\n单位为 tick");
     public static final IntValue NEARBY_AUTO_TORCH_DARK_CONFIRM = stepped("nearbyAutoTorch.darkConfirmTicks", 10, 5, 40, 5,
-            "附近插火把黑暗确认时间\n候选位置需要连续保持黑暗，单位为 tick");
+            "附近照明黑暗确认时间\n候选位置需要连续保持黑暗，单位为 tick");
     public static final IntValue NEARBY_AUTO_TORCH_RETRY_DELAY = stepped("nearbyAutoTorch.retryDelayTicks", 40, 10, 100, 10,
-            "附近插火把重试等待时间\n同一位置的再次尝试间隔，单位为 tick");
+            "附近照明重试等待时间\n同一位置的再次尝试间隔，单位为 tick");
     public static final IntValue NEARBY_AUTO_TORCH_HORIZONTAL_RADIUS = integer("nearbyAutoTorch.horizontalRadius", 2, 1, 4,
-            "附近插火把水平半径\n纵向范围固定为 -2 至 +1");
+            "附近照明水平半径\n纵向范围固定为 -2 至 +1");
     public static final StringValue NEARBY_AUTO_TORCH_ITEM = string("nearbyAutoTorch.item", "minecraft:torch",
-            "附近插火把放置物品\n可放置方块物品 ID");
+            "附近照明放置物品\n可放置方块物品 ID");
     public static final BooleanValue LIGHT_OVERLAY_ENABLED = bool("lightOverlay.enabled", false,
             "光照显示\n显示相机附近的光照等级与刷怪风险");
     public static final BooleanValue LIGHT_OVERLAY_RENDER_THROUGH = bool("lightOverlay.renderThrough", false,
@@ -91,19 +91,19 @@ public final class ConfigDefinitions {
     public static final BooleanValue SELECTION_TOOL_ENABLED = bool("selectionOverlay.selectionToolEnabled", true,
             "启用选区工具\n手持工具左键、右键可设置 A、B 点，关闭后恢复原版的破坏与方块交互，仍可在面板中输入坐标");
     public static final BooleanValue SELECTION_OVERLAY_SYMBOL_BUTTONS = bool("selectionOverlay.symbolButtons", false,
-            "用符号显示按钮\n区间插火把界面的转换与互换按钮，关闭时显示文字");
+            "用符号显示按钮\n区间照明界面的转换与互换按钮，关闭时显示文字");
     public static final IntValue TASK_DEFAULT_MAX_TORCHES = stepped("lightingTaskDefaults.maxTorches", 0, 0, HARD_MAX_TORCHES, 128,
-            "默认火把数量上限\n新建任务时的默认数量，0 表示不限，但仍受服务端 limits.maxTorchesPerTask 限制");
+            "默认方块数量上限\n新建任务时的默认数量，0 表示不限，但仍受服务端 limits.maxTorchesPerTask 限制");
     public static final IntValue TASK_DEFAULT_MIN_SPACING = integer("lightingTaskDefaults.minSpacing", 8, 1, 12,
-            "默认火把间距\n火把坐标之间的三维直线距离，设为 8 时同一直线上两个火把之间隔 7 格");
+            "默认方块间距\n方块坐标之间的三维直线距离，设为 8 时同一直线上两个方块之间隔 7 格");
     public static final IntValue TASK_DEFAULT_LIGHT_THRESHOLD = integer("lightingTaskDefaults.lightThreshold", 0, 0, 15,
             "默认亮度阈值\n只处理方块光小于或等于该值的位置，0 表示只处理方块光为 0 的位置");
     public static final BooleanValue TASK_DEFAULT_INCLUDE_SKY_LIGHT = bool("lightingTaskDefaults.includeSkyLight", false,
             "默认包含天空光\n新建任务时是否包含有天空光的位置，关闭后只处理无天空光的位置");
     public static final BooleanValue TASK_DEFAULT_CREATIVE_CONSUMES_TORCHES = bool("lightingTaskDefaults.creativeConsumeTorches", false,
-            "创造模式消耗火把\n新建任务时创造模式是否默认消耗背包中的火把");
+            "创造模式消耗物品\n新建任务时创造模式是否默认消耗背包中的所选放置物品");
     public static final BooleanValue TASK_DEFAULT_SURVIVAL_CONSUMES_TORCHES = bool("lightingTaskDefaults.survivalConsumeTorches", true,
-            "生存模式消耗火把\n新建任务时生存模式是否默认消耗背包中的火把，单人游戏按此项，多人游戏以服务端 gameplay.survivalConsumesTorches 为准");
+            "生存模式消耗物品\n新建任务时生存模式是否默认消耗背包中的所选放置物品，单人游戏按此项，多人游戏以服务端 gameplay.survivalConsumesTorches 为准");
     public static final IntValue TASK_PROGRESS_INTERVAL = stepped("lightingTaskDefaults.progressIntervalTicks", 10, 10, 40, 10,
             "区间任务进度同步间隔\n单位为 tick");
     public static final StringValue TASK_DEFAULT_PLACEMENT_ITEM = string("lightingTaskDefaults.placementItem", "minecraft:torch",
@@ -116,27 +116,27 @@ public final class ConfigDefinitions {
     public static final IntValue LIMIT_MAX_EXCLUSIONS = integer("limits.maxExclusions", StartLightingPayload.MAX_EXCLUSIONS, 0, StartLightingPayload.MAX_EXCLUSIONS,
             "排除区数量上限\n单个任务允许提交的排除区数量，0 表示不允许提交排除区");
     public static final IntValue LIMIT_MAX_TORCHES_PER_TASK = integer("limits.maxTorchesPerTask", HARD_MAX_TORCHES, 1, HARD_MAX_TORCHES,
-            "单任务火把数量上限\n服务端强制限制的上限，即使客户端把火把上限设为 0（不限），实际放置也不会超过该值");
+            "单任务方块数量上限\n服务端强制限制的上限，即使客户端把方块上限设为 0（不限），实际放置也不会超过该值");
     public static final BooleanValue LIMIT_ALLOW_UNLIMITED_TORCHES = bool("limits.allowUnlimitedTorches", true,
-            "允许不限火把数量\n是否允许客户端把火把上限设为 0（不限），关闭后客户端必须给出具体上限，实际仍受 limits.maxTorchesPerTask 限制");
+            "允许不限方块数量\n是否允许客户端把方块上限设为 0（不限），关闭后客户端必须给出具体上限，实际仍受 limits.maxTorchesPerTask 限制");
     public static final BooleanValue LIGHTING_TASK_ENABLED = bool("lightingTask.enabled", true,
-            "启用区间任务\n服务端是否允许运行区间自动插火把任务，关闭后所有玩家都无法提交或继续区间任务");
+            "启用区间任务\n服务端是否允许运行区间自动照明任务，关闭后所有玩家都无法提交或继续区间任务");
     public static final IntValue LIMIT_MIN_SPACING = integer("limits.minSpacing", 1, 1, 12,
-            "火把间距下限\n服务端允许客户端设置的最小间距，下限越大火把越分散，越可能无法满足目标亮度\n修改时不能大于上限；手动写反时读取会按较小值作为下限");
+            "方块间距下限\n服务端允许客户端设置的最小间距，下限越大方块越分散，越可能无法满足目标亮度\n修改时不能大于上限；手动写反时读取会按较小值作为下限");
     public static final IntValue LIMIT_MAX_SPACING = integer("limits.maxSpacing", 12, 1, 12,
-            "火把间距上限\n服务端允许客户端设置的最大间距\n修改时不能小于下限；手动写反时读取会按较大值作为上限");
+            "方块间距上限\n服务端允许客户端设置的最大间距\n修改时不能小于下限；手动写反时读取会按较大值作为上限");
     public static final IntValue LIMIT_MAX_CONCURRENT_TASKS = integer("limits.maxConcurrentTasks", 64, 1, 1024,
             "并发任务数量上限\n全服可同时运行的区间任务数量，调高会成倍增加扫描与方块更新负担");
     public static final BooleanValue GAMEPLAY_SURVIVAL_CONSUMES_TORCHES = bool("gameplay.survivalConsumesTorches", true,
-            "生存模式消耗火把\n生存模式任务是否必须消耗玩家背包中的普通火把，关闭后生存模式可以凭空放置火把");
+            "生存模式消耗物品\n生存模式任务是否必须消耗玩家背包中的所选放置物品，关闭后生存模式可以凭空放置所选方块");
     public static final IntValue PERFORMANCE_SCAN_BUDGET_PER_TASK_TICK = integer("performance.scanBudgetPerTaskTick", 12_000, 1, 120_000,
             "单任务扫描预算\n单个任务每 tick 最多扫描的方块数，调高会同时增加方块更新与光照计算负担");
     public static final IntValue PERFORMANCE_PLACE_BUDGET_PER_TASK_TICK = integer("performance.placeBudgetPerTaskTick", 8, 1, 64,
-            "单任务放置预算\n单个任务每 tick 最多放置的火把数，调高会提高方块更新与网络同步压力");
+            "单任务放置预算\n单个任务每 tick 最多放置的方块数，调高会提高方块更新与网络同步压力");
     public static final IntValue PERFORMANCE_GLOBAL_SCAN_BUDGET_PER_TICK = integer("performance.globalScanBudgetPerTick", 24_000, 1, 240_000,
             "全服扫描预算\n全服所有任务每 tick 最多扫描的方块总数，与每任务预算共同限制服务器负载");
     public static final IntValue PERFORMANCE_GLOBAL_PLACE_BUDGET_PER_TICK = integer("performance.globalPlaceBudgetPerTick", 16, 1, 256,
-            "全服放置预算\n全服所有任务每 tick 最多放置的火把总数，与每任务预算共同限制服务器负载");
+            "全服放置预算\n全服所有任务每 tick 最多放置的方块总数，与每任务预算共同限制服务器负载");
     public static final IntValue PERFORMANCE_RANDOM_PLACEMENT_ATTEMPTS = integer("performance.randomPlacementAttempts", 32, 1, 128,
             "放置位置尝试次数\n为每个暗点寻找可放置位置时的最大尝试次数，调高更容易找到位置，但单次放置的耗时也会增加");
 

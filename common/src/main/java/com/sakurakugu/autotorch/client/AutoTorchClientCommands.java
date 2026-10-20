@@ -21,6 +21,9 @@ import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RayTraceResult;
@@ -32,6 +35,8 @@ import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.event.ClickEvent;
 import net.minecraft.util.text.event.HoverEvent;
+// 1.9.4 的 ForgeRegistries 位于 net.minecraftforge.fml.common.registry 包。
+import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
 /** 注册只在本地执行的 Auto Torch 客户端命令。 */
 public final class AutoTorchClientCommands {
@@ -653,10 +658,27 @@ public final class AutoTorchClientCommands {
 
     public static void receiveTaskStatus(TaskStatusPayload status) {
         if (status.running()) {
-            feedback("command.autotorch.task_running", status.percent(), status.placed());
+            feedback("command.autotorch.task_running", status.percent(), status.placed(),
+                    placementName(status.placementItem()));
         } else {
             feedback("command.autotorch.task_idle");
         }
+    }
+
+    /** 把服务端任务实际使用的放置物品 ID 转成客户端语言下的名称；ID 无法解析时退回配置项或 ID 原文。 */
+    private static ITextComponent placementName(String itemId) {
+        if (itemId == null || itemId.isEmpty()) {
+            return ClientConfig.taskPlacementName();
+        }
+        Item item;
+        try {
+            item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemId));
+        } catch (RuntimeException exception) {
+            item = null;
+        }
+        // 1.9.4 的 ItemStack 没有 getHoverName，物品显示名由 getDisplayName 返回字符串。
+        return item == null ? new TextComponentString(itemId)
+                : new TextComponentString(new ItemStack(item).getDisplayName());
     }
 
     private static int openScreen() {
@@ -746,7 +768,8 @@ public final class AutoTorchClientCommands {
                     new TextComponentTranslation(sphere
                             ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                     state(LightOverlayState.isEnabled()),
-                    new TextComponentTranslation(displayModeKey(LightOverlayState.displayMode())));
+                    new TextComponentTranslation(displayModeKey(LightOverlayState.displayMode())),
+                    ClientConfig.taskPlacementName());
         }
         feedbackColored("------------------------------------------------", TextFormatting.WHITE);
         return 1;
