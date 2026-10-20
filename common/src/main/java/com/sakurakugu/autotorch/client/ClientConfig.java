@@ -9,10 +9,13 @@ import com.sakurakugu.autotorch.config.ConfigDefinitions.Value;
 
 import java.util.List;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.init.Items;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.IChatComponent;
+import net.minecraft.util.ChatComponentText;
 
 import static com.sakurakugu.autotorch.config.ConfigDefinitions.*;
 
@@ -204,6 +207,26 @@ public final class ClientConfig {
     public static ItemBlock nearbyPlacementItem() {
         return (ItemBlock) items(cached).nearbyPlacement;
     }
+
+    /** 与区间任务实际放置的默认方块状态保持一致；1.7.10 没有方块状态，只取方块的发光值。 */
+    public static int taskPlacementLightEmission() {
+        return items(cached).taskPlacementLightEmission;
+    }
+
+    public static IChatComponent taskPlacementName() {
+        Item item = items(cached).taskPlacement;
+        return item == null ? new ChatComponentText(cached.taskDefaultPlacementItem) : itemName(item);
+    }
+
+    public static IChatComponent nearbyPlacementName() {
+        return itemName(items(cached).nearbyPlacement);
+    }
+
+    private static IChatComponent itemName(Item item) {
+        // 1.7.10 的 ItemStack 没有 getHoverName，物品显示名由 getDisplayName 返回字符串。
+        return new ChatComponentText(new ItemStack(item).getDisplayName());
+    }
+
     private static Item resolveItem(String rawId) {
         if (rawId == null || rawId.trim().isEmpty()) return null;
         try {
@@ -259,6 +282,8 @@ public final class ClientConfig {
         private final ClientConfigSnapshot config;
         private final Item selectionTool;
         private final Item nearbyPlacement;
+        private final Item taskPlacement;
+        private final int taskPlacementLightEmission;
 
         private ItemCache(ClientConfigSnapshot config) {
             this.config = config;
@@ -267,6 +292,10 @@ public final class ClientConfig {
             Item placement = resolveItem(config.nearbyAutoTorchItem);
             // 1.7.10 没有 Block#asItem()，统一用 Item.getItemFromBlock 取物品形态。
             nearbyPlacement = placement instanceof ItemBlock ? placement : Item.getItemFromBlock(Blocks.torch);
+            taskPlacement = resolveItem(config.taskDefaultPlacementItem);
+            // 1.7.10 的发光值由方块决定，没有状态区分，直接取方块自身的发光等级。
+            taskPlacementLightEmission = taskPlacement instanceof ItemBlock
+                    ? ((ItemBlock) taskPlacement).field_150939_a.getLightValue() : 0;
         }
     }
 

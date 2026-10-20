@@ -25,6 +25,8 @@ import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
 import com.sakurakugu.autotorch.compat.BlockPos;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.Vec3;
@@ -666,10 +668,28 @@ public final class AutoTorchClientCommands {
 
     public static void receiveTaskStatus(TaskStatusPayload status) {
         if (status.running()) {
-            feedback("command.autotorch.task_running", status.percent(), status.placed());
+            feedback("command.autotorch.task_running", status.percent(), status.placed(),
+                    placementName(status.placementItem()));
         } else {
             feedback("command.autotorch.task_idle");
         }
+    }
+
+    /** 把服务端任务实际使用的放置物品 ID 转成客户端语言下的名称；ID 无法解析时退回配置项或 ID 原文。 */
+    private static IChatComponent placementName(String itemId) {
+        if (itemId == null || itemId.isEmpty()) {
+            return ClientConfig.taskPlacementName();
+        }
+        Item item;
+        try {
+            // 1.7.10 没有 ForgeRegistries，统一走 compat 层的物品注册表查询。
+            item = com.sakurakugu.autotorch.compat.ItemIds.resolve(itemId);
+        } catch (RuntimeException exception) {
+            item = null;
+        }
+        // 1.7.10 的 ItemStack 没有 getHoverName，物品显示名由 getDisplayName 返回字符串。
+        return item == null ? new ChatComponentText(itemId)
+                : new ChatComponentText(new ItemStack(item).getDisplayName());
     }
 
     private static int openScreen() {
@@ -759,7 +779,8 @@ public final class AutoTorchClientCommands {
                     new ChatComponentTranslation(sphere
                             ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                     state(LightOverlayState.isEnabled()),
-                    new ChatComponentTranslation(displayModeKey(LightOverlayState.displayMode())));
+                    new ChatComponentTranslation(displayModeKey(LightOverlayState.displayMode())),
+                    ClientConfig.taskPlacementName());
         }
         feedbackColored("------------------------------------------------", EnumChatFormatting.WHITE);
         return 1;

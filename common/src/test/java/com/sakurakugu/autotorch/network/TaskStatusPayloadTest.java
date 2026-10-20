@@ -14,12 +14,13 @@ class TaskStatusPayloadTest {
         PacketBuffer buffer = new PacketBuffer(Unpooled.buffer());
 
         try {
-            new TaskStatusPayload(true, 73, 128).write(buffer);
+            new TaskStatusPayload(true, 73, 128, "minecraft:torch").write(buffer);
             TaskStatusPayload decoded = TaskStatusPayload.decode(buffer);
 
             assertTrue(decoded.running());
             assertEquals(73, decoded.percent());
             assertEquals(128, decoded.placed());
+            assertEquals("minecraft:torch", decoded.placementItem());
         } finally {
             buffer.release();
         }
@@ -32,12 +33,13 @@ class TaskStatusPayloadTest {
         try {
             new TaskStatusRequestPayload().write(buffer);
             TaskStatusRequestPayload.decode(buffer);
-            new TaskStatusPayload(false, 0, 0).write(buffer);
+            new TaskStatusPayload(false, 0, 0, "").write(buffer);
             TaskStatusPayload decoded = TaskStatusPayload.decode(buffer);
 
             assertFalse(decoded.running());
             assertEquals(0, decoded.percent());
             assertEquals(0, decoded.placed());
+            assertEquals("", decoded.placementItem());
         } finally {
             buffer.release();
         }
