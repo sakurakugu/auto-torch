@@ -124,8 +124,6 @@ File: `config/autotorch-client.toml`
 
 Open each feature’s full settings from the main panel. Administrators can open server settings with `/autotorch serverconfig gui`.
 
-Use `/autotorch config set <section> <setting> <value>` to edit a setting, or `/autotorch config get <section> <setting>` to query it. For example: `/autotorch config set nearbyAutoTorch scanIntervalTicks 20`. Use `/autotorch config reset <section> [setting]` to reset one setting or section, or `/autotorch config reset group area|overlay|nearby` to reset a feature group. Without a scope, all client settings are reset. `defaults` is an alias for `reset`. See the [command guide (Chinese)](../命令使用.md). The complete client configuration and defaults follow:
-
 ```toml
 [nearbyAutoTorch]
 # Whether nearby automatic torch placement is enabled.
