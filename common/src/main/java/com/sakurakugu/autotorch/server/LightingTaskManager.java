@@ -1,5 +1,7 @@
 package com.sakurakugu.autotorch.server;
 
+import net.minecraft.item.ItemStack;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -132,10 +134,11 @@ public final class LightingTaskManager {
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
         TASKS.put(player.getUniqueID(), task);
         sendSystemMessage(player, new TextComponentTranslation("message.autotorch.started", scanVolume));
-        if (!AutoTorchRules.canTorchMeetLightThreshold(lightThreshold)) {
+        int lightEmission = placementItem.getBlock().getDefaultState().getLightValue();
+        if (!AutoTorchRules.canLightSourceMeetThreshold(lightThreshold, lightEmission)) {
             sendSystemMessage(player, new TextComponentTranslation("message.autotorch.light_threshold_unreachable",
-                    lightThreshold));
-        } else if (secondPassMinimumSpacing > AutoTorchRules.maxSafeSecondPassSpacing(lightThreshold)) {
+                    lightThreshold, new ItemStack(placementItem).getDisplayName(), lightEmission));
+        } else if (secondPassMinimumSpacing > AutoTorchRules.maxSafeSecondPassSpacing(lightThreshold, lightEmission)) {
             sendSystemMessage(player, new TextComponentTranslation("message.autotorch.second_pass_spacing_limited",
                     secondPassMinimumSpacing, lightThreshold));
         }
@@ -184,8 +187,8 @@ public final class LightingTaskManager {
     public static TaskStatusPayload status(EntityPlayerMP player) {
         LightingTask task = TASKS.get(player.getUniqueID());
         return task == null
-                ? new TaskStatusPayload(false, 0, 0)
-                : new TaskStatusPayload(true, task.progressPercent(), task.placedCount());
+                ? new TaskStatusPayload(false, 0, 0, "")
+                : new TaskStatusPayload(true, task.progressPercent(), task.placedCount(), task.placementItemId());
     }
 
     public static void onServerTick(MinecraftServer server) {

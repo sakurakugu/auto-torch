@@ -32,18 +32,57 @@ final class AutoTorchRulesTest {
 
     @Test
     void limitsSecondPassSpacingForTheRequestedLightLevel() {
-        assertEquals(8, AutoTorchRules.maxSafeSecondPassSpacing(0));
-        assertEquals(4, AutoTorchRules.maxSafeSecondPassSpacing(7));
-        assertEquals(3, AutoTorchRules.maxSafeSecondPassSpacing(9));
-        assertEquals(2, AutoTorchRules.maxSafeSecondPassSpacing(10));
-        assertEquals(1, AutoTorchRules.maxSafeSecondPassSpacing(11));
-        assertEquals(1, AutoTorchRules.maxSafeSecondPassSpacing(15));
+        assertEquals(8, AutoTorchRules.maxSafeSecondPassSpacing(0, 14));
+        assertEquals(4, AutoTorchRules.maxSafeSecondPassSpacing(7, 14));
+        assertEquals(3, AutoTorchRules.maxSafeSecondPassSpacing(9, 14));
+        assertEquals(2, AutoTorchRules.maxSafeSecondPassSpacing(10, 14));
+        assertEquals(1, AutoTorchRules.maxSafeSecondPassSpacing(11, 14));
+        assertEquals(1, AutoTorchRules.maxSafeSecondPassSpacing(15, 14));
 
-        assertEquals(3, AutoTorchRules.secondPassSpacing(8, 9, 1));
-        assertEquals(1, AutoTorchRules.secondPassSpacing(8, 11, 1));
-        assertEquals(4, AutoTorchRules.secondPassSpacing(8, 11, 4));
-        assertTrue(AutoTorchRules.canTorchMeetLightThreshold(14));
-        assertFalse(AutoTorchRules.canTorchMeetLightThreshold(15));
+        assertEquals(3, AutoTorchRules.secondPassSpacing(8, 9, 1, 14));
+        assertEquals(1, AutoTorchRules.secondPassSpacing(8, 11, 1, 14));
+        assertEquals(4, AutoTorchRules.secondPassSpacing(8, 11, 4, 14));
+        assertTrue(AutoTorchRules.canLightSourceMeetThreshold(14, 14));
+        assertFalse(AutoTorchRules.canLightSourceMeetThreshold(15, 14));
+    }
+
+    @Test
+    void adjustsSpacingAndWarningsToTheActualLightSource() {
+        // 同为处理亮度 ≤7，灵魂火把需要比普通火把更密的补点。
+        assertEquals(4, AutoTorchRules.secondPassSpacing(16, 7, 1, 14));
+        assertEquals(1, AutoTorchRules.secondPassSpacing(16, 7, 1, 10));
+        assertEquals(5, AutoTorchRules.maxSafeSecondPassSpacing(0, 10));
+        assertEquals(4, AutoTorchRules.maxSafeSecondPassSpacing(0, 7));
+        assertEquals(3, AutoTorchRules.maxSafeSecondPassSpacing(10, 15));
+        assertEquals(3, AutoTorchRules.secondPassSpacing(16, 7, 3, 10));
+
+        assertTrue(AutoTorchRules.canLightSourceMeetThreshold(10, 10));
+        assertFalse(AutoTorchRules.canLightSourceMeetThreshold(11, 10));
+        assertTrue(AutoTorchRules.canLightSourceMeetThreshold(15, 15));
+        assertFalse(AutoTorchRules.canLightSourceMeetThreshold(0, 0));
+        assertEquals(1, AutoTorchRules.maxSafeSecondPassSpacing(0, 0));
+        assertEquals(1, AutoTorchRules.maxSafeSecondPassSpacing(15, 7));
+        assertThrows(IllegalArgumentException.class, () -> AutoTorchRules.maxSafeSecondPassSpacing(0, -1));
+        assertThrows(IllegalArgumentException.class, () -> AutoTorchRules.maxSafeSecondPassSpacing(0, 16));
+    }
+
+    @Test
+    void safeSpacingNeverExcludesADarkPointInUnobstructedLight() {
+        // 遍历全部有效亮度组合，验证间距内每个位置的曼哈顿衰减结果均高于阈值。
+        for (int emission = 1; emission <= 15; emission++) {
+            for (int threshold = 0; threshold < emission; threshold++) {
+                int spacing = AutoTorchRules.maxSafeSecondPassSpacing(threshold, emission);
+                for (int x = 0; x < spacing; x++) {
+                    for (int y = 0; y < spacing; y++) {
+                        for (int z = 0; z < spacing; z++) {
+                            if (x * x + y * y + z * z < spacing * spacing) {
+                                assertTrue(emission - x - y - z > threshold);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Test
