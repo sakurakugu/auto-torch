@@ -19,7 +19,8 @@ class StartLightingPayloadTest {
         AreaZone exclusion = new AreaZone(
                 AreaShape.SPHERE, new BlockPos(-8, 64, 12), new BlockPos(-3, 64, 12));
         StartLightingPayload original = new StartLightingPayload(
-                selection, 256, 7, 3, true, false, Collections.singletonList(exclusion));
+                selection, 256, 7, 3, true, false, "minecraft:torch", 20,
+                Collections.singletonList(exclusion));
         PacketBuffer buffer = new PacketBuffer(Unpooled.buffer());
 
         try {
@@ -32,6 +33,8 @@ class StartLightingPayloadTest {
             assertEquals(3, decoded.lightThreshold());
             assertTrue(decoded.consumeTorches());
             assertFalse(decoded.undergroundOnly());
+            assertEquals("minecraft:torch", decoded.placementItem());
+            assertEquals(20, decoded.progressIntervalTicks());
             assertEquals(Collections.singletonList(exclusion), decoded.exclusions());
         } finally {
             buffer.release();

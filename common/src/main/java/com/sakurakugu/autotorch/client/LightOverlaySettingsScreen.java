@@ -28,8 +28,7 @@ public final class LightOverlaySettingsScreen extends Screen {
     // 1.7.10 的 GuiScreen.buttonList 是原始类型 List，没有泛型可用，add 元素必然触发未检查告警
     @SuppressWarnings("unchecked")
     private <T extends Button> T addRenderableWidget(T widget) {
-        buttonList.add(widget);
-        return widget;
+        return addButton(widget);
     }
 
     private static Button button(int x, int y, int width, int height,
@@ -45,6 +44,7 @@ public final class LightOverlaySettingsScreen extends Screen {
 
     @Override
     public void render(int mouseX, int mouseY, float partialTick) {
+        renderBackground();
         super.render(mouseX, mouseY, partialTick);
         drawCenteredString(font, title.getFormattedText(), width / 2, 16, 0xFFFFFFFF);
     }

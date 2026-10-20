@@ -38,4 +38,9 @@ public final class WorldAccess {
     public static boolean setTorch(World world, BlockPos pos, int flags) {
         return world.setBlock(pos.getX(), pos.getY(), pos.getZ(), Blocks.torch, 0, flags);
     }
+
+    /** 1.7.10 没有方块状态，放置普通方块时使用元数据 0。 */
+    public static boolean setBlock(World world, BlockPos pos, Block block, int metadata, int flags) {
+        return world.setBlock(pos.getX(), pos.getY(), pos.getZ(), block, metadata, flags);
+    }
 }

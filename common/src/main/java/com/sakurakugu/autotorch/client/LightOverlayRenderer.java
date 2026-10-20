@@ -20,11 +20,6 @@ public final class LightOverlayRenderer {
     private static final ResourceLocation MEDIUM_NUMBER_TEXTURE =
             new ResourceLocation("autotorch", "textures/misc/light_level_numbers_medium.png");
     private static final int FULL_BRIGHT_LIGHT = 0xF0;
-    private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
-    private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
-    private static final int SAFE_COLOR = 0xE050E060;
-    private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
-    private static final float CROSS_LINE_WIDTH = 2.5F;
     private static final double SURFACE_OFFSET = 0.0125D;
     private static final double CROSS_MARGIN = 0.14D;
     // 图集中的字形已在 64x64 单元格内居中。
@@ -36,6 +31,7 @@ public final class LightOverlayRenderer {
     private static final float NUMBER_TEXTURE_CELL_SIZE = 0.25F;
     private static final List<LightOverlayState.Marker> NO_MARKERS = Collections.emptyList();
     private static volatile RenderData renderData;
+    private static ClientConfigSnapshot renderedConfig;
 
     private LightOverlayRenderer() {
     }
@@ -46,9 +42,10 @@ public final class LightOverlayRenderer {
         LightOverlayState.DisplayMode displayMode = LightOverlayState.displayMode();
         RenderData current = renderData;
         // 扫描完成时状态会发布新的不可变列表，因此列表身份就是无需遍历的版本标记。
-        if (current != null && current.sourceMarkers() == markers && current.displayMode() == displayMode) {
+        if (renderedConfig == ClientConfig.snapshot() && current != null && current.sourceMarkers() == markers && current.displayMode() == displayMode) {
             return;
         }
+        renderedConfig = ClientConfig.snapshot();
         renderData = buildRenderData(markers, displayMode);
     }
 
@@ -100,8 +97,9 @@ public final class LightOverlayRenderer {
         GlStateManager.pushMatrix();
         GlStateManager.scalef(0.99975586F, 0.99975586F, 0.99975586F);
         GlStateManager.lineWidth(Math.max(
-                CROSS_LINE_WIDTH,
-                (float) Minecraft.getMinecraft().displayWidth / 1920.0F * CROSS_LINE_WIDTH
+                ((float) ClientConfig.snapshot().lightOverlayNearLineWidth),
+                (float) Minecraft.getMinecraft().displayWidth / 1920.0F
+                        * ((float) ClientConfig.snapshot().lightOverlayNearLineWidth)
         ));
     }
 
@@ -175,7 +173,7 @@ public final class LightOverlayRenderer {
         }
         GlStateManager.depthMask(false);
         GlStateManager.disableCull();
-        GlStateManager.lineWidth(CROSS_LINE_WIDTH);
+        GlStateManager.lineWidth(((float) ClientConfig.snapshot().lightOverlayNearLineWidth));
     }
 
     private static void clearLineRenderState() {
@@ -278,10 +276,10 @@ public final class LightOverlayRenderer {
 
     private static int markerColor(LightOverlayState.Marker marker) {
         if (marker.riskType() == LightOverlayState.RiskType.DROWNED) {
-            return DROWNED_RISK_COLOR;
+            return (ClientConfig.snapshot().lightOverlayMarkerAlpha << 24 | ClientConfig.snapshot().lightOverlayDrownedColorRgb);
         }
-        return marker.blockLight() > 0 ? SAFE_COLOR
-                : marker.nightOnly() ? NIGHT_RISK_COLOR : ALWAYS_RISK_COLOR;
+        return marker.blockLight() > 0 ? (ClientConfig.snapshot().lightOverlayMarkerAlpha << 24 | ClientConfig.snapshot().lightOverlaySafeColorRgb)
+                : marker.nightOnly() ? (ClientConfig.snapshot().lightOverlayMarkerAlpha << 24 | ClientConfig.snapshot().lightOverlayNightRiskColorRgb) : (ClientConfig.snapshot().lightOverlayMarkerAlpha << 24 | ClientConfig.snapshot().lightOverlayAlwaysRiskColorRgb);
     }
 
     private static void submitLines(Pose pose, VertexConsumer buffer, RenderData data, Vec3 camera) {
@@ -291,7 +289,7 @@ public final class LightOverlayRenderer {
             line(pose, buffer,
                     coordinates[offset], coordinates[offset + 1], coordinates[offset + 2],
                     coordinates[offset + 3], coordinates[offset + 4], coordinates[offset + 5],
-                    colors[line], CROSS_LINE_WIDTH, camera);
+                    colors[line], ((float) ClientConfig.snapshot().lightOverlayNearLineWidth), camera);
         }
     }
 
@@ -398,7 +396,7 @@ public final class LightOverlayRenderer {
         double rx1 = x1 - camera.xCoord, ry1 = y1 - camera.yCoord, rz1 = z1 - camera.zCoord;
         double rx2 = x2 - camera.xCoord, ry2 = y2 - camera.yCoord, rz2 = z2 - camera.zCoord;
         if (buffer == null) {
-            float width = LineWidthScaler.scale(lineWidth,
+            float width = LineWidthScaler.scale(lineWidth, (float) ClientConfig.snapshot().lightOverlayFarLineWidth,
                     rx1 * rx1 + ry1 * ry1 + rz1 * rz1,
                     rx2 * rx2 + ry2 * ry2 + rz2 * rz2,
                     rx1 * rx2 + ry1 * ry2 + rz1 * rz2);

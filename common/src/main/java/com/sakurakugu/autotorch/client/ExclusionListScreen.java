@@ -1,37 +1,33 @@
 package com.sakurakugu.autotorch.client;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
+import com.sakurakugu.autotorch.client.ui.IconButton;
+import com.sakurakugu.autotorch.client.ui.PixelGlyph;
 import com.sakurakugu.autotorch.network.AreaShape;
 import com.sakurakugu.autotorch.network.AreaZone;
 import com.sakurakugu.autotorch.compat.BlockPos;
 import net.minecraft.util.IChatComponent;
+import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 
-/** 列出照明范围和所有排除区，并提供分页、原位修改和单条删除。 */
+/** 列出照明范围和所有排除区，并提供分页、原位修改、单条删除和一键清空。 */
 public final class ExclusionListScreen extends Screen {
     private static final int PAGE_SIZE = 6;
     private static final int LIGHTING_TEXT_COLOR = 0xFF50FF70;
     private static final int EXCLUSION_TEXT_COLOR = 0xFFFF5050;
-    private final Map<Button, IChatComponent> tooltips = new LinkedHashMap<>();
     private int page;
+    private IChatComponent status = new ChatComponentText("");
 
     public ExclusionListScreen() {
         super(new ChatComponentTranslation("screen.autotorch.exclusions_title"));
     }
 
-    // 1.7.10 的 GuiScreen.buttonList 是原始类型 List，没有泛型可用，add 元素必然触发未检查告警
-    @SuppressWarnings("unchecked")
-    private <T extends Button> T addRenderableWidget(T widget) {
-        buttonList.add(widget);
-        return widget;
-    }
-
     @Override
     protected void init() {
-        tooltips.clear();
+        // 1.7.10 的按钮输入列表是 buttonList，绘制/文本框列表是 children()。
+        buttonList.clear();
+        children().clear();
         AreaZone lightingZone = SelectionState.lightingZone();
         List<AreaZone> exclusions = SelectionState.exclusions();
         int total = exclusions.size() + (lightingZone == null ? 0 : 1);
@@ -44,23 +40,26 @@ public final class ExclusionListScreen extends Screen {
 
         for (int index = firstIndex; index < lastIndex; index++) {
             int row = index - firstIndex;
-            int y = 34 + row * 24;
+            int y = 36 + row * 24;
             int selectedIndex = index;
             boolean lightingEntry = lightingZone != null && index == 0;
-            Button editButton = addRenderableWidget(new ScrollingButton(left + panelWidth - 108, y, 50, 20,
+            // 每行右侧依次放置修改和删除图标，与“全部设置”页的按钮列保持一致。
+            IconButton edit = addButton(new IconButton(left + panelWidth - 44, y, 20, 20,
+                    PixelGlyph.PENCIL,
                     new ChatComponentTranslation(lightingEntry
-                            ? "screen.autotorch.edit_lighting" : "screen.autotorch.edit_exclusion").getFormattedText(), button -> {
-                int exclusionIndex = selectedIndex - (SelectionState.lightingZone() == null ? 0 : 1);
-                boolean editing = lightingEntry
-                        ? SelectionState.beginEditingLightingZone()
-                        : SelectionState.beginEditingExclusion(exclusionIndex);
-                if (editing) {
-                    minecraft.displayGuiScreen(new LightingScreen());
-                }
-            }));
-            tooltips.put(editButton, new ChatComponentTranslation(lightingEntry
+                            ? "screen.autotorch.edit_lighting" : "screen.autotorch.edit_exclusion"),
+                    button -> {
+                        int exclusionIndex = selectedIndex - (SelectionState.lightingZone() == null ? 0 : 1);
+                        boolean editing = lightingEntry
+                                ? SelectionState.beginEditingLightingZone()
+                                : SelectionState.beginEditingExclusion(exclusionIndex);
+                        if (editing) {
+                            minecraft.displayGuiScreen(new LightingScreen());
+                        }
+                    }));
+            LegacyTooltips.set(edit, new ChatComponentTranslation(lightingEntry
                     ? "screen.autotorch.edit_lighting.tooltip" : "screen.autotorch.edit_exclusion.tooltip"));
-            addRenderableWidget(new ColoredButton(left + panelWidth - 54, y, 54, 20,
+            addButton(new IconButton(left + panelWidth - 20, y, 20, 20, PixelGlyph.TRASH,
                     new ChatComponentTranslation("screen.autotorch.delete_zone"), button -> {
                         if (lightingEntry) {
                             SelectionState.removeLightingZone();
@@ -69,35 +68,44 @@ public final class ExclusionListScreen extends Screen {
                             SelectionState.removeExclusion(exclusionIndex);
                         }
                         rebuildWidgets();
-                    }, 0xDDA52B2B, 0xEEC83C3C));
+                    }));
         }
 
-        Button previous = addRenderableWidget(new ScrollingButton(left, 184, 80, 20,
-                new ChatComponentTranslation("screen.autotorch.previous_page").getFormattedText(), button -> {
+        // 左上返回、右上清空全部照明范围和排除区。
+        addButton(new IconButton(left, 8, 20, 20, PixelGlyph.BACK,
+                new ChatComponentTranslation("screen.autotorch.back"), button -> onClose()));
+        addButton(new IconButton(left + panelWidth - 20, 8, 20, 20, PixelGlyph.RESET,
+                new ChatComponentTranslation("screen.autotorch.clear_all_zones"), button -> {
+                    SelectionState.clearZones();
+                    status = new ChatComponentTranslation("screen.autotorch.zones_cleared");
+                    page = 0;
+                    rebuildWidgets();
+                }));
+
+        // 底部上一页、下一页同样改用图标，页码居中显示在两者之间。
+        int pageHalfWidth = (font.getStringWidth(LegacyText.string(pageSummary())) + 1) / 2;
+        addButton(new IconButton(width / 2 - pageHalfWidth - 28, height - 32, 20, 20,
+                PixelGlyph.ARROW_LEFT, new ChatComponentTranslation("screen.autotorch.previous_page"), button -> {
             page--;
             rebuildWidgets();
-        }));
-        previous.active = page > 0;
-
-        addRenderableWidget(new ScrollingButton(width / 2 - 50, 184, 100, 20,
-                new ChatComponentTranslation("screen.autotorch.back").getFormattedText(), button -> onClose()));
-
-        Button next = addRenderableWidget(new ScrollingButton(left + panelWidth - 80, 184, 80, 20,
-                new ChatComponentTranslation("screen.autotorch.next_page").getFormattedText(), button -> {
+        })).active = page > 0;
+        addButton(new IconButton(width / 2 + pageHalfWidth + 8, height - 32, 20, 20,
+                PixelGlyph.ARROW_RIGHT, new ChatComponentTranslation("screen.autotorch.next_page"), button -> {
             page++;
             rebuildWidgets();
-        }));
-        next.active = page < maxPage;
+        })).active = page < maxPage;
     }
 
     private void rebuildWidgets() {
+        // 直接调用 init() 重建页面时，需要同时清空旧按钮与绘制列表。
         buttonList.clear();
-        children.clear();
+        children().clear();
         init();
     }
 
     @Override
     public void render(int mouseX, int mouseY, float partialTick) {
+        renderBackground();
         super.render(mouseX, mouseY, partialTick);
         AreaZone lightingZone = SelectionState.lightingZone();
         List<AreaZone> exclusions = SelectionState.exclusions();
@@ -107,35 +115,37 @@ public final class ExclusionListScreen extends Screen {
         int firstIndex = page * PAGE_SIZE;
         int lastIndex = Math.min(firstIndex + PAGE_SIZE, total);
 
-        drawCenteredString(font, title.getFormattedText(), width / 2, 12, 0xFFFFFFFF);
+        drawCenteredString(font, LegacyText.string(title), width / 2, 14, 0xFFFFFFFF);
+        if (!status.getFormattedText().isEmpty()) {
+            drawCenteredString(font, LegacyText.string(status), width / 2, height - 46, 0xFFB0B0B0);
+        }
         if (total == 0) {
-            drawCenteredString(font, new ChatComponentTranslation("screen.autotorch.no_zone").getFormattedText(),
-                    width / 2, 82, 0xFFA0A0A0);
+            drawCenteredString(font, LegacyText.string(new ChatComponentTranslation("screen.autotorch.no_zone")), width / 2, 82, 0xFFA0A0A0);
         }
         for (int index = firstIndex; index < lastIndex; index++) {
-            int y = 40 + (index - firstIndex) * 24;
+            int y = 42 + (index - firstIndex) * 24;
             boolean lightingEntry = lightingZone != null && index == 0;
             int exclusionIndex = index - (lightingZone == null ? 0 : 1);
             String description = lightingEntry
                     ? describeLighting(lightingZone).getFormattedText()
                     : describeExclusion(exclusionIndex, exclusions.get(exclusionIndex)).getFormattedText();
-            int availableWidth = panelWidth - 116;
+            int availableWidth = panelWidth - 52;
             if (font.getStringWidth(description) > availableWidth) {
-                description = font.trimStringToWidth(description,
-                        Math.max(0, availableWidth - font.getStringWidth("..."))) + "...";
+                description = font.trimStringToWidth(description, Math.max(0, availableWidth - font.getStringWidth("..."))) + "...";
             }
             drawString(font, description, left + 4, y,
                     lightingEntry ? LIGHTING_TEXT_COLOR : EXCLUSION_TEXT_COLOR);
         }
-        drawCenteredString(font, new ChatComponentTranslation("screen.autotorch.page_summary",
-                page + 1, maxPage(total) + 1, lightingZone == null ? 0 : 1, exclusions.size()).getFormattedText(),
-                width / 2, 212, 0xFFA0A0A0);
-        for (Map.Entry<Button, IChatComponent> entry : tooltips.entrySet()) {
-            if (entry.getKey().visible && entry.getKey().isMouseOver(mouseX, mouseY)) {
-                renderTooltip(entry.getValue().getFormattedText(), mouseX, mouseY);
-                break;
-            }
-        }
+        drawCenteredString(font, LegacyText.string(pageSummary()), width / 2, height - 25, 0xFFB0B0B0);
+        LegacyTooltips.render(this, font, mouseX, mouseY);
+    }
+
+    private IChatComponent pageSummary() {
+        int lightingCount = SelectionState.lightingZone() == null ? 0 : 1;
+        int exclusionCount = SelectionState.exclusions().size();
+        int total = lightingCount + exclusionCount;
+        return new ChatComponentTranslation("screen.autotorch.page_summary",
+                page + 1, maxPage(total) + 1, lightingCount, exclusionCount);
     }
 
     private static IChatComponent describeLighting(AreaZone zone) {

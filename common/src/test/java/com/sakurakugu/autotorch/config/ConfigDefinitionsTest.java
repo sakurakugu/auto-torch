@@ -83,7 +83,14 @@ class ConfigDefinitionsTest {
             if (definition instanceof ConfigDefinitions.IntValue) {
                 ConfigDefinitions.IntValue value = (ConfigDefinitions.IntValue) definition;
                 assertEquals(" 默认值：" + value.defaultValue(), bounds[0], definition.key());
+                assertEquals(" 取值范围：" + value.minValue() + " ~ " + value.maxValue() + "，步进：" + value.step(), bounds[1], definition.key());
+            } else if (definition instanceof ConfigDefinitions.DoubleValue) {
+                ConfigDefinitions.DoubleValue value = (ConfigDefinitions.DoubleValue) definition;
+                assertEquals(" 默认值：" + value.defaultValue(), bounds[0], definition.key());
                 assertEquals(" 取值范围：" + value.minValue() + " ~ " + value.maxValue(), bounds[1], definition.key());
+            } else if (definition instanceof ConfigDefinitions.StringValue) {
+                ConfigDefinitions.StringValue value = (ConfigDefinitions.StringValue) definition;
+                assertEquals(" 默认值：" + value.defaultValue(), bounds[0], definition.key());
             } else {
                 ConfigDefinitions.BooleanValue value = (ConfigDefinitions.BooleanValue) definition;
                 assertEquals(1, bounds.length, definition.key());

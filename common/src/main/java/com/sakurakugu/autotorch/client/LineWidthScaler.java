@@ -10,11 +10,15 @@ final class LineWidthScaler {
     }
 
     static float scale(float baseWidth, double firstSquared, double secondSquared, double dotProduct) {
+        return scale(baseWidth, (float) MINIMUM_WIDTH, firstSquared, secondSquared, dotProduct);
+    }
+
+    static float scale(float baseWidth, float minimumWidth, double firstSquared, double secondSquared, double dotProduct) {
         double distanceSquared = (firstSquared + secondSquared + 2.0D * dotProduct) * 0.25D;
         if (distanceSquared <= REFERENCE_DISTANCE_SQUARED) {
             return baseWidth;
         }
-        return (float) Math.max(MINIMUM_WIDTH,
+        return (float) Math.max(minimumWidth,
                 baseWidth * REFERENCE_DISTANCE / Math.sqrt(distanceSquared));
     }
 }

@@ -10,13 +10,15 @@ import net.minecraft.init.Items;
 
 /** 在服务端拦截作为选区工具的木斧交互，防止误破坏或使用方块。 */
 public final class SelectionToolEvents {
+    private static final java.util.Map<UUID, net.minecraft.item.Item> TOOLS = new java.util.HashMap<>();
     private static final Set<UUID> DISABLED_PLAYERS = new HashSet<>();
 
     private SelectionToolEvents() {
     }
 
     public static boolean handlesInteraction(EntityPlayerMP player, ItemStack stack) {
-        return isEnabled(player.getUniqueID()) && stack != null && stack.getItem() == Items.wooden_axe;
+        return isEnabled(player.getUniqueID()) && stack != null
+                && stack.getItem() == TOOLS.getOrDefault(player.getUniqueID(), Items.wooden_axe);
     }
 
     public static void setEnabled(EntityPlayerMP player, boolean enabled) {
@@ -27,8 +29,17 @@ public final class SelectionToolEvents {
         }
     }
 
+    public static void setEnabled(EntityPlayerMP player, boolean enabled, String itemId) {
+        // 1.7.10 没有 Item.getByNameOrId，用物品注册表解析。
+        net.minecraft.item.Item item = com.sakurakugu.autotorch.compat.ItemIds.resolve(itemId);
+        // 1.7.10 的物品注册表里没有空气物品，解析不到即为无效 ID。
+        if (item == null) return;
+        TOOLS.put(player.getUniqueID(), item);
+        setEnabled(player, enabled);
+    }
     public static void onLogout(EntityPlayerMP player) {
         DISABLED_PLAYERS.remove(player.getUniqueID());
+        TOOLS.remove(player.getUniqueID());
     }
 
     private static boolean isEnabled(UUID playerId) {

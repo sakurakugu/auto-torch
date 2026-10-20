@@ -7,44 +7,70 @@ import net.minecraft.util.IChatComponent;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 
-/** 适配旧版 GuiButton 事件模型的双端点范围滑动条。 */
+/** 可复用的双端点范围滑动条。 */
 final class DualRangeSlider extends Button {
     private static final ResourceLocation SLIDER_LOCATION = new ResourceLocation("autotorch", "textures/gui/slider.png");
     private final int minValue, maxValue, maxSpan;
     private final BiFunction<Integer, Integer, IChatComponent> messageFactory;
     private final BiConsumer<Integer, Integer> changeListener;
-    private int lowerValue, upperValue, draggingThumb;
-    DualRangeSlider(int x, int y, int width, int height, int minValue, int maxValue, int maxSpan,
-            int lowerValue, int upperValue, BiFunction<Integer, Integer, IChatComponent> messageFactory,
+    private BiConsumer<Integer, Integer> commitListener = (lower, upper) -> { };
+    private int lowerValue;
+    private int upperValue;
+    private int draggingThumb;
+
+    DualRangeSlider(int x, int y, int width, int height, int minValue, int maxValue,
+            int maxSpan, int lowerValue, int upperValue,
+            BiFunction<Integer, Integer, IChatComponent> messageFactory,
             BiConsumer<Integer, Integer> changeListener) {
         super(x, y, width, height, "", button -> { });
         this.minValue = minValue; this.maxValue = maxValue; this.maxSpan = maxSpan;
         this.messageFactory = messageFactory; this.changeListener = changeListener;
         setValues(lowerValue, upperValue, false);
     }
-    @Override public void onClick(double mouseX, double mouseY) {
-        draggingThumb = Math.abs(mouseX - position(lowerValue)) <= Math.abs(mouseX - position(upperValue)) ? 1 : 2;
-        update(mouseX);
+
+    DualRangeSlider(int x, int y, int width, int height, int minValue, int maxValue,
+            int maxSpan, int lowerValue, int upperValue,
+            BiFunction<Integer, Integer, IChatComponent> messageFactory,
+            BiConsumer<Integer, Integer> ignoredListener,
+            BiConsumer<Integer, Integer> changeListener) {
+        this(x, y, width, height, minValue, maxValue, maxSpan, lowerValue, upperValue,
+                messageFactory, ignoredListener);
+        this.commitListener = changeListener;
     }
-    boolean drag(double mouseX) { if (draggingThumb == 0) return false; update(mouseX); return true; }
-    boolean stopDrag() { if (draggingThumb == 0) return false; draggingThumb = 0; return true; }
-    @Override protected void renderButton(int mouseX, int mouseY, float partialTicks) {
+
+    public void setValues(int lowerValue, int upperValue) {
+        setValues(lowerValue, upperValue, false);
+    }
+
+    private void setValues(int lowerValue, int upperValue, boolean notify) {
+        this.lowerValue = clamp(lowerValue);
+        this.upperValue = clamp(upperValue);
+        if (this.lowerValue > this.upperValue) this.lowerValue = this.upperValue;
+        if (this.upperValue - this.lowerValue > maxSpan) this.upperValue = clamp(this.lowerValue + maxSpan);
+        setMessage(messageFactory.apply(this.lowerValue, this.upperValue).getFormattedText());
+        if (notify) changeListener.accept(this.lowerValue, this.upperValue);
+    }
+
+    @Override
+    public void renderButton(int mouseX, int mouseY, float partialTick) {
         int lowX = position(lowerValue);
         int highX = position(upperValue);
         Minecraft.getMinecraft().renderEngine.bindTexture(SLIDER_LOCATION);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         GL11.glEnable(GL11.GL_BLEND);
+        GL11.glEnable(GL11.GL_DEPTH_TEST);
         drawNineSliced(xPosition, yPosition, width, height, 20, 4, 200, 20, 0, isFocused() ? 20 : 0);
         fill(lowX, yPosition + 1, highX, yPosition + height - 1, 0xFF3A5F8A);
-        // 填充区间会改变 OpenGL 颜色状态，绘制纹理滑块前恢复白色。
+        // fill 会改变 OpenGL 颜色状态，纹理滑块必须恢复白色避免被区间颜色染色。
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
-        thumb(lowX, draggingThumb == 1 || Math.abs(mouseX - lowX) <= 6);
-        thumb(highX, draggingThumb == 2 || Math.abs(mouseX - highX) <= 6);
+        drawThumb(lowX, draggingThumb == 1 || isThumbHovered(mouseX, mouseY, lowX));
+        drawThumb(highX, draggingThumb == 2 || isThumbHovered(mouseX, mouseY, highX));
         ScrollingText.render(Minecraft.getMinecraft().fontRenderer, getMessage(),
                 xPosition + 2, yPosition, xPosition + width - 2, yPosition + height, 0xFFFFFFFF);
     }
-    private void thumb(int x, boolean hovered) {
-        drawNineSliced(x - 4, yPosition, 8, height, 20, 4, 200, 20, 0, hovered ? 60 : 40);
+
+    private void drawThumb(int thumbX, boolean highlighted) {
+        drawNineSliced(thumbX - 4, yPosition, 8, height, 20, 4, 200, 20, 0, highlighted ? 60 : 40);
     }
     private void drawNineSliced(int x, int y, int width, int height, int cw, int ch,
             int tw, int th, int u, int v) {
@@ -77,27 +103,70 @@ final class DualRangeSlider extends Button {
     }
     private void blitRepeat(int x, int y, int width, int height, int u, int v,
             int sourceWidth, int sourceHeight) {
-        if (width <= 0 || height <= 0) return;
+        if (width <= 0 || height <= 0) {
+            return;
+        }
         for (int oy = 0; oy < height; oy += sourceHeight) {
             for (int ox = 0; ox < width; ox += sourceWidth) {
-                blitPatch(x + ox, y + oy, Math.min(sourceWidth, width - ox),
-                        Math.min(sourceHeight, height - oy), u, v);
+                int patchWidth = Math.min(sourceWidth, width - ox);
+                int patchHeight = Math.min(sourceHeight, height - oy);
+                blitPatch(x + ox, y + oy, patchWidth, patchHeight, u, v);
             }
         }
     }
+
+    private boolean isThumbHovered(int mouseX, int mouseY, int thumbX) {
+        return mouseY >= yPosition && mouseY < yPosition + height && Math.abs(mouseX - thumbX) <= 6;
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button != 0 || !isMouseOver(mouseX, mouseY)) return false;
+        draggingThumb = Math.abs(mouseX - position(lowerValue)) <= Math.abs(mouseX - position(upperValue)) ? 1 : 2;
+        update(mouseX);
+        return true;
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (draggingThumb == 0) return false;
+        update(mouseX);
+        return true;
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        return stopDrag();
+    }
+
+    boolean stopDrag() {
+        if (draggingThumb == 0) return false;
+        draggingThumb = 0;
+        commitListener.accept(lowerValue, upperValue);
+        return true;
+    }
+
     private void update(double mouseX) {
         int value = (int) Math.round((Math.max(xPosition + 4, Math.min(xPosition + width - 4, mouseX)) - (xPosition + 4))
                 * (maxValue - minValue) / (double) (width - 8)) + minValue;
-        int lower = draggingThumb == 1 ? Math.min(value, upperValue) : lowerValue;
-        int upper = draggingThumb == 2 ? Math.max(value, lowerValue) : upperValue;
-        if (upper - lower > maxSpan) { if (draggingThumb == 1) upper = lower + maxSpan; else lower = upper - maxSpan; }
-        setValues(lower, upper, true);
+        if (draggingThumb == 1) {
+            int lower = Math.min(value, upperValue);
+            int upper = upperValue;
+            if (upper - lower > maxSpan) upper = lower + maxSpan;
+            setValues(lower, upper, true);
+        } else {
+            int lower = lowerValue;
+            int upper = Math.max(value, lower);
+            if (upper - lower > maxSpan) lower = upper - maxSpan;
+            setValues(lower, upper, true);
+        }
     }
-    private void setValues(int lower, int upper, boolean notify) {
-        lowerValue = Math.max(minValue, Math.min(maxValue, lower));
-        upperValue = Math.max(lowerValue, Math.min(maxValue, upper));
-        setMessage(messageFactory.apply(lowerValue, upperValue).getFormattedText());
-        if (notify) changeListener.accept(lowerValue, upperValue);
+
+    private int position(int value) {
+        return xPosition + 4 + (value - minValue) * (width - 8) / (maxValue - minValue);
     }
-    private int position(int value) { return xPosition + 4 + (value - minValue) * (width - 8) / (maxValue - minValue); }
+
+    private int clamp(int value) {
+        return Math.max(minValue, Math.min(maxValue, value));
+    }
 }

@@ -20,10 +20,8 @@ import com.sakurakugu.autotorch.compat.WorldAccess;
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
 public final class LightOverlayState {
     private static final int MAX_VERTICAL_RANGE = 64;
-    private static final int SCAN_BUDGET_PER_TICK = 12_000;
     private static final int LIGHT_CHANGE_RADIUS = 15;
     private static final int CACHE_MARGIN = 16;
-    private static final int VERIFICATION_INTERVAL_TICKS = 100;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
     private static boolean swampSlimeDetectionEnabled = false;
@@ -36,7 +34,7 @@ public final class LightOverlayState {
     private static BlockPos scanCenter;
     private static int minY;
     private static int maxY;
-    private static int ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
+    private static int ticksUntilVerification = ClientConfig.snapshot().lightOverlayRefreshInterval;
     private static final Map<Long, MarkerColumn> columnCache = new HashMap<>();
     private static final Set<Long> urgentColumns = new LinkedHashSet<>();
     private static final Set<Long> lightUpdateColumns = new LinkedHashSet<>();
@@ -196,13 +194,13 @@ public final class LightOverlayState {
         boolean visibleAreaChanged = updateVisibleArea(viewCenter);
         if (--ticksUntilVerification <= 0) {
             enqueueVisibleColumns(verificationColumns);
-            ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
+            ticksUntilVerification = ClientConfig.snapshot().lightOverlayRefreshInterval;
         }
 
         Set<Long> activeQueue = !urgentColumns.isEmpty() ? urgentColumns
                 : !lightUpdateColumns.isEmpty() ? lightUpdateColumns
                 : !backgroundColumns.isEmpty() ? backgroundColumns : verificationColumns;
-        boolean cacheChanged = scanQueuedColumns(currentLevel, activeQueue, SCAN_BUDGET_PER_TICK);
+        boolean cacheChanged = scanQueuedColumns(currentLevel, activeQueue, ClientConfig.snapshot().lightOverlayScanBudget);
         if (visibleAreaChanged || cacheChanged) {
             publishVisibleMarkers();
         }
@@ -212,7 +210,7 @@ public final class LightOverlayState {
         scanCenter = null;
         minY = 0;
         maxY = 0;
-        ticksUntilVerification = VERIFICATION_INTERVAL_TICKS;
+        ticksUntilVerification = ClientConfig.snapshot().lightOverlayRefreshInterval;
         columnCache.clear();
         urgentColumns.clear();
         lightUpdateColumns.clear();
