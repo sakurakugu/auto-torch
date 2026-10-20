@@ -12,7 +12,10 @@ import net.minecraft.item.Item;
 import net.minecraft.init.Items;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemBlock;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import static com.sakurakugu.autotorch.config.ConfigDefinitions.*;
@@ -205,6 +208,25 @@ public final class ClientConfig {
     public static ItemBlock nearbyPlacementItem() {
         return (ItemBlock) items(cached).nearbyPlacement;
     }
+
+    /** 与区间任务实际放置的默认方块状态保持一致。 */
+    public static int taskPlacementLightEmission() {
+        return items(cached).taskPlacementLightEmission;
+    }
+
+    public static ITextComponent taskPlacementName() {
+        Item item = items(cached).taskPlacement;
+        return item == null ? new TextComponentString(cached.taskDefaultPlacementItem) : itemName(item);
+    }
+
+    public static ITextComponent nearbyPlacementName() {
+        return itemName(items(cached).nearbyPlacement);
+    }
+
+    private static ITextComponent itemName(Item item) {
+        return new ItemStack(item).getDisplayName();
+    }
+
     private static Item resolveItem(String rawId) {
         if (rawId == null || rawId.trim().isEmpty()) return null;
         try {
@@ -259,6 +281,8 @@ public final class ClientConfig {
         private final ClientConfigSnapshot config;
         private final Item selectionTool;
         private final Item nearbyPlacement;
+        private final Item taskPlacement;
+        private final int taskPlacementLightEmission;
 
         private ItemCache(ClientConfigSnapshot config) {
             this.config = config;
@@ -266,6 +290,9 @@ public final class ClientConfig {
             selectionTool = tool == null || tool == Items.AIR ? Items.WOODEN_AXE : tool;
             Item placement = resolveItem(config.nearbyAutoTorchItem);
             nearbyPlacement = placement instanceof ItemBlock ? placement : Blocks.TORCH.asItem();
+            taskPlacement = resolveItem(config.taskDefaultPlacementItem);
+            taskPlacementLightEmission = taskPlacement instanceof ItemBlock
+                    ? ((ItemBlock) taskPlacement).getBlock().getDefaultState().getLightValue() : 0;
         }
     }
 

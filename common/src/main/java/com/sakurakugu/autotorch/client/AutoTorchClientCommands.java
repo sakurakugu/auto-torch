@@ -29,6 +29,10 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.registries.ForgeRegistries;
 
 /** 注册只在本地执行的 Auto Torch 客户端命令。 */
 public final class AutoTorchClientCommands {
@@ -639,10 +643,25 @@ public final class AutoTorchClientCommands {
 
     public static void receiveTaskStatus(TaskStatusPayload status) {
         if (status.running()) {
-            feedback("command.autotorch.task_running", status.percent(), status.placed());
+            feedback("command.autotorch.task_running", status.percent(), status.placed(),
+                    placementName(status.placementItem()));
         } else {
             feedback("command.autotorch.task_idle");
         }
+    }
+
+    /** 把服务端任务实际使用的放置物品 ID 转成客户端语言下的名称；ID 无法解析时退回配置项或 ID 原文。 */
+    private static ITextComponent placementName(String itemId) {
+        if (itemId == null || itemId.trim().isEmpty()) {
+            return ClientConfig.taskPlacementName();
+        }
+        Item item;
+        try {
+            item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemId));
+        } catch (RuntimeException exception) {
+            item = null;
+        }
+        return item == null ? new TextComponentString(itemId) : new ItemStack(item).getDisplayName();
     }
 
     private static int openScreen() {
@@ -732,7 +751,8 @@ public final class AutoTorchClientCommands {
                     new TextComponentTranslation(sphere
                             ? "command.autotorch.shape_sphere" : "command.autotorch.shape_box"),
                     state(LightOverlayState.isEnabled()),
-                    new TextComponentTranslation(displayModeKey(LightOverlayState.displayMode())));
+                    new TextComponentTranslation(displayModeKey(LightOverlayState.displayMode())),
+                    ClientConfig.taskPlacementName());
         }
         feedbackColored("------------------------------------------------", TextFormatting.WHITE);
         return 1;
