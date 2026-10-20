@@ -16,6 +16,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.network.chat.TranslatableComponent;
@@ -132,10 +133,12 @@ public final class LightingTaskManager {
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
         TASKS.put(player.getUUID(), task);
         player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.started", scanVolume), false);
-        if (!AutoTorchRules.canTorchMeetLightThreshold(lightThreshold)) {
+        // 先取放置方块默认状态的发光等级，用于判断目标亮度是否可达与第二轮补点间距。
+        int lightEmission = placementItem.getBlock().defaultBlockState().getLightEmission();
+        if (!AutoTorchRules.canLightSourceMeetThreshold(lightThreshold, lightEmission)) {
             player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.light_threshold_unreachable",
-                    lightThreshold), false);
-        } else if (secondPassMinimumSpacing > AutoTorchRules.maxSafeSecondPassSpacing(lightThreshold)) {
+                    lightThreshold, new ItemStack(placementItem).getHoverName(), lightEmission), false);
+        } else if (secondPassMinimumSpacing > AutoTorchRules.maxSafeSecondPassSpacing(lightThreshold, lightEmission)) {
             player.displayClientMessage(new net.minecraft.network.chat.TranslatableComponent("message.autotorch.second_pass_spacing_limited",
                     secondPassMinimumSpacing, lightThreshold), false);
         }
@@ -177,8 +180,8 @@ public final class LightingTaskManager {
     public static TaskStatusPayload status(ServerPlayer player) {
         LightingTask task = TASKS.get(player.getUUID());
         return task == null
-                ? new TaskStatusPayload(false, 0, 0)
-                : new TaskStatusPayload(true, task.progressPercent(), task.placedCount());
+                ? new TaskStatusPayload(false, 0, 0, "")
+                : new TaskStatusPayload(true, task.progressPercent(), task.placedCount(), task.placementItemId());
     }
 
     public static void onServerTick(MinecraftServer server) {

@@ -2,8 +2,6 @@ package com.sakurakugu.autotorch;
 
 /** 可独立测试的任务与刷新策略。 */
 public final class AutoTorchRules {
-    private static final int TORCH_LIGHT_LEVEL = 14;
-
     private AutoTorchRules() {
     }
 
@@ -27,15 +25,13 @@ public final class AutoTorchRules {
      * <p>方块光每沿一个坐标轴传播一格就减一。将距离尽可能平均分配到三轴时，
      * 可得到仍会低于或等于阈值的位置所具有的最小三维直线距离。</p>
      */
-    public static int maxSafeSecondPassSpacing(int lightThreshold) {
-        if (lightThreshold < 0) {
-            throw new IllegalArgumentException("Light threshold must be non-negative");
-        }
-        if (lightThreshold >= TORCH_LIGHT_LEVEL) {
+    public static int maxSafeSecondPassSpacing(int lightThreshold, int lightEmission) {
+        validateLightLevels(lightThreshold, lightEmission);
+        if (lightThreshold >= lightEmission) {
             return 1;
         }
 
-        int distance = TORCH_LIGHT_LEVEL - lightThreshold;
+        int distance = lightEmission - lightThreshold;
         int base = distance / 3;
         int remainder = distance % 3;
         int minimumSquaredDistance = base * base * 3
@@ -44,17 +40,27 @@ public final class AutoTorchRules {
     }
 
     /** 返回在服务端间距下限约束后的第二轮实际间距。 */
-    public static int secondPassSpacing(int configuredSpacing, int lightThreshold, int minimumSpacing) {
+    public static int secondPassSpacing(
+            int configuredSpacing, int lightThreshold, int minimumSpacing, int lightEmission
+    ) {
         if (configuredSpacing < 1 || minimumSpacing < 1) {
             throw new IllegalArgumentException("Spacing must be positive");
         }
         int requestedSpacing = Math.max(1, configuredSpacing / 2);
-        return Math.max(minimumSpacing, Math.min(requestedSpacing, maxSafeSecondPassSpacing(lightThreshold)));
+        return Math.max(minimumSpacing, Math.min(requestedSpacing,
+                maxSafeSecondPassSpacing(lightThreshold, lightEmission)));
     }
 
-    /** 火把最高能提供 14 级方块光，因此只有更高的目标无法满足。 */
-    public static boolean canTorchMeetLightThreshold(int lightThreshold) {
-        return lightThreshold <= TORCH_LIGHT_LEVEL;
+    /** 按所选方块的发光等级判断目标；不发光的方块无法补光。 */
+    public static boolean canLightSourceMeetThreshold(int lightThreshold, int lightEmission) {
+        validateLightLevels(lightThreshold, lightEmission);
+        return lightEmission > 0 && lightThreshold <= lightEmission;
+    }
+
+    private static void validateLightLevels(int lightThreshold, int lightEmission) {
+        if (lightThreshold < 0 || lightEmission < 0 || lightEmission > 15) {
+            throw new IllegalArgumentException("Invalid light threshold or emission level");
+        }
     }
 
     public static boolean boxesIntersect(

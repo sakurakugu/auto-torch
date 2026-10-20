@@ -4,25 +4,29 @@ import com.sakurakugu.autotorch.AutoTorch;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
-/** 服务端返回给客户端的照明任务进度快照。 */
+/** 服务端返回给客户端的照明任务进度快照。placementItem 是任务实际使用的放置物品注册 ID，没有任务时为空串。 */
 public final class TaskStatusPayload implements AutoTorchPayload {
     public static final ResourceLocation ID = new ResourceLocation(AutoTorch.MOD_ID, "task_status");
     private final boolean running;
     private final int percent;
     private final int placed;
+    private final String placementItem;
 
-    public TaskStatusPayload(boolean running, int percent, int placed) {
+    public TaskStatusPayload(boolean running, int percent, int placed, String placementItem) {
         this.running = running;
         this.percent = percent;
         this.placed = placed;
+        this.placementItem = placementItem;
     }
 
     public boolean running() { return running; }
     public int percent() { return percent; }
     public int placed() { return placed; }
+    public String placementItem() { return placementItem; }
 
     public static TaskStatusPayload decode(FriendlyByteBuf buffer) {
-        return new TaskStatusPayload(buffer.readBoolean(), buffer.readVarInt(), buffer.readVarInt());
+        return new TaskStatusPayload(buffer.readBoolean(), buffer.readVarInt(), buffer.readVarInt(),
+                buffer.readUtf(256));
     }
 
     @Override
@@ -30,6 +34,7 @@ public final class TaskStatusPayload implements AutoTorchPayload {
         buffer.writeBoolean(running);
         buffer.writeVarInt(percent);
         buffer.writeVarInt(placed);
+        buffer.writeUtf(placementItem, 256);
     }
 
     @Override
@@ -37,4 +42,3 @@ public final class TaskStatusPayload implements AutoTorchPayload {
         return ID;
     }
 }
-
