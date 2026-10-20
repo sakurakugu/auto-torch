@@ -13,6 +13,7 @@ import com.sakurakugu.autotorch.network.AreaZone;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.IChatComponent;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.world.WorldServer;
@@ -102,7 +103,7 @@ final class LightingTask {
             return finish(player, "message.autotorch.wrong_dimension", 0, 0);
         }
         if (maxTorches > 0 && placed >= maxTorches) {
-            return finish(player, "message.autotorch.max_reached", 0, 0, placed);
+            return finish(player, "message.autotorch.max_reached", 0, 0, placed, placementName());
         }
 
         int scannedThisTick = 0;
@@ -117,7 +118,7 @@ final class LightingTask {
                     continue;
                 }
                 return finish(player, "message.autotorch.completed", scannedThisTick, placedThisTick,
-                        placed, skippedUnloaded);
+                        placed, placementName(), skippedUnloaded);
             }
 
             BlockPos feet = positionAt(scanIndex++);
@@ -134,11 +135,12 @@ final class LightingTask {
             }
 
             BlockPos torchPos = findTorchPosition(player, feet);
-            if (torchPos == null || !farEnoughFromPlaced(torchPos, currentSpacing())) {
+            if (torchPos == null || !farEnoughFromPlaced(torchPos)) {
                 continue;
             }
             if (consumeTorches && !hasTorch(player)) {
-                return finish(player, "message.autotorch.out_of_torches", scannedThisTick, placedThisTick, placed);
+                return finish(player, "message.autotorch.out_of_torches", scannedThisTick, placedThisTick,
+                        placementName(), placed);
             }
             if (!level.setBlockState(torchPos, placementItem.getBlock().getDefaultState(), UPDATE_ALL)) {
                 continue;
@@ -151,7 +153,8 @@ final class LightingTask {
             placed++;
             placedThisTick++;
             if (maxTorches > 0 && placed >= maxTorches) {
-                return finish(player, "message.autotorch.max_reached", scannedThisTick, placedThisTick, placed);
+                return finish(player, "message.autotorch.max_reached", scannedThisTick, placedThisTick,
+                        placed, placementName());
             }
         }
         return new TickResult(false, scannedThisTick, placedThisTick);
@@ -178,6 +181,12 @@ final class LightingTask {
         return placed;
     }
 
+    /** 任务实际放置物品的注册 ID，供状态查询在客户端按本地语言显示名称。 */
+    String placementItemId() {
+        // 1.8.9 没有 ForgeRegistries，物品注册表保留在 Item.itemRegistry 上。
+        return net.minecraft.item.Item.itemRegistry.getNameForObject(placementItem).toString();
+    }
+
     private void sendProgress(EntityPlayerMP player) {
         long scanned = (long) pass * volume + scanIndex;
         long total = volume * 2L;
@@ -186,7 +195,13 @@ final class LightingTask {
                 scanIndex * PROGRESS_BAR_LENGTH / volume);
         String bar = formattedProgressBar(pass, passFilled);
         LightingTaskManager.sendSystemMessage(
-                player, new ChatComponentTranslation("message.autotorch.progress", bar, percent, placed), true);
+                player, new ChatComponentTranslation("message.autotorch.progress", bar, percent, placed,
+                        placementName()), true);
+    }
+
+    private IChatComponent placementName() {
+        // 1.8.9 没有可在客户端解析的物品名组件，改用未本地化名的 .name 键，由客户端按本地语言翻译。
+        return new ChatComponentTranslation(placementItem.getUnlocalizedName() + ".name");
     }
 
     private static TickResult finish(
@@ -268,17 +283,12 @@ final class LightingTask {
         return exclusions.contains(pos);
     }
 
-    private int currentSpacing() {
-        return pass == 0 ? configuredSpacing
-                : AutoTorchRules.secondPassSpacing(configuredSpacing, lightThreshold, secondPassMinimumSpacing);
-    }
-
-    private boolean farEnoughFromPlaced(BlockPos pos, int spacing) {
+    private boolean farEnoughFromPlaced(BlockPos pos) {
         // 用配置间距划分空间桶，只需检查相邻 27 个桶即可判断最近距离。
         int cellX = Math.floorDiv(pos.getX(), configuredSpacing);
         int cellY = Math.floorDiv(pos.getY(), configuredSpacing);
         int cellZ = Math.floorDiv(pos.getZ(), configuredSpacing);
-        long minimumSquared = (long) spacing * spacing;
+        long configuredMinimumSquared = (long) configuredSpacing * configuredSpacing;
 
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
@@ -288,7 +298,18 @@ final class LightingTask {
                         continue;
                     }
                     for (BlockPos other : nearby) {
-                        if (other.distanceSq(pos) < minimumSquared) {
+                        double distanceSquared = other.distanceSq(pos);
+                        if (distanceSquared >= configuredMinimumSquared) {
+                            continue;
+                        }
+                        // 补点按已有光源的当前发光等级计算；1.8.9 的发光值只由方块决定，与状态无关。
+                        // 这里改用 Forge 的位置相关发光接口，只查询已加载区块。
+                        int spacing = pass == 0 ? configuredSpacing : AutoTorchRules.secondPassSpacing(
+                                configuredSpacing, lightThreshold, secondPassMinimumSpacing,
+                                isChunkLoaded(other)
+                                        ? level.getBlockState(other).getBlock().getLightValue(level, other) : 0);
+                        long minimumSquared = (long) spacing * spacing;
+                        if (distanceSquared < minimumSquared) {
                             return false;
                         }
                     }

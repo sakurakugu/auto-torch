@@ -132,14 +132,21 @@ public final class LightingTaskManager {
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
         TASKS.put(player.getUniqueID(), task);
         sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.started", scanVolume));
-        if (!AutoTorchRules.canTorchMeetLightThreshold(lightThreshold)) {
+        // 1.8.9 的发光值只由方块决定，这里与任务实际放置的方块保持一致。
+        int lightEmission = placementItem.getBlock().getLightValue();
+        if (!AutoTorchRules.canLightSourceMeetThreshold(lightThreshold, lightEmission)) {
             sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.light_threshold_unreachable",
-                    lightThreshold));
-        } else if (secondPassMinimumSpacing > AutoTorchRules.maxSafeSecondPassSpacing(lightThreshold)) {
+                    lightThreshold, placementName(placementItem), lightEmission));
+        } else if (secondPassMinimumSpacing > AutoTorchRules.maxSafeSecondPassSpacing(lightThreshold, lightEmission)) {
             sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.second_pass_spacing_limited",
                     secondPassMinimumSpacing, lightThreshold));
         }
         task.showInitialProgress(player);
+    }
+
+    /** 放置物品的名称组件；1.8.9 没有可在客户端解析的物品名组件，改用未本地化名的 .name 键。 */
+    private static IChatComponent placementName(net.minecraft.item.Item item) {
+        return new ChatComponentTranslation(item.getUnlocalizedName() + ".name");
     }
 
     private static net.minecraft.item.ItemBlock resolveBlockItem(String id) {
@@ -183,8 +190,8 @@ public final class LightingTaskManager {
     public static TaskStatusPayload status(EntityPlayerMP player) {
         LightingTask task = TASKS.get(player.getUniqueID());
         return task == null
-                ? new TaskStatusPayload(false, 0, 0)
-                : new TaskStatusPayload(true, task.progressPercent(), task.placedCount());
+                ? new TaskStatusPayload(false, 0, 0, "")
+                : new TaskStatusPayload(true, task.progressPercent(), task.placedCount(), task.placementItemId());
     }
 
     public static void onServerTick(MinecraftServer server) {
