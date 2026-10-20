@@ -139,7 +139,9 @@ public final class AutoTorchClient {
     }
 
     private static void showMessage(net.minecraft.util.IChatComponent message) {
-        Minecraft.getMinecraft().ingameGUI.setRecordPlayingMessage(message.getFormattedText());
+        // 1.7.10 的 setRecordPlayingMessage 会强制加上“正在播放：”前缀并使用唱片色，
+        // 这里直接调用底层方法并传 false，保持与新版 setRecordPlaying(component, false) 一致的普通提示。
+        Minecraft.getMinecraft().ingameGUI.func_110326_a(message.getFormattedText(), false);
     }
 
     private void syncSelectionToolSetting(Minecraft minecraft) {
