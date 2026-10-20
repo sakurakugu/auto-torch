@@ -104,6 +104,11 @@ public final class LightingTaskManager {
             sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.invalid_settings"));
             return;
         }
+        net.minecraft.item.ItemBlock placementItem = resolveBlockItem(payload.placementItem());
+        if (placementItem == null || !ConfigDefinitions.TASK_PROGRESS_INTERVAL.accepts(payload.progressIntervalTicks())) {
+            sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.invalid_settings"));
+            return;
+        }
         if (!TASKS.containsKey(player.getUniqueID()) && TASKS.size() >= ServerConfig.maxConcurrentTasks()) {
             sendSystemMessage(player, new ChatComponentTranslation("message.autotorch.server_busy"));
             return;
@@ -121,7 +126,7 @@ public final class LightingTaskManager {
         LightingTask task = new LightingTask(
                 player.getServerForPlayer(), selection, scanMin, scanMax, maxTorches, minSpacing, secondPassMinimumSpacing,
                 lightThreshold,
-                consumeTorches, payload.undergroundOnly(),
+                consumeTorches, payload.undergroundOnly(), placementItem, payload.progressIntervalTicks(),
                 payload.exclusions(), player.getUniqueID()
         );
         // 同一玩家只保留一个任务，新任务会替换尚未完成的旧任务。
@@ -135,6 +140,16 @@ public final class LightingTaskManager {
                     secondPassMinimumSpacing, lightThreshold));
         }
         task.showInitialProgress(player);
+    }
+
+    private static net.minecraft.item.ItemBlock resolveBlockItem(String id) {
+        try {
+            // 1.8.9 用 Item.getByNameOrId 解析物品 ID。
+            net.minecraft.item.Item item = net.minecraft.item.Item.getByNameOrId(id);
+            return item instanceof net.minecraft.item.ItemBlock ? (net.minecraft.item.ItemBlock) item : null;
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
     private static boolean isValidZone(AreaZone zone) {

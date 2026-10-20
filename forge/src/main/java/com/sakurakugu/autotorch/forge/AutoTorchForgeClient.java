@@ -1,6 +1,8 @@
 package com.sakurakugu.autotorch.forge;
 
 import com.sakurakugu.autotorch.client.AutoTorchClient;
+import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
 import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
@@ -19,10 +21,17 @@ import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+/**
+ * Forge 1.8.9 客户端入口。
+ * 1.8.9 没有客户端配置加载事件，TOML 在 preInit 已同步加载，这里只负责安装配置后端、网络出口、按键与渲染事件。
+ */
 final class AutoTorchForgeClient {
     private final AutoTorchClient client = new AutoTorchClient();
     private BlockPos selectionClickPos;
+
     private AutoTorchForgeClient() {
+        // 1.8.9 的 TOML 已在 preInit 同步加载，这里直接安装即可发布第一份客户端配置快照。
+        ClientConfig.install(ForgeConfigs.CLIENT);
         PlatformNetworking.installSender(ForgeNetworking::sendToServer);
         ClientRegistry.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);
         ClientRegistry.registerKeyBinding(AutoTorchClient.TOGGLE_LIGHT_OVERLAY);
@@ -30,6 +39,7 @@ final class AutoTorchForgeClient {
         ClientCommandHandler.instance.registerCommand(new LegacyAutoTorchClientCommand());
         MinecraftForge.EVENT_BUS.register(this);
     }
+
     static void initialize() { new AutoTorchForgeClient(); }
     @SubscribeEvent public void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
@@ -40,7 +50,9 @@ final class AutoTorchForgeClient {
             if (!Minecraft.getMinecraft().gameSettings.keyBindAttack.isKeyDown()) selectionClickPos = null;
         }
     }
+
     @SubscribeEvent public void onInteract(PlayerInteractEvent event) {
+        // 1.8.9 的交互事件用 Action 区分左右键，且没有手部参数。
         if (event.entityPlayer == null || !(event.entityPlayer.worldObj instanceof WorldClient)) return;
         if (event.action == PlayerInteractEvent.Action.LEFT_CLICK_BLOCK) {
             LightOverlayState.markBlockDirty((WorldClient) event.entityPlayer.worldObj, event.pos);
@@ -59,6 +71,7 @@ final class AutoTorchForgeClient {
             }
         }
     }
+
     @SubscribeEvent public void onRender(RenderWorldLastEvent event) {
         Minecraft minecraft = Minecraft.getMinecraft(); if (minecraft.theWorld == null) return;
         Entity view = minecraft.getRenderViewEntity(); if (view == null) return;
