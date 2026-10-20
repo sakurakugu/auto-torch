@@ -156,6 +156,17 @@ abstract class Screen extends GuiScreen {
     @Override
     protected final void mouseClicked(int mouseX, int mouseY, int button) { mouseClicked((double) mouseX, mouseY, button); }
 
+    /**
+     * 1.7.10 的鼠标松开只通过 GuiScreen.mouseMovedOrUp 通知 selectedButton，
+     * 这里在交给原版处理前先清掉按下状态，避免按钮松开回调与屏级回调重复触发 onRelease。
+     */
+    @Override
+    protected void mouseMovedOrUp(int mouseX, int mouseY, int button) {
+        pressedButton = null;
+        super.mouseMovedOrUp(mouseX, mouseY, button);
+        if (button != -1) mouseReleased((double) mouseX, mouseY, button);
+    }
+
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         // 先通知按住的按钮，滑块等控件需要在这里结束拖动状态。
         if (pressedButton != null) pressedButton.mouseReleased(mouseX, mouseY, button);
