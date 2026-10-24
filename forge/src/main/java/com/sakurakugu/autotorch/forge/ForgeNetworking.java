@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.network.*;
@@ -47,6 +48,8 @@ final class ForgeNetworking {
         CHANNEL.registerMessage(SetConfigHandler.class, SetConfigMessage.class, 7, Side.SERVER);
         CHANNEL.registerMessage(ResetConfigHandler.class, ResetConfigMessage.class, 8, Side.SERVER);
         CHANNEL.registerMessage(ConfigResultHandler.class, ConfigResultMessage.class, 9, Side.CLIENT);
+        // 10 号消息在登录时把世界种子同步给客户端，供光照显示复现史莱姆区块。
+        CHANNEL.registerMessage(WorldSeedHandler.class, WorldSeedMessage.class, 10, Side.CLIENT);
         // 服务端广播服务端配置时复用本类的发送出口。
         ServerConfigNetwork.installSender(ForgeNetworking::sendToPlayer);
     }
@@ -65,6 +68,7 @@ final class ForgeNetworking {
         else if (payload instanceof TaskStatusPayload) CHANNEL.sendTo(new StatusMessage((TaskStatusPayload) payload), player);
         else if (payload instanceof OpenServerConfigScreenPayload) CHANNEL.sendTo(new OpenScreenMessage((OpenServerConfigScreenPayload) payload), player);
         else if (payload instanceof ServerConfigResultPayload) CHANNEL.sendTo(new ConfigResultMessage((ServerConfigResultPayload) payload), player);
+        else if (payload instanceof WorldSeedPayload) CHANNEL.sendTo(new WorldSeedMessage((WorldSeedPayload) payload), player);
     }
 
     static void drainServerTasks() { drain(SERVER_TASKS); }
@@ -95,6 +99,7 @@ final class ForgeNetworking {
     public static final class SetConfigMessage extends Message<ServerConfigSetPayload> { public SetConfigMessage() {} SetConfigMessage(ServerConfigSetPayload p){super(p);} ServerConfigSetPayload decode(PacketBuffer b){return ServerConfigSetPayload.decode(b);} void encode(ServerConfigSetPayload p,PacketBuffer b){p.write(b);} }
     public static final class ResetConfigMessage extends Message<ServerConfigResetPayload> { public ResetConfigMessage() {} ResetConfigMessage(ServerConfigResetPayload p){super(p);} ServerConfigResetPayload decode(PacketBuffer b){return ServerConfigResetPayload.decode(b);} void encode(ServerConfigResetPayload p,PacketBuffer b){p.write(b);} }
     public static final class ConfigResultMessage extends Message<ServerConfigResultPayload> { public ConfigResultMessage() {} ConfigResultMessage(ServerConfigResultPayload p){super(p);} ServerConfigResultPayload decode(PacketBuffer b){return ServerConfigResultPayload.decode(b);} void encode(ServerConfigResultPayload p,PacketBuffer b){p.write(b);} }
+    public static final class WorldSeedMessage extends Message<WorldSeedPayload> { public WorldSeedMessage() {} WorldSeedMessage(WorldSeedPayload p){super(p);} WorldSeedPayload decode(PacketBuffer b){return WorldSeedPayload.decode(b);} void encode(WorldSeedPayload p,PacketBuffer b){p.write(b);} }
 
     /** 服务端消息在服务器线程执行，避免直接触碰世界状态。 */
     public static final class StartHandler implements IMessageHandler<StartMessage, IMessage> { public IMessage onMessage(StartMessage m, MessageContext c){ EntityPlayerMP p=c.getServerHandler().playerEntity; SERVER_TASKS.add(() -> LightingTaskManager.start(p,m.payload)); return null; } }
@@ -109,4 +114,5 @@ final class ForgeNetworking {
     public static final class StatusHandler implements IMessageHandler<StatusMessage, IMessage> { public IMessage onMessage(StatusMessage m, MessageContext c){ CLIENT_TASKS.add(() -> AutoTorchClientCommands.receiveTaskStatus(m.payload)); return null; } }
     public static final class OpenScreenHandler implements IMessageHandler<OpenScreenMessage, IMessage> { public IMessage onMessage(OpenScreenMessage m, MessageContext c){ CLIENT_TASKS.add(AutoTorchClient::requestOpenServerConfigScreen); return null; } }
     public static final class ConfigResultHandler implements IMessageHandler<ConfigResultMessage, IMessage> { public IMessage onMessage(ConfigResultMessage m, MessageContext c){ CLIENT_TASKS.add(() -> ServerConfigScreen.receiveResult(m.payload)); return null; } }
+    public static final class WorldSeedHandler implements IMessageHandler<WorldSeedMessage, IMessage> { public IMessage onMessage(WorldSeedMessage m, MessageContext c){ CLIENT_TASKS.add(() -> LightOverlayState.setWorldSeed(m.payload.seed())); return null; } }
 }
