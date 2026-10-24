@@ -8,12 +8,12 @@ An automatic torch placement and light level overlay mod for Minecraft 1.7.10~26
 
 ## Motivation
 
-Digging out an area is tedious, and placing torches by hand makes it easy to miss spots. Existing light level overlays also do not handle the special spawning conditions of drowned and swamp slimes, which makes building swamp mob farms or lighting riverbeds inconvenient. That is why this mod was created.
+Digging out an area is tedious, and placing torches by hand makes it easy to miss spots. Existing light level overlays also do not handle the special spawning conditions of drowned and slimes, which makes building swamp mob farms or lighting riverbeds inconvenient. That is why this mod was created.
 
 ## Overview
 
 - Press `G` by default to open the selection panel, where you can configure automatic torch placement within an area or near the player.
-- Press `F7` by default to toggle the light level overlay, including special checks for drowned and swamp slimes.
+- Press `F7` by default to toggle the light level overlay, including special checks for drowned and slimes.
 
 | Nearby Torch Placement | Light Level Overlay | Area Torch Placement |
 | ---------------------- | ------------------- | -------------------- |
@@ -36,7 +36,7 @@ Digging out an area is tedious, and placing torches by hand makes it easy to mis
   | Red | Mobs can spawn at any time |
   | Yellow | Mobs can spawn at night |
   | Green | Mobs cannot spawn |
-  | Purple | Swamp slimes can spawn at night |
+  | Purple | Slimes can spawn |
   | Cyan | Drowned can spawn |
 - Nearby automatic torch placement:
   Searches for valid positions within two blocks of the player and uses right-click interaction to place torches from the inventory. A torch is placed only when the light level is below the threshold; you can choose whether sky light is included in the calculation.
@@ -100,7 +100,7 @@ When contributing a translation, submit the `.json` file in a pull request targe
 - Centered on the current view, the horizontal display range can be set to 1-64 blocks. Vertically, up to 64 blocks can be selected in each direction (64 blocks maximum). Free-camera and similar mods are supported.
 - `X` markers, numeric light levels, and boxed numeric light levels are supported.
 - See-through rendering is supported, and numbers can rotate with the view.
-- Markers check whether mobs can spawn at the current position, including the special spawning conditions of swamp slimes and drowned, and use different colors to identify the results.
+- Markers check whether mobs can spawn at the current position, including the special spawning conditions of slimes and drowned, and use different colors to identify the results.
 
 ### Area Automatic Torch Placement
 
@@ -158,8 +158,8 @@ downRange = 16
 upRange = 4
 # Display style: 0 = X markers, 1 = numbers, 2 = boxed numbers.
 mode = 0
-# Swamp slime detection is unavailable on 1.13.2; standard spawn markers are used.
-detectSwampSlimes = false
+# Slime detection; this version only marks slime chunks below Y 40.
+detectSlimes = false
 # Whether to mark locations that meet the vanilla spawning conditions for drowned.
 detectDrowned = false
 # Scan budget per tick: 2000-48000, step 2000.
@@ -175,7 +175,7 @@ farLineWidth = 0.75
 alwaysRiskColor = "FF3030"
 nightRiskColor = "FFD23C"
 safeColor = "50E060"
-swampSlimeColor = "E050E0"
+slimeColor = "E050E0"
 drownedColor = "40D8E8"
 # Marker opacity: 0-255.
 markerAlpha = 224

@@ -1,6 +1,7 @@
 package com.sakurakugu.autotorch.forge;
 
 import com.sakurakugu.autotorch.AutoTorch;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
@@ -81,8 +82,11 @@ public final class AutoTorchForge {
     }
 
     private void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        // 登录后立刻下发权威服务端配置，并同步世界种子供客户端判定史莱姆区块。
         if (event.getPlayer() instanceof EntityPlayerMP) {
             ForgeNetworking.sendToPlayer((EntityPlayerMP) event.getPlayer(), ServerConfigPayload.current());
+            ForgeNetworking.sendToPlayer((EntityPlayerMP) event.getPlayer(),
+                    new WorldSeedPayload(event.getPlayer().world.getSeed()));
         }
     }
 

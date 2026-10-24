@@ -4,6 +4,7 @@ import com.sakurakugu.autotorch.AutoTorch;
 import com.sakurakugu.autotorch.network.*;
 import com.sakurakugu.autotorch.server.ServerConfigNetwork;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.network.AutoTorchPayload;
 import com.sakurakugu.autotorch.network.CancelLightingPayload;
@@ -24,7 +25,7 @@ import net.minecraftforge.fml.network.simple.SimpleChannel;
 
 
 final class ForgeNetworking {
-    private static final String PROTOCOL_VERSION = "7";
+    private static final String PROTOCOL_VERSION = "9";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(AutoTorch.MOD_ID + ":main"),
             () -> PROTOCOL_VERSION,
@@ -120,6 +121,15 @@ final class ForgeNetworking {
                     NetworkEvent.Context context = supplier.get();
                     if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
                         context.enqueueWork(() -> { ServerConfigScreen.receiveResult(payload); });
+                    }
+                    context.setPacketHandled(true);
+                });
+        // 10 号消息同步世界种子，供客户端复现史莱姆区块判定。
+        CHANNEL.registerMessage(10, WorldSeedPayload.class,
+                WorldSeedPayload::write, WorldSeedPayload::decode, (payload, supplier) -> {
+                    NetworkEvent.Context context = supplier.get();
+                    if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
+                        context.enqueueWork(() -> LightOverlayState.setWorldSeed(payload.seed()));
                     }
                     context.setPacketHandled(true);
                 });

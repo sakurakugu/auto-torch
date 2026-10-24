@@ -277,6 +277,9 @@ public final class LightOverlayRenderer {
     }
 
     private static int markerColor(LightOverlayState.Marker marker) {
+        if (marker.riskType() == LightOverlayState.RiskType.SLIME) {
+            return (ClientConfig.snapshot().lightOverlayMarkerAlpha << 24 | ClientConfig.snapshot().lightOverlaySlimeColorRgb);
+        }
         if (marker.riskType() == LightOverlayState.RiskType.DROWNED) {
             return (ClientConfig.snapshot().lightOverlayMarkerAlpha << 24 | ClientConfig.snapshot().lightOverlayDrownedColorRgb);
         }

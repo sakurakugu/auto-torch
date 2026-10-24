@@ -66,7 +66,7 @@ public final class ClientStatusJson {
         overlay.addProperty("downRange", LightOverlayState.downRange());
         overlay.addProperty("upRange", LightOverlayState.upRange());
         overlay.addProperty("displayMode", enumName(LightOverlayState.displayMode()));
-        overlay.addProperty("swampSlime", LightOverlayState.isSwampSlimeDetectionEnabled());
+        overlay.addProperty("slime", LightOverlayState.isSlimeDetectionEnabled());
         overlay.addProperty("drowned", LightOverlayState.isDrownedDetectionEnabled());
         return overlay;
     }

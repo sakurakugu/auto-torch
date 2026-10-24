@@ -162,8 +162,8 @@ public final class ClientConfig {
     public static void setLightOverlayUpRange(int value) { setInt(LIGHT_OVERLAY_UP_RANGE, value); }
     public static int lightOverlayMode() { return integer(LIGHT_OVERLAY_MODE); }
     public static void setLightOverlayMode(int value) { setInt(LIGHT_OVERLAY_MODE, value); }
-    public static boolean detectsSwampSlimes() { return bool(LIGHT_OVERLAY_DETECT_SWAMP_SLIMES); }
-    public static void setDetectsSwampSlimes(boolean value) { setBool(LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, value); }
+    public static boolean detectsSlimes() { return bool(LIGHT_OVERLAY_DETECT_SLIMES); }
+    public static void setDetectsSlimes(boolean value) { setBool(LIGHT_OVERLAY_DETECT_SLIMES, value); }
     public static boolean detectsDrowned() { return bool(LIGHT_OVERLAY_DETECT_DROWNED); }
     public static void setDetectsDrowned(boolean value) { setBool(LIGHT_OVERLAY_DETECT_DROWNED, value); }
     public static boolean isSelectionOverlayEnabled() { return bool(SELECTION_OVERLAY_ENABLED); }
