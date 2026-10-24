@@ -6,6 +6,7 @@ import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.ServerConfigState;
@@ -15,6 +16,7 @@ import com.sakurakugu.autotorch.network.PlatformNetworking;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -90,6 +92,11 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
                 (minecraft, handler, buffer, sender) -> {
                     TaskStatusPayload payload = TaskStatusPayload.decode(buffer);
                     minecraft.execute(() -> AutoTorchClientCommands.receiveTaskStatus(payload));
+                });
+        ClientPlayNetworking.registerGlobalReceiver(WorldSeedPayload.ID,
+                (minecraft, handler, buffer, sender) -> {
+                    WorldSeedPayload payload = WorldSeedPayload.decode(buffer);
+                    minecraft.execute(() -> LightOverlayState.setWorldSeed(payload.seed()));
                 });
 
         AutoTorchClient client = new AutoTorchClient();
