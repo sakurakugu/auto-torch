@@ -11,6 +11,7 @@ import com.sakurakugu.autotorch.network.ServerConfigSetPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
@@ -57,6 +58,7 @@ public final class AutoTorchFabric implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(ServerConfigResultPayload.TYPE,
                 ServerConfigResultPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(TaskStatusPayload.TYPE, TaskStatusPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(WorldSeedPayload.TYPE, WorldSeedPayload.STREAM_CODEC);
         ServerPlayNetworking.registerGlobalReceiver(StartLightingPayload.TYPE,
                 (payload, context) -> LightingTaskManager.start(context.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(CancelLightingPayload.TYPE,
@@ -84,7 +86,11 @@ public final class AutoTorchFabric implements ModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 SelectionToolEvents.onLogout(handler.getPlayer()));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                ServerConfigNetwork.sendConfig(handler.getPlayer()));
+                {
+                    ServerPlayer player = handler.getPlayer();
+                    ServerConfigNetwork.sendConfig(player);
+                    ServerPlayNetworking.send(player, new WorldSeedPayload(player.level().getSeed()));
+                });
     }
 
     static void closeServerConfig() {

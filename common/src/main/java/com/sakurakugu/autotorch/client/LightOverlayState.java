@@ -23,6 +23,7 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.levelgen.WorldgenRandom;
 import org.jspecify.annotations.Nullable;
 
 /** 维护仅在客户端执行的光照风险扫描，以及供渲染使用的不可变快照。 */
@@ -32,8 +33,9 @@ public final class LightOverlayState {
     private static final int CACHE_MARGIN = 16;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
-    private static boolean swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
+    private static boolean slimeDetectionEnabled = ClientConfig.detectsSlimes();
     private static boolean drownedDetectionEnabled = ClientConfig.detectsDrowned();
+    private static volatile Long worldSeed;
     private static DisplayMode displayMode = modeFromConfig();
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static int downRange = ClientConfig.lightOverlayDownRange();
@@ -57,7 +59,7 @@ public final class LightOverlayState {
     /** 配置整体替换后同步运行时缓存。 */
     public static void reloadConfig() {
         enabled = ClientConfig.isLightOverlayEnabled();
-        swampSlimeDetectionEnabled = ClientConfig.detectsSwampSlimes();
+        slimeDetectionEnabled = ClientConfig.detectsSlimes();
         drownedDetectionEnabled = ClientConfig.detectsDrowned();
         displayMode = modeFromConfig();
         horizontalRange = ClientConfig.lightOverlayRange();
@@ -104,22 +106,36 @@ public final class LightOverlayState {
         ClientConfig.setLightOverlayMode(value.ordinal());
     }
 
-    public static boolean isSwampSlimeDetectionEnabled() {
-        return swampSlimeDetectionEnabled;
+    public static boolean isSlimeDetectionEnabled() {
+        return slimeDetectionEnabled;
     }
 
-    public static boolean toggleSwampSlimeDetection() {
-        setSwampSlimeDetectionEnabled(!swampSlimeDetectionEnabled);
-        return swampSlimeDetectionEnabled;
+    public static boolean toggleSlimeDetection() {
+        setSlimeDetectionEnabled(!slimeDetectionEnabled);
+        return slimeDetectionEnabled;
     }
 
-    public static void setSwampSlimeDetectionEnabled(boolean value) {
-        if (swampSlimeDetectionEnabled == value) {
+    public static void setSlimeDetectionEnabled(boolean value) {
+        if (slimeDetectionEnabled == value) {
             return;
         }
-        swampSlimeDetectionEnabled = value;
-        ClientConfig.setDetectsSwampSlimes(value);
+        slimeDetectionEnabled = value;
+        ClientConfig.setDetectsSlimes(value);
         clearScan();
+    }
+
+    /** 服务端登录时同步世界种子，用于客户端复现史莱姆区块判定。 */
+    public static void setWorldSeed(long value) {
+        worldSeed = value;
+        clearScan();
+    }
+
+    /** 退出存档时清除种子，避免下一次连接在同步前沿用旧世界的数据。 */
+    public static void setWorldSeedUnavailable() {
+        if (worldSeed != null) {
+            worldSeed = null;
+            clearScan();
+        }
     }
 
     public static boolean isDrownedDetectionEnabled() {
@@ -199,6 +215,9 @@ public final class LightOverlayState {
             clearScan();
         }
         if (!enabled || currentLevel == null) {
+            if (currentLevel == null) {
+                worldSeed = null;
+            }
             return;
         }
 
@@ -462,27 +481,40 @@ public final class LightOverlayState {
         if (!Block.isFaceFull(floor.getCollisionShape(level, floorPos), Direction.UP)) {
             return null;
         }
+        int blockLight = level.getBrightness(LightLayer.BLOCK, feet);
+        if (isSlimeRisk(level, feet, blockLight)) {
+            return marker(level, feet, RiskType.SLIME);
+        }
         if (!SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityType.ZOMBIE)) {
             return null;
         }
-        int blockLight = level.getBrightness(LightLayer.BLOCK, feet);
-        RiskType riskType = blockLight > 0 && isSwampSlimeRisk(level, feet, blockLight)
-                ? RiskType.SWAMP_SLIME : RiskType.NORMAL;
         return new Marker(
                 feet.immutable(),
                 blockLight,
                 level.getBrightness(LightLayer.SKY, feet),
-                riskType
+                RiskType.NORMAL
         );
     }
 
-    private static boolean isSwampSlimeRisk(ClientLevel level, BlockPos feet, int blockLight) {
-        return swampSlimeDetectionEnabled
-                && blockLight <= 7
+    private static boolean isSlimeRisk(ClientLevel level, BlockPos feet, int blockLight) {
+        if (!slimeDetectionEnabled
+                || !SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityType.SLIME)) {
+            return false;
+        }
+        boolean surfaceSlime = blockLight <= 7
                 && feet.getY() > 50
                 && feet.getY() < 70
-                && level.getBiome(feet).is(BiomeTags.ALLOWS_SURFACE_SLIME_SPAWNS)
-                && SpawnPlacementTypes.ON_GROUND.isSpawnPositionOk(level, feet, EntityType.SLIME);
+                && level.getBiome(feet).is(BiomeTags.ALLOWS_SURFACE_SLIME_SPAWNS);
+        boolean chunkSlime = feet.getY() < 40 && isSlimeChunk(feet);
+        return surfaceSlime || chunkSlime;
+    }
+
+    private static boolean isSlimeChunk(BlockPos pos) {
+        Long seed = worldSeed;
+        return seed != null
+                && WorldgenRandom.seedSlimeChunk(
+                Math.floorDiv(pos.getX(), 16), Math.floorDiv(pos.getZ(), 16), seed, 987234911L)
+                .nextInt(10) == 0;
     }
 
     private static boolean isDrownedRisk(
@@ -535,7 +567,7 @@ public final class LightOverlayState {
 
     public enum RiskType {
         NORMAL,
-        SWAMP_SLIME,
+        SLIME,
         DROWNED
     }
 
