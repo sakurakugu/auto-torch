@@ -7,6 +7,7 @@ import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.AutoTorchRenderTypes;
 import com.sakurakugu.autotorch.client.ClientConfig;
 import com.sakurakugu.autotorch.client.LightOverlayRenderer;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.SelectionRenderer;
 import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.ServerConfigState;
@@ -16,6 +17,7 @@ import com.sakurakugu.autotorch.network.PlatformNetworking;
 import com.sakurakugu.autotorch.network.ServerConfigPayload;
 import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -54,6 +56,8 @@ public final class AutoTorchFabricClient implements ClientModInitializer {
                 ServerConfigScreen.receiveResult(payload));
         ClientPlayNetworking.registerGlobalReceiver(TaskStatusPayload.TYPE, (payload, context) ->
                 AutoTorchClientCommands.receiveTaskStatus(payload));
+        ClientPlayNetworking.registerGlobalReceiver(WorldSeedPayload.TYPE, (payload, context) ->
+                LightOverlayState.setWorldSeed(payload.seed()));
 
         AutoTorchClient client = new AutoTorchClient();
         KeyBindingHelper.registerKeyBinding(AutoTorchClient.OPEN_SCREEN);

@@ -11,6 +11,7 @@ import com.sakurakugu.autotorch.network.ServerConfigSetPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
@@ -26,6 +27,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -57,6 +59,7 @@ public final class AutoTorchFabric implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(ServerConfigResultPayload.TYPE,
                 ServerConfigResultPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(TaskStatusPayload.TYPE, TaskStatusPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playS2C().register(WorldSeedPayload.TYPE, WorldSeedPayload.STREAM_CODEC);
         ServerPlayNetworking.registerGlobalReceiver(StartLightingPayload.TYPE,
                 (payload, context) -> LightingTaskManager.start(context.player(), payload));
         ServerPlayNetworking.registerGlobalReceiver(CancelLightingPayload.TYPE,
@@ -83,8 +86,11 @@ public final class AutoTorchFabric implements ModInitializer {
                         ? InteractionResult.SUCCESS : InteractionResult.PASS);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 SelectionToolEvents.onLogout(handler.getPlayer()));
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                ServerConfigNetwork.sendConfig(handler.getPlayer()));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayer player = handler.getPlayer();
+            ServerConfigNetwork.sendConfig(player);
+            ServerPlayNetworking.send(player, new WorldSeedPayload(((ServerLevel) player.level()).getSeed()));
+        });
     }
 
     static void closeServerConfig() {

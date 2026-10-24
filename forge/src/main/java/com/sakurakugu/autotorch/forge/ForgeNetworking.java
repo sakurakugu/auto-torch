@@ -11,8 +11,10 @@ import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
 import com.sakurakugu.autotorch.network.ServerConfigSetPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
@@ -27,7 +29,7 @@ import net.minecraftforge.network.PacketDistributor;
 final class ForgeNetworking {
     private static final Channel<CustomPacketPayload> CHANNEL = ChannelBuilder
             .named(ResourceLocation.tryBuild(AutoTorch.MOD_ID, "main"))
-            .networkProtocolVersion(8)
+            .networkProtocolVersion(9)
             .payloadChannel()
             .play()
             .serverbound()
@@ -59,6 +61,8 @@ final class ForgeNetworking {
                     (payload, context) -> ServerConfigScreen.receiveResult(payload))
             .addMain(TaskStatusPayload.TYPE, TaskStatusPayload.STREAM_CODEC, (payload, context) ->
                     AutoTorchClientCommands.receiveTaskStatus(payload))
+            .addMain(WorldSeedPayload.TYPE, WorldSeedPayload.STREAM_CODEC, (payload, context) ->
+                    LightOverlayState.setWorldSeed(payload.seed()))
             .build();
 
     private ForgeNetworking() {

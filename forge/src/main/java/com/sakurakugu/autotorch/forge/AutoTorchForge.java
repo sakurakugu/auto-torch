@@ -6,6 +6,8 @@ import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
 import com.sakurakugu.autotorch.server.ServerConfigNetwork;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -68,6 +70,7 @@ public final class AutoTorchForge {
     private void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             ServerConfigNetwork.sendConfig(player);
+            ForgeNetworking.sendToPlayer(player, new WorldSeedPayload(((ServerLevel) player.level()).getSeed()));
         }
     }
 }

@@ -10,8 +10,10 @@ import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
 import com.sakurakugu.autotorch.network.ServerConfigSetPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.ServerConfigState;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
@@ -26,7 +28,7 @@ final class NeoForgeNetworking {
     }
 
     static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("8");
+        PayloadRegistrar registrar = event.registrar("9");
         registrar.playToServer(StartLightingPayload.TYPE, StartLightingPayload.STREAM_CODEC, (payload, context) -> {
             if (context.player() instanceof ServerPlayer player) LightingTaskManager.start(player, payload);
         });
@@ -55,5 +57,7 @@ final class NeoForgeNetworking {
                 (payload, context) -> ServerConfigScreen.receiveResult(payload));
         registrar.playToClient(TaskStatusPayload.TYPE, TaskStatusPayload.STREAM_CODEC, (payload, context) ->
                 AutoTorchClientCommands.receiveTaskStatus(payload));
+        registrar.playToClient(WorldSeedPayload.TYPE, WorldSeedPayload.STREAM_CODEC, (payload, context) ->
+                LightOverlayState.setWorldSeed(payload.seed()));
     }
 }

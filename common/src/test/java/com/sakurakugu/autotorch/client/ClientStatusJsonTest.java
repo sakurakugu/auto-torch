@@ -33,6 +33,7 @@ class ClientStatusJsonTest {
         JsonObject overlay = root.getAsJsonObject("lightOverlay");
         assertEquals("crosses", overlay.get("displayMode").getAsString());
         assertEquals(16, overlay.get("horizontalRange").getAsInt());
+        assertTrue(overlay.has("slime"));
 
         JsonObject selection = root.getAsJsonObject("selection");
         assertEquals("box", selection.get("shape").getAsString());

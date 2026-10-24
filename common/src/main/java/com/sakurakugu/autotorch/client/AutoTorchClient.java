@@ -155,6 +155,7 @@ public final class AutoTorchClient {
         boolean enabled = ClientConfig.isSelectionToolEnabled();
         String item = ClientConfig.stringValue(ConfigDefinitions.SELECTION_TOOL_ITEM);
         if (minecraft.level == null) {
+            LightOverlayState.setWorldSeedUnavailable();
             selectionToolSyncedLevel = null;
         } else if (minecraft.player != null && (minecraft.level != selectionToolSyncedLevel
                 || enabled != selectionToolSyncedEnabled || !item.equals(selectionToolSyncedItem))) {
