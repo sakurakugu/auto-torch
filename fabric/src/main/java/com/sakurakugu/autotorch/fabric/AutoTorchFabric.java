@@ -12,6 +12,7 @@ import com.sakurakugu.autotorch.network.ServerConfigSetPayload;
 import com.sakurakugu.autotorch.network.StartLightingPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.AutoTorchServerCommands;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
@@ -92,6 +93,7 @@ public final class AutoTorchFabric implements ModInitializer {
                 SelectionToolEvents.onLogout(handler.getPlayer()));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerConfigNetwork.sendConfig(handler.getPlayer());
+            sendToPlayer(handler.getPlayer(), new WorldSeedPayload(handler.getPlayer().getLevel().getSeed()));
         });
     }
 
