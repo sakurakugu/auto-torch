@@ -48,7 +48,7 @@ public final class LightingScreen extends Screen {
     private Button includeSkyLightButton;
     private Button lightOverlayButton;
     private Button lightOverlayRenderThroughButton;
-    private Button swampSlimeDetectionButton;
+    private Button slimeDetectionButton;
     private Button drownedDetectionButton;
     private Button nearbyAutoTorchButton;
     private Button nearbyAutoTorchSkyLightButton;
@@ -215,11 +215,11 @@ public final class LightingScreen extends Screen {
                     LightOverlayState.setDownRange(-lower);
                     LightOverlayState.setUpRange(upper);
                 }));
-        swampSlimeDetectionButton = addRenderableWidget(Button.builder(swampSlimeDetectionMessage(), button -> {
-            LightOverlayState.toggleSwampSlimeDetection();
-            swampSlimeDetectionButton.setMessage(swampSlimeDetectionMessage());
+        slimeDetectionButton = addRenderableWidget(Button.builder(slimeDetectionMessage(), button -> {
+            LightOverlayState.toggleSlimeDetection();
+            slimeDetectionButton.setMessage(slimeDetectionMessage());
         }).bounds(left, 282, 108, 20)
-                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.swamp_slime_detection.tooltip")))
+                .tooltip(Tooltip.create(Component.translatable("screen.autotorch.slime_detection.tooltip")))
                 .build());
         drownedDetectionButton = addRenderableWidget(Button.builder(drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
@@ -851,10 +851,10 @@ public final class LightingScreen extends Screen {
                 : "screen.autotorch.light_overlay_render_through_off");
     }
 
-    private Component swampSlimeDetectionMessage() {
-        return Component.translatable(LightOverlayState.isSwampSlimeDetectionEnabled()
-                ? "screen.autotorch.swamp_slime_detection_on"
-                : "screen.autotorch.swamp_slime_detection_off");
+    private Component slimeDetectionMessage() {
+        return Component.translatable(LightOverlayState.isSlimeDetectionEnabled()
+                ? "screen.autotorch.slime_detection_on"
+                : "screen.autotorch.slime_detection_off");
     }
 
     private Component drownedDetectionMessage() {
