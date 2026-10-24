@@ -137,6 +137,7 @@
   "screen.autotorch.slime_detection_off": "Slimes: off",
   "screen.autotorch.slime_detection.tooltip": "Spawn conditions: surface slimes in swamp or mangrove swamp at Y 51-69 with block light 7 or lower; underground slimes below Y 40 in slime chunks. Shown in purple.",
   "screen.autotorch.slime_detection.tooltip.1.18.2": "Spawn conditions: surface slimes in swamp at Y 51-69 with block light 7 or lower; underground slimes below Y 40 in slime chunks. Shown in purple.",
+  "screen.autotorch.slime_detection.tooltip.1.13.2": "Spawn conditions: underground slimes below Y 40 in slime chunks; surface slimes follow normal mob spawning and are not marked separately. Shown in purple.",
   "screen.autotorch.slime_detection_unavailable.1.17.1-": "Slimes: sync default spawn display",
   "screen.autotorch.drowned_detection_on": "Drowned: on",
   "screen.autotorch.drowned_detection_off": "Drowned: off",

@@ -137,6 +137,7 @@
   "screen.autotorch.slime_detection_off": "史莱姆：关",
   "screen.autotorch.slime_detection.tooltip": "生成条件：地表史莱姆为沼泽或红树林沼泽、Y=51～69 且方块光<= 7；地下史莱姆为 Y<40 且位于史莱姆区块。显示为紫色。",
   "screen.autotorch.slime_detection.tooltip.1.18.2": "生成条件：地表史莱姆为沼泽、Y=51～69 且方块光<= 7；地下史莱姆为 Y<40 且位于史莱姆区块。显示为紫色。",
+  "screen.autotorch.slime_detection.tooltip.1.13.2": "生成条件：地下史莱姆为 Y<40 且位于史莱姆区块；地表史莱姆与普通刷怪判定一致，不单独标记。显示为紫色。",
   "screen.autotorch.slime_detection_unavailable.1.17.1-": "史莱姆：同步默认刷怪显示",
   "screen.autotorch.drowned_detection_on": "溺尸：开",
   "screen.autotorch.drowned_detection_off": "溺尸：关",
