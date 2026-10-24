@@ -24,6 +24,7 @@ public final class LightOverlayRenderer {
     private static final int ALWAYS_RISK_COLOR = 0xE0FF3030;
     private static final int NIGHT_RISK_COLOR = 0xE0FFD23C;
     private static final int SAFE_COLOR = 0xE050E060;
+    private static final int SLIME_RISK_COLOR = 0xE0E050E0;
     private static final int DROWNED_RISK_COLOR = 0xE040D8E8;
     private static final float CROSS_LINE_WIDTH = 2.5F;
     private static final double SURFACE_OFFSET = 0.0125D;
@@ -279,6 +280,9 @@ public final class LightOverlayRenderer {
     }
 
     private static int markerColor(LightOverlayState.Marker marker) {
+        if (marker.riskType() == LightOverlayState.RiskType.SLIME) {
+            return SLIME_RISK_COLOR;
+        }
         if (marker.riskType() == LightOverlayState.RiskType.DROWNED) {
             return DROWNED_RISK_COLOR;
         }
