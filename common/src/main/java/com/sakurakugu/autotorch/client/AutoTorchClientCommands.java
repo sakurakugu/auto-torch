@@ -241,11 +241,11 @@ public final class AutoTorchClientCommands {
                         .then(AutoTorchClientCommands.<S>literal("boxed_numbers").executes(context -> setOverlayMode(
                                 LightOverlayState.DisplayMode.BOXED_NUMBERS))))
                 .then(AutoTorchClientCommands.<S>literal("detect")
-                        .then(AutoTorchClientCommands.<S>literal("swamp_slime")
-                                .then(booleanLiteral("on", LightOverlayState::setSwampSlimeDetectionEnabled,
-                                        "command.autotorch.overlay_swamp_slime", true))
-                                .then(booleanLiteral("off", LightOverlayState::setSwampSlimeDetectionEnabled,
-                                        "command.autotorch.overlay_swamp_slime", false)))
+                        .then(AutoTorchClientCommands.<S>literal("slime")
+                                .then(booleanLiteral("on", LightOverlayState::setSlimeDetectionEnabled,
+                                        "command.autotorch.overlay_slime", true))
+                                .then(booleanLiteral("off", LightOverlayState::setSlimeDetectionEnabled,
+                                        "command.autotorch.overlay_slime", false)))
                         .then(AutoTorchClientCommands.<S>literal("drowned")
                                 .then(booleanLiteral("on", LightOverlayState::setDrownedDetectionEnabled,
                                         "command.autotorch.overlay_drowned", true))
@@ -655,7 +655,7 @@ public final class AutoTorchClientCommands {
         helpLine(option("/autotorch overlay number_rotation on"), separator("|"), option("off"));
         helpLine(option("/autotorch overlay mode crosses"), separator("|"), option("numbers"), separator("|"),
                 option("boxed_numbers"));
-        helpLine(option("/autotorch overlay detect swamp_slime"), separator("|"),
+        helpLine(option("/autotorch overlay detect slime"), separator("|"),
                 option("drowned on"), separator("|"), option("off"));
         helpLine(option("/autotorch selection pos1"), separator("|"), option("pos2 [here|target|<pos>]"));
         helpLine(option("/autotorch selection box <pos1> <pos2>"));
@@ -771,10 +771,10 @@ public final class AutoTorchClientCommands {
     }
 
     private static Component specialDetection() {
-        boolean swampSlime = LightOverlayState.isSwampSlimeDetectionEnabled();
+        boolean slime = LightOverlayState.isSlimeDetectionEnabled();
         boolean drowned = LightOverlayState.isDrownedDetectionEnabled();
-        String key = swampSlime
-                ? (drowned ? "command.autotorch.special.both" : "command.autotorch.special.swamp_slime")
+        String key = slime
+                ? (drowned ? "command.autotorch.special.both" : "command.autotorch.special.slime")
                 : (drowned ? "command.autotorch.special.drowned" : "command.autotorch.special.none");
         return new net.minecraft.network.chat.TranslatableComponent(key);
     }
