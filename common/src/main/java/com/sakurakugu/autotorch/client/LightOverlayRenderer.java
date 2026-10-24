@@ -227,7 +227,7 @@ public final class LightOverlayRenderer {
 
     private static int markerColor(ClientConfigSnapshot config, LightOverlayState.Marker marker) {
         return switch (marker.riskType()) {
-            case SWAMP_SLIME -> ((config.lightOverlayMarkerAlpha << 24) | config.lightOverlaySwampSlimeColorRgb);
+            case SLIME -> ((config.lightOverlayMarkerAlpha << 24) | config.lightOverlaySlimeColorRgb);
             case DROWNED -> ((config.lightOverlayMarkerAlpha << 24) | config.lightOverlayDrownedColorRgb);
             case NORMAL -> marker.blockLight() > 0
                     ? ((config.lightOverlayMarkerAlpha << 24) | config.lightOverlaySafeColorRgb)
