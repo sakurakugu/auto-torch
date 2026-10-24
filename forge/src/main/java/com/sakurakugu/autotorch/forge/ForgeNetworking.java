@@ -12,7 +12,9 @@ import com.sakurakugu.autotorch.network.OpenServerConfigScreenPayload;
 import com.sakurakugu.autotorch.network.ServerConfigResultPayload;
 import com.sakurakugu.autotorch.network.TaskStatusPayload;
 import com.sakurakugu.autotorch.network.TaskStatusRequestPayload;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
 import com.sakurakugu.autotorch.client.AutoTorchClient;
+import com.sakurakugu.autotorch.client.LightOverlayState;
 import com.sakurakugu.autotorch.client.ServerConfigScreen;
 import com.sakurakugu.autotorch.client.AutoTorchClientCommands;
 import com.sakurakugu.autotorch.client.ServerConfigState;
@@ -29,7 +31,7 @@ import net.minecraftforge.fml.network.simple.SimpleChannel;
 import java.util.Optional;
 
 final class ForgeNetworking {
-    private static final String PROTOCOL_VERSION = "8";
+    private static final String PROTOCOL_VERSION = "9";
     private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(AutoTorch.MOD_ID + ":main"),
             () -> PROTOCOL_VERSION,
@@ -115,6 +117,12 @@ final class ForgeNetworking {
                 ServerConfigResultPayload::write, ServerConfigResultPayload::decode, (payload, supplier) -> {
                     var context = supplier.get();
                     context.enqueueWork(() -> ServerConfigScreen.receiveResult(payload));
+                    context.setPacketHandled(true);
+                }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(10, WorldSeedPayload.class,
+                WorldSeedPayload::write, WorldSeedPayload::decode, (payload, supplier) -> {
+                    var context = supplier.get();
+                    context.enqueueWork(() -> LightOverlayState.setWorldSeed(payload.seed()));
                     context.setPacketHandled(true);
                 }, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
