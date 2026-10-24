@@ -44,8 +44,8 @@ public final class ConfigDefinitions {
             "光照显示向上范围\n相对相机向上扫描的格数，与向下范围之和不超过 64");
     public static final IntValue LIGHT_OVERLAY_MODE = integer("lightOverlay.mode", 0, 0, 2,
             "光照显示样式\n0=X 标记，1=数字，2=方框数字");
-    public static final BooleanValue LIGHT_OVERLAY_DETECT_SWAMP_SLIMES = bool("lightOverlay.detectSwampSlimes", false,
-            "沼泽史莱姆检测\n标记符合原版条件的沼泽史莱姆刷新位置，显示为紫色");
+    public static final BooleanValue LIGHT_OVERLAY_DETECT_SLIMES = bool("lightOverlay.detectSlimes", false,
+            "史莱姆检测\n标记符合原版条件的史莱姆刷新位置，显示为紫色");
     public static final BooleanValue LIGHT_OVERLAY_DETECT_DROWNED = bool("lightOverlay.detectDrowned", false,
             "溺尸检测\n标记符合原版条件的溺尸刷新位置，需要逐帧检测水柱，显示为青色");
     public static final IntValue LIGHT_OVERLAY_SCAN_BUDGET = stepped("lightOverlay.scanBudgetPerTick", 12_000, 2_000, 48_000, 2_000,
@@ -61,7 +61,7 @@ public final class ConfigDefinitions {
     public static final StringValue LIGHT_OVERLAY_ALWAYS_RISK_COLOR = color("lightOverlay.alwaysRiskColor", "FF3030", "持续危险标记颜色");
     public static final StringValue LIGHT_OVERLAY_NIGHT_RISK_COLOR = color("lightOverlay.nightRiskColor", "FFD23C", "夜间危险标记颜色");
     public static final StringValue LIGHT_OVERLAY_SAFE_COLOR = color("lightOverlay.safeColor", "50E060", "安全标记颜色");
-    public static final StringValue LIGHT_OVERLAY_SWAMP_SLIME_COLOR = color("lightOverlay.swampSlimeColor", "E050E0", "沼泽史莱姆标记颜色");
+    public static final StringValue LIGHT_OVERLAY_SLIME_COLOR = color("lightOverlay.slimeColor", "E050E0", "史莱姆标记颜色");
     public static final StringValue LIGHT_OVERLAY_DROWNED_COLOR = color("lightOverlay.drownedColor", "40D8E8", "溺尸标记颜色");
     public static final IntValue LIGHT_OVERLAY_MARKER_ALPHA = integer("lightOverlay.markerAlpha", 224, 0, 255,
             "光照标记透明度\n范围为 0 至 255");
@@ -149,11 +149,11 @@ public final class ConfigDefinitions {
             LIGHT_OVERLAY_NUMBER_ROTATION,
             LIGHT_OVERLAY_HORIZONTAL_RANGE, LIGHT_OVERLAY_DOWN_RANGE, LIGHT_OVERLAY_UP_RANGE,
             LIGHT_OVERLAY_MODE,
-            LIGHT_OVERLAY_DETECT_SWAMP_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED,
+            LIGHT_OVERLAY_DETECT_SLIMES, LIGHT_OVERLAY_DETECT_DROWNED,
             LIGHT_OVERLAY_SCAN_BUDGET, LIGHT_OVERLAY_REFRESH_INTERVAL, LIGHT_OVERLAY_DROWNED_BUDGET,
             LIGHT_OVERLAY_NEAR_LINE_WIDTH, LIGHT_OVERLAY_FAR_LINE_WIDTH,
             LIGHT_OVERLAY_ALWAYS_RISK_COLOR, LIGHT_OVERLAY_NIGHT_RISK_COLOR,
-            LIGHT_OVERLAY_SAFE_COLOR, LIGHT_OVERLAY_SWAMP_SLIME_COLOR, LIGHT_OVERLAY_DROWNED_COLOR,
+            LIGHT_OVERLAY_SAFE_COLOR, LIGHT_OVERLAY_SLIME_COLOR, LIGHT_OVERLAY_DROWNED_COLOR,
             LIGHT_OVERLAY_MARKER_ALPHA,
             SELECTION_OVERLAY_ENABLED, SELECTION_OVERLAY_LINES_ONLY,
             SELECTION_OVERLAY_SMOOTH_SPHERES, SELECTION_OVERLAY_NEAR_LINE_WIDTH,
