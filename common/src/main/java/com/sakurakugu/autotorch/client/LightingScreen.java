@@ -219,13 +219,13 @@ public final class LightingScreen extends Screen {
             LightOverlayState.toggleSlimeDetection();
             slimeDetectionButton.setMessage(slimeDetectionMessage());
         }).bounds(left, 282, 108, 20)
-                .tooltip(new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.slime_detection.tooltip"))
+                .tooltip(new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.slime_detection.tooltip.1.18.2"))
                 .build());
         drownedDetectionButton = addRenderableWidget(ButtonBuilder.builder(drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(drownedDetectionMessage());
         }).bounds(left + 112, 282, 97, 20)
-                .tooltip(new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.drowned_detection.tooltip"))
+                .tooltip(new net.minecraft.network.chat.TranslatableComponent("screen.autotorch.drowned_detection.tooltip.1.17.1-1.13.2"))
                 .build());
 
         nearbyAutoTorchButton = addRenderableWidget(ButtonBuilder.builder(nearbyAutoTorchMessage(), button -> {
