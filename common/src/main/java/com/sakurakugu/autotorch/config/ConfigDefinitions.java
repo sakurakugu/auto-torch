@@ -93,7 +93,7 @@ public final class ConfigDefinitions {
     public static final BooleanValue SELECTION_OVERLAY_SYMBOL_BUTTONS = bool("selectionOverlay.symbolButtons", false,
             "用符号显示按钮\n区间照明界面的转换与互换按钮，关闭时显示文字");
     public static final IntValue TASK_DEFAULT_MAX_TORCHES = stepped("lightingTaskDefaults.maxTorches", 0, 0, HARD_MAX_TORCHES, 128,
-            "默认方块数量上限\n新建任务时的默认数量，0 表示不限，但仍受服务端 limits.maxTorchesPerTask 限制");
+            "默认方块数量上限\n新建任务时的默认数量，受服务端 limits.maxTorchesPerTask 限制，0 表示不限");
     public static final IntValue TASK_DEFAULT_MIN_SPACING = integer("lightingTaskDefaults.minSpacing", 8, 1, 12,
             "默认方块间距\n方块坐标之间的三维直线距离，设为 8 时同一直线上两个方块之间隔 7 格");
     public static final IntValue TASK_DEFAULT_LIGHT_THRESHOLD = integer("lightingTaskDefaults.lightThreshold", 0, 0, 15,
@@ -116,9 +116,9 @@ public final class ConfigDefinitions {
     public static final IntValue LIMIT_MAX_EXCLUSIONS = integer("limits.maxExclusions", StartLightingPayload.MAX_EXCLUSIONS, 0, StartLightingPayload.MAX_EXCLUSIONS,
             "排除区数量上限\n单个任务允许提交的排除区数量，0 表示不允许提交排除区");
     public static final IntValue LIMIT_MAX_TORCHES_PER_TASK = integer("limits.maxTorchesPerTask", HARD_MAX_TORCHES, 1, HARD_MAX_TORCHES,
-            "单任务方块数量上限\n服务端强制限制的上限，即使客户端把方块上限设为 0（不限），实际放置也不会超过该值");
+            "单任务方块数量上限\n服务端强制限制的上限；客户端设为 0（不限）时不套用该值");
     public static final BooleanValue LIMIT_ALLOW_UNLIMITED_TORCHES = bool("limits.allowUnlimitedTorches", true,
-            "允许不限方块数量\n是否允许客户端把方块上限设为 0（不限），关闭后客户端必须给出具体上限，实际仍受 limits.maxTorchesPerTask 限制");
+            "允许不限方块数量\n是否允许客户端把方块上限设为 0（不限），关闭后客户端必须给出不超过 limits.maxTorchesPerTask 的具体上限");
     public static final BooleanValue LIGHTING_TASK_ENABLED = bool("lightingTask.enabled", true,
             "启用区间任务\n服务端是否允许运行区间自动照明任务，关闭后所有玩家都无法提交或继续区间任务");
     public static final IntValue LIMIT_MIN_SPACING = integer("limits.minSpacing", 1, 1, 12,
