@@ -26,8 +26,9 @@ public final class LightOverlayState {
     private static final int CACHE_MARGIN = 16;
 
     private static boolean enabled = ClientConfig.isLightOverlayEnabled();
-    private static boolean swampSlimeDetectionEnabled = false;
+    private static boolean slimeDetectionEnabled = ClientConfig.detectsSlimes();
     private static boolean drownedDetectionEnabled = false;
+    private static volatile Long worldSeed;
     private static DisplayMode displayMode = modeFromConfig();
     private static int horizontalRange = ClientConfig.lightOverlayRange();
     private static int downRange = ClientConfig.lightOverlayDownRange();
@@ -50,7 +51,7 @@ public final class LightOverlayState {
     /** 配置整体替换后同步运行时缓存。 */
     public static void reloadConfig() {
         enabled = ClientConfig.isLightOverlayEnabled();
-        swampSlimeDetectionEnabled = false;
+        slimeDetectionEnabled = ClientConfig.detectsSlimes();
         drownedDetectionEnabled = false;
         displayMode = modeFromConfig();
         horizontalRange = ClientConfig.lightOverlayRange();
@@ -97,16 +98,36 @@ public final class LightOverlayState {
         ClientConfig.setLightOverlayMode(value.ordinal());
     }
 
-    public static boolean isSwampSlimeDetectionEnabled() {
-        return false;
+    public static boolean isSlimeDetectionEnabled() {
+        return slimeDetectionEnabled;
     }
 
-    public static boolean toggleSwampSlimeDetection() {
-        return false;
+    public static boolean toggleSlimeDetection() {
+        setSlimeDetectionEnabled(!slimeDetectionEnabled);
+        return slimeDetectionEnabled;
     }
 
-    public static void setSwampSlimeDetectionEnabled(boolean value) {
-        // 1.17.1 及以下版本无法可靠判断沼泽史莱姆的完整生成条件。
+    public static void setSlimeDetectionEnabled(boolean value) {
+        if (slimeDetectionEnabled == value) {
+            return;
+        }
+        slimeDetectionEnabled = value;
+        ClientConfig.setDetectsSlimes(value);
+        clearScan();
+    }
+
+    /** 设置当前世界种子，用于客户端复现史莱姆区块算法。 */
+    public static void setWorldSeed(long seed) {
+        worldSeed = seed;
+        clearScan();
+    }
+
+    /** 清除世界种子，避免退出世界后沿用旧世界的史莱姆区块。 */
+    public static void setWorldSeedUnavailable() {
+        if (worldSeed != null) {
+            worldSeed = null;
+            clearScan();
+        }
     }
 
     public static boolean isDrownedDetectionEnabled() {
@@ -190,6 +211,10 @@ public final class LightOverlayState {
             clearScan();
         }
         if (!enabled || currentLevel == null) {
+            // 退出世界时清除世界种子，避免下一次连接在同步前沿用旧世界的数据。
+            if (currentLevel == null) {
+                setWorldSeedUnavailable();
+            }
             return;
         }
 
@@ -445,6 +470,10 @@ public final class LightOverlayState {
             return null;
         }
         int blockLight = level.getLightFor(EnumSkyBlock.BLOCK, feet);
+        // 老版本只判定地下史莱姆区块：Y<40 且位于史莱姆区块。
+        if (slimeDetectionEnabled && feet.getY() < 40 && isSlimeChunk(feet)) {
+            return marker(level, feet, RiskType.SLIME);
+        }
         return new Marker(
                 feet.getImmutable(),
                 blockLight,
@@ -453,6 +482,20 @@ public final class LightOverlayState {
         );
     }
 
+
+    /** 与 vanilla 一致的史莱姆区块判定；老版本没有可靠的 WorldgenRandom 映射，改用手写种子公式。 */
+    private static boolean isSlimeChunk(BlockPos pos) {
+        Long seed = worldSeed;
+        if (seed == null) {
+            return false;
+        }
+        int chunkX = Math.floorDiv(pos.getX(), 16);
+        int chunkZ = Math.floorDiv(pos.getZ(), 16);
+        // 与 vanilla WorldgenRandom.seedSlimeChunk 完全一致的种子公式（int 乘法按原版溢出规则）。
+        long value = seed + (long) (chunkX * chunkX * 4987142) + (long) (chunkX * 5947611)
+                + (long) (chunkZ * chunkZ) * 4392871L + (long) (chunkZ * 389711) ^ 987234911L;
+        return new java.util.Random(value).nextInt(10) == 0;
+    }
 
     private static boolean isDrownedRisk(
             World level, BlockPos feet, BlockPos head,
@@ -487,6 +530,7 @@ public final class LightOverlayState {
 
     public enum RiskType {
         NORMAL,
+        SLIME,
         DROWNED
     }
 

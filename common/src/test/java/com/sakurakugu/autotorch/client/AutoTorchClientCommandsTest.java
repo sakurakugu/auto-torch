@@ -95,7 +95,7 @@ class AutoTorchClientCommandsTest {
         child(mode, "crosses");
         child(mode, "numbers");
         CommandNode<Object> detect = child(overlay, "detect");
-        assertToggle(child(detect, "swamp_slime"));
+        assertToggle(child(detect, "slime"));
         assertToggle(child(detect, "drowned"));
 
         CommandNode<Object> selection = child(root, "selection");
