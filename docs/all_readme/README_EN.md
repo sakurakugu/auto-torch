@@ -243,7 +243,7 @@ maxBoxAxisLength = 321
 maxSphereRadius = 160
 # Maximum number of exclusion areas allowed in a single task. Range: 0-32.
 maxExclusions = 32
-# Maximum number of torches that can be set for a single task. Range: 1-4096.
+# Maximum number of torches that can be set for a single task. Range: 1-4096; 0 means unlimited.
 maxTorchesPerTask = 4096
 # Whether clients may set the maximum torch count to 0 (unlimited).
 allowUnlimitedTorches = true

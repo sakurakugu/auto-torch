@@ -243,7 +243,7 @@ maxBoxAxisLength = 321
 maxSphereRadius = 160
 # 单个任务允许提交的最大排除区数量，范围 0~32。
 maxExclusions = 32
-# 单个任务允许设置的最大火把数，范围 1~4096。
+# 单个任务允许设置的最大火把数，范围 1~4096；0 表示不限。
 maxTorchesPerTask = 4096
 # 是否允许客户端将最大火把数设为 0（无限）。
 allowUnlimitedTorches = true
