@@ -48,7 +48,7 @@ public final class LightingScreen extends Screen {
     private Button includeSkyLightButton;
     private Button lightOverlayButton;
     private Button lightOverlayRenderThroughButton;
-    private Button swampSlimeDetectionButton;
+    private Button slimeDetectionButton;
     private Button drownedDetectionButton;
     private Button nearbyAutoTorchButton;
     private Button nearbyAutoTorchSkyLightButton;
@@ -219,14 +219,12 @@ public final class LightingScreen extends Screen {
                     LightOverlayState.setDownRange(-lower);
                     LightOverlayState.setUpRange(upper);
                 }));
-        swampSlimeDetectionButton = addButton(ButtonBuilder.builder(swampSlimeDetectionMessage(), button -> {
-            LightOverlayState.toggleSwampSlimeDetection();
-            swampSlimeDetectionButton.setMessage(LegacyText.string(swampSlimeDetectionMessage()));
+        slimeDetectionButton = addButton(ButtonBuilder.builder(slimeDetectionMessage(), button -> {
+            LightOverlayState.toggleSlimeDetection();
+            slimeDetectionButton.setMessage(LegacyText.string(slimeDetectionMessage()));
         }).bounds(left, 282, 108, 20)
-                .tooltip(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.swamp_slime_detection_unavailable.1.17.1-"))
+                .tooltip(new net.minecraft.util.text.TextComponentTranslation("screen.autotorch.slime_detection.tooltip.1.13.2"))
                 .build());
-        // 1.9.4 无法可靠判断沼泽史莱姆的完整生成条件，保留控件位置但禁止修改无效配置。
-        swampSlimeDetectionButton.active = false;
         drownedDetectionButton = addButton(ButtonBuilder.builder(drownedDetectionMessage(), button -> {
             LightOverlayState.toggleDrownedDetection();
             drownedDetectionButton.setMessage(LegacyText.string(drownedDetectionMessage()));
@@ -866,10 +864,10 @@ public final class LightingScreen extends Screen {
                 : "screen.autotorch.light_overlay_render_through_off");
     }
 
-    private ITextComponent swampSlimeDetectionMessage() {
-        return new net.minecraft.util.text.TextComponentTranslation(LightOverlayState.isSwampSlimeDetectionEnabled()
-                ? "screen.autotorch.swamp_slime_detection_on"
-                : "screen.autotorch.swamp_slime_detection_off");
+    private ITextComponent slimeDetectionMessage() {
+        return new net.minecraft.util.text.TextComponentTranslation(LightOverlayState.isSlimeDetectionEnabled()
+                ? "screen.autotorch.slime_detection_on"
+                : "screen.autotorch.slime_detection_off");
     }
 
     /** 1.9.4 没有溺尸，按钮固定显示不可用提示。 */
