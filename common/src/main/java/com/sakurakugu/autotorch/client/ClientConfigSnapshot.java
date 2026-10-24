@@ -25,7 +25,7 @@ public final class ClientConfigSnapshot {
     public final int lightOverlayDownRange;
     public final int lightOverlayUpRange;
     public final int lightOverlayMode;
-    public final boolean lightOverlayDetectSwampSlimes;
+    public final boolean lightOverlayDetectSlimes;
     public final boolean lightOverlayDetectDrowned;
     public final int lightOverlayScanBudget;
     public final int lightOverlayRefreshInterval;
@@ -35,7 +35,7 @@ public final class ClientConfigSnapshot {
     public final String lightOverlayAlwaysRiskColor;
     public final String lightOverlayNightRiskColor;
     public final String lightOverlaySafeColor;
-    public final String lightOverlaySwampSlimeColor;
+    public final String lightOverlaySlimeColor;
     public final String lightOverlayDrownedColor;
     public final int lightOverlayMarkerAlpha;
     public final boolean selectionOverlayEnabled;
@@ -63,7 +63,7 @@ public final class ClientConfigSnapshot {
     public final int lightOverlayAlwaysRiskColorRgb;
     public final int lightOverlayNightRiskColorRgb;
     public final int lightOverlaySafeColorRgb;
-    public final int lightOverlaySwampSlimeColorRgb;
+    public final int lightOverlaySlimeColorRgb;
     public final int lightOverlayDrownedColorRgb;
     public final int selectionOverlayDraftColorRgb;
     public final int selectionOverlayMainColorRgb;
@@ -90,7 +90,7 @@ public final class ClientConfigSnapshot {
         lightOverlayDownRange = integer(LIGHT_OVERLAY_DOWN_RANGE);
         lightOverlayUpRange = integer(LIGHT_OVERLAY_UP_RANGE);
         lightOverlayMode = integer(LIGHT_OVERLAY_MODE);
-        lightOverlayDetectSwampSlimes = bool(LIGHT_OVERLAY_DETECT_SWAMP_SLIMES);
+        lightOverlayDetectSlimes = bool(LIGHT_OVERLAY_DETECT_SLIMES);
         lightOverlayDetectDrowned = bool(LIGHT_OVERLAY_DETECT_DROWNED);
         lightOverlayScanBudget = integer(LIGHT_OVERLAY_SCAN_BUDGET);
         lightOverlayRefreshInterval = integer(LIGHT_OVERLAY_REFRESH_INTERVAL);
@@ -100,7 +100,7 @@ public final class ClientConfigSnapshot {
         lightOverlayAlwaysRiskColor = string(LIGHT_OVERLAY_ALWAYS_RISK_COLOR);
         lightOverlayNightRiskColor = string(LIGHT_OVERLAY_NIGHT_RISK_COLOR);
         lightOverlaySafeColor = string(LIGHT_OVERLAY_SAFE_COLOR);
-        lightOverlaySwampSlimeColor = string(LIGHT_OVERLAY_SWAMP_SLIME_COLOR);
+        lightOverlaySlimeColor = string(LIGHT_OVERLAY_SLIME_COLOR);
         lightOverlayDrownedColor = string(LIGHT_OVERLAY_DROWNED_COLOR);
         lightOverlayMarkerAlpha = integer(LIGHT_OVERLAY_MARKER_ALPHA);
         selectionOverlayEnabled = bool(SELECTION_OVERLAY_ENABLED);
@@ -128,7 +128,7 @@ public final class ClientConfigSnapshot {
         lightOverlayAlwaysRiskColorRgb = Integer.parseInt(lightOverlayAlwaysRiskColor, 16);
         lightOverlayNightRiskColorRgb = Integer.parseInt(lightOverlayNightRiskColor, 16);
         lightOverlaySafeColorRgb = Integer.parseInt(lightOverlaySafeColor, 16);
-        lightOverlaySwampSlimeColorRgb = Integer.parseInt(lightOverlaySwampSlimeColor, 16);
+        lightOverlaySlimeColorRgb = Integer.parseInt(lightOverlaySlimeColor, 16);
         lightOverlayDrownedColorRgb = Integer.parseInt(lightOverlayDrownedColor, 16);
         selectionOverlayDraftColorRgb = Integer.parseInt(selectionOverlayDraftColor, 16);
         selectionOverlayMainColorRgb = Integer.parseInt(selectionOverlayMainColor, 16);
