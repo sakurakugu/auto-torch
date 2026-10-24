@@ -1,6 +1,7 @@
 package com.sakurakugu.autotorch.forge;
 
 import com.sakurakugu.autotorch.AutoTorch;
+import com.sakurakugu.autotorch.network.WorldSeedPayload;
 import com.sakurakugu.autotorch.server.LightingTaskManager;
 import com.sakurakugu.autotorch.server.SelectionToolEvents;
 import com.sakurakugu.autotorch.server.ServerConfig;
@@ -74,7 +75,11 @@ public final class AutoTorchForge {
 
     @SubscribeEvent
     public void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        // 登录后立刻下发权威服务端配置，客户端据此刷新限制与管理员界面。
-        if (event.player instanceof EntityPlayerMP) ServerConfigNetwork.sendConfig((EntityPlayerMP) event.player);
+        // 登录后立刻下发权威服务端配置，并同步世界种子供客户端判定史莱姆区块。
+        if (event.player instanceof EntityPlayerMP) {
+            ServerConfigNetwork.sendConfig((EntityPlayerMP) event.player);
+            ForgeNetworking.sendToPlayer((EntityPlayerMP) event.player,
+                    new WorldSeedPayload(event.player.world.getSeed()));
+        }
     }
 }

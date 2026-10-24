@@ -166,14 +166,12 @@ public final class ClientConfigScreen extends Screen {
 
     /**
      * 把配置列表整理成界面行；光照显示的向下、向上范围在主界面共用双端点滑动条，
-     * 这里也合并为一行，其余配置各占一行。本版本未实现沼泽史莱姆与溺尸遮挡可见性检测，
-     * 因此隐藏对应的无效设置项（配置定义保留，命令仍可读写）。
+     * 这里也合并为一行，其余配置各占一行。溺尸遮挡检测预算在 1.13.2 及更早版本不使用，
+     * 因此隐藏该项（配置定义保留，命令仍可读写）。
      */
     private static List<RowSpec> buildRowSpecs(List<ConfigDefinitions.Value> definitions) {
         List<ConfigDefinitions.Value> visible = definitions.stream()
-                .filter(definition -> definition != ConfigDefinitions.LIGHT_OVERLAY_DROWNED_BUDGET
-                        && definition != ConfigDefinitions.LIGHT_OVERLAY_DETECT_SWAMP_SLIMES
-                        && definition != ConfigDefinitions.LIGHT_OVERLAY_SWAMP_SLIME_COLOR)
+                .filter(definition -> definition != ConfigDefinitions.LIGHT_OVERLAY_DROWNED_BUDGET)
                 .collect(java.util.stream.Collectors.toList());
         List<RowSpec> specs = new ArrayList<>();
         for (int index = 0; index < visible.size(); index++) {
